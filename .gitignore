@@ -1,0 +1,8 @@
+# executables
+*/tipsv
+*/mpi-tipsv
+*/tish
+*/mpi-tish
+
+# object files
+*.o
