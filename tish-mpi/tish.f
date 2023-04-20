@@ -13,7 +13,8 @@ c ----------------------------<<constants>>----------------------------
 	real*8 pi,lmaxdivf,shallowdepth
 	integer maxnlay
 	integer maxnzone,maxnr,maxlmax,ilog
-	parameter ( pi=3.1415926535897932d0 )
+        integer spcform
+        parameter ( pi=3.1415926535897932d0 )
 	parameter ( maxnlay = 88300 )
 	parameter ( maxnzone = 15 )
 	parameter ( maxnr = 600 )
@@ -21,6 +22,7 @@ c ----------------------------<<constants>>----------------------------
 	parameter ( ilog = 0 )
 	parameter ( lmaxdivf = 2.d4)
 	parameter ( shallowdepth = 100.d0 )
+        parameter ( spcform = 1 )  ! 0:binary, 1:ascii
 c ----------------------------<<variables>>----------------------------
 c variable for the trial function
 	integer nnlayer,nlayer(maxnzone)
@@ -121,16 +123,34 @@ c computing and checking the parameters
 	if ( (r0.lt.rmin) .or. (r0.gt.rmax) )
      &       pause 'Location of the source is improper.'
 c ************************** Files Handling **************************
-	do ir=1,nr
-	   open( unit=11,file=output(ir),status='unknown')
-c	   write(11,*) 'VERSION172'
-	   write(11,*) tlen
-	   write(11,*) np
-	   write(11,*) omegai,lat(ir),lon(ir)
-c         write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
-	   write(11,*) eqlat,eqlon,r0
-	   close(11)
-        enddo
+        if (spcform.eq.0)then
+           do ir=1,nr
+	      open( unit=11,file=output(ir),status='unknown',
+     $         form='unformatted',access='stream',
+     $         convert='big_endian')
+c	      write(11,*) 'VERSION172'
+	      write(11) tlen
+	      write(11) np,1,3
+   	      write(11) omegai,lat(ir),lon(ir)
+c            write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
+	      write(11) eqlat,eqlon,r0
+	      close(11)
+           enddo
+        else if(spcform.eq.1)then
+           do ir=1,nr
+	      open( unit=11,file=output(ir),status='unknown')
+c	      write(11,*) 'VERSION172'
+	      write(11,*) tlen
+	      write(11,*) np,1,3
+   	      write(11,*) omegai,lat(ir),lon(ir)
+c            write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
+	      write(11,*) eqlat,eqlon,r0
+	      close(11)
+           enddo
+        else
+           write(*,*) 'WARNING:(tish.f) set spcform 0 or 1'
+        end if
+
 	if(ilog.eq.1) then
 	   open(unit=11,file='llog.log',status='unknown')
 	   close(11)
@@ -492,19 +512,40 @@ c              close(11)
      $          i .eq. imax) then
 	      write(*,*) "kakikomimasu"
 c              write (*,*) my_rank, outputindex
-	      do ir = 1 ,nr
-		 open( unit=10,file=output(ir),position='append',status='unknown')
-		 do mpii= 1, outputindex
-		    write(10,*) outputi(mpii),
-     $                   dble(outputu(1,ir,mpii)),
-     $                   dimag(outputu(1,ir,mpii))
-		    write(10,*) dble(outputu(2,ir,mpii)),
-     $                   dimag(outputu(2,ir,mpii))
-		    write(10,*) dble(outputu(3,ir,mpii)),
-     $                   dimag(outputu(3,ir,mpii))
-		 enddo
-		 close(10)
-	      enddo
+	      if (spcform .eq. 0) then
+                 do ir = 1 ,nr
+		    open(unit=10,file=output(ir),position='append',
+     &                 status='unknown',form='unformatted',
+     &                 access='stream',convert='big_endian')
+		    do mpii= 1, outputindex
+		       write(10) outputi(mpii),
+     $                      dble(outputu(1,ir,mpii)),
+     $                      dimag(outputu(1,ir,mpii))
+		       write(10) dble(outputu(2,ir,mpii)),
+     $                      dimag(outputu(2,ir,mpii))
+		       write(10) dble(outputu(3,ir,mpii)),
+     $                      dimag(outputu(3,ir,mpii))
+		    enddo
+		    close(10)
+	         enddo
+              else if (spcform .eq. 1) then
+                 do ir = 1 ,nr
+		    open(unit=10,file=output(ir),position='append',
+     &                 status='unknown')
+		    do mpii= 1, outputindex
+		       write(10,*) outputi(mpii),
+     $                      dble(outputu(1,ir,mpii)),
+     $                      dimag(outputu(1,ir,mpii))
+		       write(10,*) dble(outputu(2,ir,mpii)),
+     $                      dimag(outputu(2,ir,mpii))
+		       write(10,*) dble(outputu(3,ir,mpii)),
+     $                      dimag(outputu(3,ir,mpii))
+		    enddo
+		    close(10)
+	         enddo
+              else
+                 write(*,*) 'WARNING:(mpi-tish.f) set spcform 0 or 1'
+              endif
               outputindex = 0
 	   endif
 	   
