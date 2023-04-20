@@ -18,7 +18,7 @@ c ---------------------------<< constants >>---------------------------
       parameter ( maxnslay = 48840 )
       parameter ( maxnllay = 32040 )
       parameter ( maxnzone = 15 )
-      parameter ( maxnr = 500 )
+      parameter ( maxnr = 1500 )
       parameter ( maxlmax = 80000 )
       parameter ( ilog = 0 )
       parameter ( lmaxdivf = 2.d4 )
