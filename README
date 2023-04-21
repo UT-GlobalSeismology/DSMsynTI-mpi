@@ -1,0 +1,11 @@
+**********  Welcome to the DSM world.  **********
+
+This package is a bundle of 3 separate programs: tish, tipsv, and spcsac.
+You must build each program seperately.
+
+$ cd tish-mpi
+$ make
+$ cd ../tipsv-mpi
+$ make
+$ cd ../spcsac
+$ make

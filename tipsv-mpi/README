@@ -1,11 +1,10 @@
--------- Documentation for tipsv version 1.4.2 --------
-
-**********  Welcome to the DSM world.  **********
+-------- Documentation for tipsv-mpi --------
 
 This is a package for P-SV computation 
 for transversely isotropic spherically symmetric media
-in a frequency domain.
-You need fortran compiler to run this program.
+in the frequency domain.
+You need a fortran compiler to run this program.
+
 
 CONFIGURATION:
 	% make
@@ -14,9 +13,14 @@ USAGE:
 	% tipsv < (parameter filename)
 
 
+By default, the output spc files will be written in binary format.
+To write them in ASCII format, set the parameter 'spcform' to 1
+in tipsv.f and mpi-tipsv.f before compiling.
+
+
 As this is a pre-release version, there should be many defects.
-If you have any question, request or complaint, please feel
-free to contact to
+If you have any questions, requests or complaints, please feel
+free to contact
   kenji@eps.s.u-tokyo.ac.jp
 
                                           Kenji Kawai

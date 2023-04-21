@@ -1,11 +1,9 @@
--------- Documentation for tish version 1.7.1 --------
-
-**********  Welcome to the DSM world.  **********
+-------- Documentation for tish-mpi --------
 
 This is a package for SH computation 
 for transversely isotropic spherically symmetric media 
-in a frequency domain.
-You need FORTRAN77 to run this program.
+in the frequency domain.
+You need a fortran compiler to run this program.
 
 
 CONFIGURATION:
@@ -15,10 +13,14 @@ USAGE:
 	% tish < (parameter filename)
 
 
-As this is a pre-release version, there should be many defects.
-If you have any question, request or complaint, please feel
-free to contact to
-  kenji@geo.titech.ac.jp
+By default, the output spc files will be written in binary format.
+To write them in ASCII format, set the parameter 'spcform' to 1
+in tish.f and mpi-tish.f before compiling.
 
+
+As this is a pre-release version, there should be many defects.
+If you have any questions, requests or complaints, please feel
+free to contact
+  kenji@eps.s.u-tokyo.ac.jp
 
                                           Kenji Kawai
