@@ -17,10 +17,3 @@ By default, the output spc files will be written in binary format.
 To write them in ASCII format, set the parameter 'spcform' to 1
 in tish.f and mpi-tish.f before compiling.
 
-
-As this is a pre-release version, there should be many defects.
-If you have any questions, requests or complaints, please feel
-free to contact
-  kenji@eps.s.u-tokyo.ac.jp
-
-                                          Kenji Kawai
