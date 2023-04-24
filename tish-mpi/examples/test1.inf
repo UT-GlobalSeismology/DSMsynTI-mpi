@@ -1,18 +1,18 @@
-c
+c parameter file for tish.f
 c
 c parameter for the periodic range
-  409.6    24   tlen(s),np
+   409.6   32   tlen(s), np
 c relative error (See GT95 eq. 6.2)
-   1.d-2 re
+   1.d-2   re	
 c ampratio using in grid cut-off (1.d-10 is recommended)
-   1.d-10  ratc
+   1.d-10   ratc	
 c ampratio using in l-cutoff
-   1.d-5   ratl
-c wrap-around attenuation for omegai
-   1.d-2 
+   1.d-5    ratl
+c artificial damping for wrap-around (see GO94 5.1)
+   1.d-2   
 c parameter for the trial function
 c imin imax  
-    0   24 
+    0  32     
 c parameter for the structure
    10   nzone
 c  --- Radius(km) ---  --- Density (g/cm^3) ---
@@ -54,10 +54,10 @@ c parameter for the source
    0.0 1.0 0.0 0.0 0.0 0.0   mt (Mrr, Mrt, Mrp, Mtt, Mtp, Mpp) (1.e25 dyne cm)
 c parameter for the station
    2   nr
-     -5.6753 -58.0637 lat,lon (deg)
      -51.6753 -58.0637 lat,lon (deg)
-c parameter for the output file
-examples/test1.1.spc
-examples/test1.2.spc
+     49.6753  58.0637 lat,lon (deg)
+c parameter for the data file
+examples/ABC.20090101.SH.spc
+examples/XYZ.20090101.SH.spc
 c
 end

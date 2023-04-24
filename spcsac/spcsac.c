@@ -208,8 +208,8 @@ int main(int argc, char *argv[]) {
     strcpy(backr, ".Rs");
     strcpy(backt, ".Ts");
     strcpy(backz, ".Zs");
-    strcpy(backp, "psv.spc");
-    strcpy(backs, "sh.spc");
+    strcpy(backp, ".PSV.spc");
+    strcpy(backs, ".SH.spc");
     strcpy(spcfile, "./");
     puts(" ----------------------------------------------------------------------");
     puts("<< spcsac, Release 1.0.0 >>");
@@ -986,7 +986,7 @@ void helpmessage(void) {
     puts("-f FILE:       One specified spc FILE only will be transformed.");
     puts("-p/-s STRINGS: In order to discriminate PSV or SH spc files,");
     puts("               you have to put common strings back in the file names.");
-    puts("               (default: psv.spc and sh.spc");
+    puts("               (default: .PSV.spc and .SH.spc");
     puts("-c RTZ:        You can choose which component to be transformed.");
     puts("               (R/T/Z)               (default: RTZ)");
     puts("-m MODE:       You can choose PSV/SH channel. (SH/PSV, sh/psv) (default: PSVSH)");
@@ -995,7 +995,7 @@ void helpmessage(void) {
     puts("               strings back in the file names. (default: .Rs/.Ts/.Zs)");
     puts("");
     puts("If you do not put any options, you are to transform all set of");
-    puts(" PSV and SH scp files named \"xxxxxxpsv.spc\" and \"xxxxxxsh.spc\"");
+    puts(" PSV and SH spc files named \"xxxxxx.PSV.spc\" and \"xxxxxx.SH.spc\"");
     puts(" in current working directory. LSMOOTH is set as 4.");
     puts("In addition to that, you will obtain complete seismograms");
     puts("named \"xxxxxx.Rs\" something.");
@@ -1004,8 +1004,6 @@ void helpmessage(void) {
     puts("\tspcsac -l 8 -mPSV -ppsv.spc_tmp -cZT -t .transverse.sac");
     puts("");
     puts("You can also check README.pdf in the spcsac directory.");
-    puts("If you find some bugs, please report them to me: fuji@eps.s.u-tokyo.ac.jp");
-    puts("Thank you for you cooperation.");
     exit(1);
 }
 
@@ -1200,13 +1198,13 @@ void modeprompt(int *filordir, int *psvorsh, int *component, char *backr,
         }
 
         if ((*psvorsh == 3) || (*psvorsh == 1)) {
-            puts("How do you distinguish PSV spc file? (default: psv.spc)");
+            puts("How do you distinguish PSV spc file? (default: .PSV.spc)");
             printf("You are to required to put common strings at the back of file names.");
             scanf("%s", tmpchar);
             if (strcmp(tmpchar, "\\")) strcpy(backp, tmpchar);
         }
         if ((*psvorsh == 3) || (*psvorsh == 2)) {
-            puts("How do you distinguish SH spc file? (default: sh.spc)");
+            puts("How do you distinguish SH spc file? (default: .SH.spc)");
             printf("You are to required to put common strings at the back of file names.");
             scanf("%s", tmpchar);
             if (strcmp(tmpchar, "\\")) strcpy(backs, tmpchar);
