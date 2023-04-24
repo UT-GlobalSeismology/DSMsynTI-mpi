@@ -142,8 +142,7 @@ struct sacheader {
     char KINST[9];
 };
 
-void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qperturb,
-               int psvorsh, int component, long lsmooth,
+void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qperturb, int psvorsh, int component, long lsmooth,
                char *backr, char *backt, char *backz, char *backp, char *backs,
                char *psvfile, char *shfile, char *spcfile, int asciioutnput);
 void gcc2ggc(double *theta);
@@ -365,18 +364,10 @@ int main(int argc, char *argv[]) {
 
     if (filexist("file_spc")) system("rm file_spc");
 
-    puts(
-        " ---------------------------------------------------------------------"
-        "-");
-    puts(
-        "  ARIGATO, VIELEN DANK, XIEXIE, MERCI, OBRIGADO, DOBRE, THANK YOU...  "
-        " ");
-    puts(
-        " If you have any questions, requests, or red wines, don't hesitate    "
-        " ");
-    puts(
-        "   to contact me : FUJI Nobuaki (seismobassoon@gmail.com)             "
-        " ");
+    puts(" ----------------------------------------------------------------------");
+    puts("  ARIGATO, VIELEN DANK, XIEXIE, MERCI, OBRIGADO, DOBRE, THANK YOU...   ");
+    puts(" If you have any questions, requests, or red wines, don't hesitate     ");
+    puts("   to contact me : FUJI Nobuaki (seismobassoon@gmail.com)              ");
 
     return 0;
 }
@@ -389,7 +380,7 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
     long np0, np = 1;
     long i;
     double omegai, theta, phi;
-    int nbody, ncomp;
+    long nbody, ncomp;
 
     double *w;
     int *ip;
