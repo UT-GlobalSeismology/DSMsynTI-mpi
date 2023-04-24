@@ -389,6 +389,7 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
     long np0, np = 1;
     long i;
     double omegai, theta, phi;
+    int nbody, ncomp;
 
     double *w;
     int *ip;
@@ -404,8 +405,6 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
     char output[80];
     double stla, stlo, evla, evlo, r0;
     long tmpint;
-    char version[80];
-    int verpsv, versh, ver; /* 0 before 1.7.2; 172 after 1.7.2 */
     struct sacheader hv;
 
     evla = 89.99999;
@@ -413,58 +412,22 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
 
     r0 = 123456789;
 
-    verpsv = 0;
-    versh = 0;
-    ver = verpsv + versh;
-
     if ((psvorsh == 3) || (psvorsh == 1)) {
         file_psv = fopen(psvfile, "r");
-        if (!fscanf(file_psv, "%s\n", version)) error01(psvfile);
-        fclose(file_psv);
-
-        if (!strcmp(version, "VERSION172")) verpsv = 172;
-
-        file_psv = fopen(psvfile, "r");
-        if (verpsv == 172) {
-            if (!fscanf(file_psv, "%s\n%lf\n%ld\n", version, &tlen, &np0)) error01(psvfile);
-            fscanf(file_psv, "%lf %lf %lf\n", &omegai, &stla, &stlo);
-            fscanf(file_psv, "%lf %lf %lf\n", &evla, &evlo, &r0);
-        }
-        if (verpsv == 0) {
-            if (!fscanf(file_psv, "%lf\n%ld\n", &tlen, &np0)) error01(psvfile);
-            fscanf(file_psv, "%lf\n", &omegai);
-            fscanf(file_psv, "%lf %lf\n", &theta, &phi);
-        }
+        if (!fscanf(file_psv, "%lf\n", &tlen)) error01(psvfile);
+        fscanf(file_psv, "%ld %ld %ld\n", &np0, &nbody, &ncomp);
+        fscanf(file_psv, "%lf %lf %lf\n", &omegai, &stla, &stlo);
+        fscanf(file_psv, "%lf %lf %lf\n", &evla, &evlo, &r0);
     }
     if ((psvorsh == 3) || (psvorsh == 2)) {
         file_sh = fopen(shfile, "r");
-        if (!fscanf(file_sh, "%s\n", version)) error01(shfile);
-        fclose(file_sh);
-
-        if (!strcmp(version, "VERSION172")) versh = 172;
-
-        file_sh = fopen(shfile, "r");
-        if (versh == 172) {
-            if (!fscanf(file_sh, "%s\n%lf\n%ld\n", version, &tlen, &np0)) error01(shfile);
-            fscanf(file_sh, "%lf %lf %lf\n", &omegai, &stla, &stlo);
-            fscanf(file_sh, "%lf %lf %lf\n", &evla, &evlo, &r0);
-        }
-        if (versh == 0) {
-            if (!fscanf(file_sh, "%lf\n%ld\n", &tlen, &np0)) error01(shfile);
-            fscanf(file_sh, "%lf\n", &omegai);
-            fscanf(file_sh, "%lf %lf\n", &theta, &phi);
-        }
+        if (!fscanf(file_sh, "%lf\n", &tlen)) error01(shfile);
+        fscanf(file_sh, "%ld %ld %ld\n", &np0, &nbody, &ncomp);
+        fscanf(file_sh, "%lf %lf %lf\n", &omegai, &stla, &stlo);
+        fscanf(file_sh, "%lf %lf %lf\n", &evla, &evlo, &r0);
     }
 
-    ver = verpsv + versh;
-
-    if (ver == 0) {
-        gcc2ggc(&theta);
-        stla = 90.0 - (double)theta;
-        stlo = phi;
-    }
-
-    if (!(ver == 0)) r0 = 6371.0 - r0;
+    r0 = 6371.0 - r0;
 
     if (samplingFreq != 0.0) {
         lsmooth = lsmoothfinder_(tlen, np0, samplingFreq);
