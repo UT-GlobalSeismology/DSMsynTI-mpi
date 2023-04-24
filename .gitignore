@@ -3,6 +3,7 @@
 */mpi-tipsv
 */tish
 */mpi-tish
+*/spcsac
 
 # object files
 *.o

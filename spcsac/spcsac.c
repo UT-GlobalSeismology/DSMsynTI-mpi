@@ -1225,17 +1225,17 @@ void modeprompt(int *filordir, int *psvorsh, int *component, char *backr,
     } else if (!strcmp(tmpchar, "n")) {
         printf("What directory is your target device? (default: ./)");
         scanf("%s", tmpchar);
-        if (tmpchar != "\\") strcpy(spcfile, tmpchar);
+        if (strcmp(tmpchar, "\\")) strcpy(spcfile, tmpchar);
         puts("Do you want to obtain complete (PSV+SH) seismograms or not?");
         printf("(y/n) (default y)");
         strcpy(tmpchar, "y");
         scanf("%s", tmpchar);
-        if (tmpchar == "n") {
+        if (!strcmp(tmpchar, "n")) {
             printf("Which seismogram? (PSV/SH)");
             scanf("%s", tmpchar);
-            if (tmpchar == "PSV") {
+            if (!strcmp(tmpchar, "PSV")) {
                 *psvorsh = 1;
-            } else if (tmpchar == "SH") {
+            } else if (!strcmp(tmpchar, "SH")) {
                 *psvorsh = 2;
             } else {
                 puts("Your answer was not appropriate, but we are going to make complete ones.");

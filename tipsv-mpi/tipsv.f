@@ -23,7 +23,7 @@ c ---------------------------<< constants >>---------------------------
       parameter ( ilog = 0 )
       parameter ( lmaxdivf = 2.d4 )
       parameter ( shallowdepth = 100.d0 )
-      parameter ( spcform = 1 )  !0:binary, 1:ascii
+      parameter ( spcform = 0 )  !0:binary, 1:ascii
 c ---------------------------<< variables >>---------------------------
 c variable for the trial function
       integer nnlayer,nlayer(maxnzone)
