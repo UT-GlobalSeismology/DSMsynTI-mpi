@@ -14,7 +14,7 @@ c
         real*8 a(2,2),b(2,2),c(5),rh
 c parameter check
         if ( rpow .gt. maxrpow )
-     &  pause 'Invalid arguments.(calmatc)'
+     &      stop 'Invalid arguments.(calmatc)'
 c computing of the matrix elements
         snp = 1
         do 140 i=1,nlayer
@@ -31,7 +31,7 @@ c computing of the matrix elements
               a(2,2) = 0.d0
               a(1,2) = 1.d0 / rh
             else
-              pause 'Invalid arguments.(calmatc)'
+              stop 'Invalid arguments.(calmatc)'
             endif
           endif
           if ( w2dn .eq. 0 ) then
@@ -46,7 +46,7 @@ c computing of the matrix elements
               b(2,2) = 0.d0
               b(1,2) = 1.d0 / rh
             else
-              pause 'Invalid arguments.(calmatc)'
+              stop 'Invalid arguments.(calmatc)'
             endif
           endif
           do 130 j=1,2
@@ -200,7 +200,7 @@ c
         real*8 x1,x2,q(2),pq(maxn+1),psint
 c
         if ( n.gt.maxn )
-     &  pause 'Degrees of a polynomial is too large.(pinteg)'
+     &      stop 'Degrees of a polynomial is too large.(pinteg)'
         if ( snp.ge.vnp ) snp = 1
 c
         pint = 0.d0
@@ -245,7 +245,7 @@ c
         real*8 a(maxn),b(maxn),dx,xx
 c
         if ( n.gt.maxn )
-     &  pause 'Degrees of a polynomial is too large.(polint)'
+     &      stop 'Degrees of a polynomial is too large.(polint)'
 c
         a(1) = 1.d0
         b(1) = 1.d0

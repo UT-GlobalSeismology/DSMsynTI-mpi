@@ -121,7 +121,7 @@ c computing and checking the parameters
           phi(ir)= phi(ir)   / 1.8d2 * pi
         enddo
         if ( (r0.lt.rmin) .or. (r0.gt.rmax) )
-     &         pause 'Location of the source is improper.'
+     &      stop 'Location of the source is improper.'
 c ************************** Files Handling **************************
         if (spcform.eq.0)then
           do ir=1,nr
@@ -168,7 +168,7 @@ c computing of the number and the location of grid points
      &        rmin,rmax,nlayer,ra,re )
 c --- checking the parameter
           if ( nnlayer.gt.maxnlay )
-     &        pause 'The number of grid points is too large.'
+     &        stop 'The number of grid points is too large.'
 c computing the stack points
           call calsp( ndc,nlayer,isp,jsp )
 c computing the source location
@@ -224,7 +224,7 @@ c
           ins = 4 * ns - 3
 c
           llog = 0
-          do ii=1,2	! omega-loop
+          do ii=1,2  ! omega-loop
             if(ii.eq.1) then
               if(imin.eq.0) then
                 i=1
@@ -257,7 +257,7 @@ c
             ismall = 0
             maxamp = -1.d0
             ltmp(ii) = maxlmax
-            do l=0,maxlmax	! l-loop
+            do l=0,maxlmax  ! l-loop
               if( ismall.gt.20 ) then
                 if(ltmp(ii).gt.l) ltmp(ii) = l
                 exit
@@ -279,7 +279,7 @@ c --- Initializing the matrix elements
      &             coef(spn),ga )
               call overlap( 2,ga,ga2 )
 c
-              do m=-2,2	! m-loop
+              do m=-2,2  ! m-loop
                 if ( ( m.ne.0 ).and.( iabs(m).le.iabs(l) ) ) then
                   call cvecinit( nn,g )
                   call calg2( l,m,spo,r0,mt,mu0,coef(spn),
@@ -309,11 +309,11 @@ c
 c
                   call calamp(g(nn),l,lsuf,maxamp,ismall,ratl)
                 endif
-              enddo          ! m-loop
-            enddo             ! l-loop
-          enddo		! omega-loop
+              enddo  ! m-loop
+            enddo  ! l-loop
+          enddo  ! omega-loop
           iimax = dble(max(ltmp(1),ltmp(2))) * tlen / lmaxdivf
-        endif			! option for shallow events
+        endif  ! option for shallow events
 c
 c computing of the number and the location of grid points
         call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
@@ -325,7 +325,7 @@ c computing of the number and the location of grid points
      &         rmin,rmax,nlayer,ra,re )
 c --- checking the parameter
         if ( nnlayer.gt.maxnlay )
-     &         pause 'The number of grid points is too large.'
+     &      stop 'The number of grid points is too large.'
 c computing the stack points
         call calsp( ndc,nlayer,isp,jsp )
 c computing the source location
@@ -383,7 +383,7 @@ c ******************** Computing the displacement *********************
         ins = 4 * ns - 3
 c
         llog = 0
-        do i=imin,imax		! omega-loop
+        do i=imin,imax  ! omega-loop
           call cmatinit( 3,nr,u )
           if ( i.ne.0 ) then
             omega = 2.d0 * pi * dble(i) / tlen
@@ -421,7 +421,7 @@ c
             ismall = 0
             maxamp = -1.d0
             llog = maxlmax
-            do l=0,maxlmax	! l-loop
+            do l=0,maxlmax  ! l-loop
               if( ismall.gt.20 ) then
                 if(llog.gt.l) llog = l
                 cycle
@@ -450,7 +450,7 @@ c     &                    coef(spn),ga )
      &             coef(spn),ga )
               call overlap( 2,ga,ga2 )
 c
-              do m=-2,2	! m-loop
+              do m=-2,2  ! m-loop
                 if ( ( m.ne.0 ).and.( iabs(m).le.iabs(l) ) ) then
                   call cvecinit( nn,g )
                   call calg2( l,m,spo,r0,mt,mu0,coef(spn),

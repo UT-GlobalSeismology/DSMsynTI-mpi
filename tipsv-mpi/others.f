@@ -43,15 +43,15 @@ c temporary file open
         open( unit=11, file=tmpfile, status='unknown' )
 c reading the parameter
         read(11,*) tlen,np
-        read(11,*) re		! relative error (vertical grid)
-        read(11,*) ratc		! ampratio (vertical grid cut-off)
-        read(11,*) ratl		! ampratio (for l-cutoff)
-        read(11,*) omegai	! artificial damping
+        read(11,*) re  ! relative error (vertical grid)
+        read(11,*) ratc  ! ampratio (vertical grid cut-off)
+        read(11,*) ratl  ! ampratio (for l-cutoff)
+        read(11,*) omegai  ! artificial damping
         omegai = - dlog(omegai) / tlen
         read(11,*) imin,imax
         read(11,*) nzone
         if ( nzone.gt.maxnzone )
-     &  pause 'nzone is too large. (pinput)'
+     &      stop 'nzone is too large. (pinput)'
         do 140 i=1,nzone
           read(11,*) vrmin(i),vrmax(i),
      &    rho(1,i),rho(2,i),rho(3,i),rho(4,i),
@@ -68,7 +68,7 @@ c reading the parameter
         read(11,*) mt(1,1),mt(1,2),mt(1,3),mt(2,2),mt(2,3),mt(3,3)
         read(11,*) nr
         if ( nr.gt.maxnr )
-     &  pause 'nr is too large. (pinput)'
+     &  stop 'nr is too large. (pinput)'
         do 150 i=1,nr
           read(11,*) lat(i),lon(i)
           stlat = lat(i)
@@ -321,15 +321,15 @@ c	  nnl(izone) = dint( dble(nlayer) * gridpar(izone) ) + 1
           if ( iphase(izone).eq.1 )
      &    nslay = nslay + nnl(izone)
           if ( nslay.gt.maxnslay )
-     &         pause  'nslay is too large. (calra)'
+     &         stop  'nslay is too large. (calra)'
           if ( iphase(izone).eq.2 )
      &    nllay = nllay + nnl(izone)
           if ( nllay.gt.maxnllay )
-     &         pause  'nllay is too large. (calra)'
+     &         stop  'nllay is too large. (calra)'
           do 130 i=1,nnl(izone)
             itmp = itmp + 1
             if ( itmp.gt.maxnlay )
-     &          pause  'nlay is too large. (calra)'
+     &          stop  'nlay is too large. (calra)'
             ra(itmp) = vrmin(izone)
      &      + rh * dble(i) / dble( nnl(izone) )
   130     continue
@@ -436,7 +436,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c checking the parameter
         if ( (r0.lt.rmin).or.(r0.gt.rmax) )
-     &  pause 'The source location is improper.(calspo)'
+     &  stop 'The source location is improper.(calspo)'
         spo = 0
 c computing 'spo'
         if ( r0.eq.rmax ) then
@@ -481,7 +481,7 @@ c computing 'spn'
         else
           spn = spn + 1
           if ( r0.le.rdc(itmp) )
-     &    pause 'The source is in the liquid layer.(calspo)'
+     &    stop 'The source is in the liquid layer.(calspo)'
           itmp = itmp + 1
           goto 130
         endif
@@ -994,12 +994,12 @@ c
             iz = iz + 1
           endif
           if(iphase(iz-1).eq.1) then
-            if(mod((jj-kkdr(iz-1)),2).eq.1) then ! U
+            if(mod((jj-kkdr(iz-1)),2).eq.1) then  ! U
               cU(jz) = cdabs(tmpc(jj))
               jz = jz + 1
-            else		! V
+            else  ! V
             endif
-          else ! U in fluid
+          else  ! U in fluid
             cU(jz) = cdabs(tmpc(jj))
             jz = jz + 1
           endif
@@ -1011,7 +1011,7 @@ c
           if(maxamp.lt.amp(i)) maxamp = amp(i)
   120   continue
 c
-        maxamp = maxamp * rat ! threshold value
+        maxamp = maxamp * rat  ! threshold value
 c
         nc = 1
         do 130 i=1,jz-1

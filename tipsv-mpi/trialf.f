@@ -53,7 +53,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         real*8 x,plm(3),pmm,somx2,fact
 c
         if ( (m.lt.0).or.(m.gt.l).or.(dabs(x).gt.1.d0) )
-     &  pause 'bad arguments'
+     &      stop 'bad arguments'
         if ( l.eq.m ) then
           pmm = 1.d0
           if ( m.gt.0 ) then

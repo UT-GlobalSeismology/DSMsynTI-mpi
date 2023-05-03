@@ -54,7 +54,7 @@ c     &	    pause 'nlayer is too large. (pinput)'
 c  130	continue
         read(11,*) nzone
         if ( nzone.gt.maxnzone )
-     &  pause 'nzone is too large. (pinput)'
+     &      stop 'nzone is too large. (pinput)'
         do 140 i=1,nzone
           read(11,*) vrmin(i),vrmax(i),
      &    rho(1,i),rho(2,i),rho(3,i),rho(4,i),
@@ -68,7 +68,7 @@ c source parameter
         read(11,*) mt(1,1),mt(1,2),mt(1,3),mt(2,2),mt(2,3),mt(3,3)
         read(11,*) nr
         if ( nr.gt.maxnr )
-     &  pause 'nr is too large. (pinput)'
+     &      stop 'nr is too large. (pinput)'
         do 150 i=1,nr
           read(11,*) lat(i),lon(i)
           stlat = lat(i)
@@ -376,7 +376,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c checking the parameter
         if ( (r0.lt.rmin).or.(r0.gt.rmax) )
-     &  pause 'The source location is improper.(calspo)'
+     &      stop 'The source location is improper.(calspo)'
 c computing 'spo'
         if ( r0.eq.rmax ) then
           spo = dble(nlayer) - 0.01d0

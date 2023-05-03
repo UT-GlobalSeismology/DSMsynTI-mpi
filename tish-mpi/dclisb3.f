@@ -69,7 +69,8 @@ C  MODIFIED CHOLESKY DECOMPOSITION
             DO 20 I=K1+1,J-1
               SUM = DCMPLX(0.0D0)
               DO 10 K=K1,I-1
-   10         SUM = SUM + A(M-I+K,I) * A(MJ+K,J)
+                SUM = SUM + A(M-I+K,I) * A(MJ+K,J)
+   10         CONTINUE
               A(MJ+I,J) = A(MJ+I,J) - SUM
    20       CONTINUE
             SUM = DCMPLX(0.0D0)
@@ -95,7 +96,8 @@ C  FORWARD SUBSTITUTION
         IF (M .LT. 3) THEN
           Z(NP) = B(NP)
           DO 40 J=NP+1,N
-   40     Z(J) = B(J) - A(1,J) * Z(J-1)
+            Z(J) = B(J) - A(1,J) * Z(J-1)
+   40     CONTINUE
           B(N) = Z(N) * DR(N)
         ELSE
           Z(NP) = B(NP)
@@ -108,10 +110,13 @@ C  FORWARD SUBSTITUTION
             ENDIF
             SUM = DCMPLX(0.0D0)
             DO 70 K=I1,M-1
-   70       SUM = SUM + A(K,J) * Z(J-M+K)
-   80     Z(J) = B(J) - SUM
+              SUM = SUM + A(K,J) * Z(J-M+K)
+   70       CONTINUE
+            Z(J) = B(J) - SUM
+   80     CONTINUE
           DO 90 J=N-1,N
-   90     Z(J) = Z(J) * DR(J)
+            Z(J) = Z(J) * DR(J)
+   90     CONTINUE
 C
           B(N) = Z(N)
           B(N-1) = Z(N-1) - A(M-1,N) * Z(N)

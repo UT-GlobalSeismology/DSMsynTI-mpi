@@ -37,7 +37,8 @@ C
             IJ = IJ + 1
             L(IJ) = L(IJ-1) + M + 1
             LI(IJ) = LI(IJ-1) + 1
-   10     LJ(IJ) = LJ(IJ-1) + 1
+            LJ(IJ) = LJ(IJ-1) + 1
+   10     CONTINUE
    20   CONTINUE
         MM = (M+1) * M / 2
         DO 100 K=1,N-M
@@ -50,13 +51,15 @@ C
           PIV = DCMPLX(1.0D0) / A(NK+M)
           DO 30 J=2,M+1
             Z(J) = - A(NK+M*J)
-            W(J) =	 A(NK+M*J) * PIV
-   30     A(NK+M*J) = W(J)
+            W(J) = A(NK+M*J) * PIV
+            A(NK+M*J) = W(J)
+   30     CONTINUE
 C
           KK = NK + M + M
 *VORTION VEC
           DO 50 I=1,MM
-   50     A(KK+L(I)) = A(KK+L(I)) + W(LJ(I)) * Z(LI(I))
+            A(KK+L(I)) = A(KK+L(I)) + W(LJ(I)) * Z(LI(I))
+   50     CONTINUE
 C
   100   CONTINUE
 C
@@ -71,12 +74,13 @@ C
           PIV = DCMPLX(1.0D0) / A(NK+M)
           DO 150 J=2,N-K+1
             Z(J) = - A(NK+M*J)
-            W(J) =	 A(NK+M*J) * PIV
+            W(J) = A(NK+M*J) * PIV
             A(NK+M*J) = W(J)
 C
             NKI = NKK + M * (J-1)
             DO 130 I=2,J
-  130       A(NKI+I) = A(NKI+I) + W(J) * Z(I)
+              A(NKI+I) = A(NKI+I) + W(J) * Z(I)
+  130       CONTINUE
   150     CONTINUE
   200   CONTINUE
 C
@@ -115,7 +119,8 @@ C  FORWARD SUBSTITUTION
         IF (MM .LT. 3) THEN
           Z(NP) = B(NP)
           DO 40 J=NP+1,N
-   40     Z(J) = B(J) - A(1,J) * Z(J-1)
+            Z(J) = B(J) - A(1,J) * Z(J-1)
+   40     CONTINUE
           B(N) = Z(N) / A(M+1,N)
         ELSE
           Z(NP) = B(NP)
@@ -128,10 +133,13 @@ C  FORWARD SUBSTITUTION
             ENDIF
             SUM = DCMPLX(0.0D0)
             DO 70 K=I1,MM-1
-   70       SUM = SUM + A(K,J) * Z(J-MM+K)
-   80     Z(J) = B(J) - SUM
+              SUM = SUM + A(K,J) * Z(J-MM+K)
+   70       CONTINUE
+            Z(J) = B(J) - SUM
+   80     CONTINUE
           DO 90 J=N-1,N
-   90     Z(J) = Z(J) / A(M+1,J)
+            Z(J) = Z(J) / A(M+1,J)
+   90     CONTINUE
 C
           B(N) = Z(N)
           B(N-1) = Z(N-1) - A(MM-1,N) * Z(N)

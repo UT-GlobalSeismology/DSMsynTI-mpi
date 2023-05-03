@@ -41,7 +41,8 @@
         END IF
 *             CHECK ORIGINAL MATRIX.
         DO 10 I = 1, N
-   10   WK(I) = cdabs(A(I,1))
+          WK(I) = cdabs(A(I,1))
+   10   CONTINUE
         DO 20 J = 2, N
           DO 30 I = 1, N
             WK(I) = DMAX1( cdabs( WK(I) ), cdabs(A(I,J)) )
@@ -78,7 +79,8 @@
 *             COMPUTE ALFA
             DO 120 I = K+1, N
               A(I,K) = -A(I,K)/A(K,K)
-  120       WK(I) = A(I,K)
+              WK(I) = A(I,K)
+  120       CONTINUE
 *
             DO 130 J = K+1, N
               IF( IPK.NE.K )  THEN
@@ -89,14 +91,16 @@
 *             GAUSSIAN ELIMINATION
               T = A(K,J)
               DO 140 I = K+1, N
-  140         A(I,J) = A(I,J) + WK(I)*T
+                A(I,J) = A(I,J) + WK(I)*T
+  140         CONTINUE
   130       CONTINUE
 *             MATRIX IS SINGULAR.
           ELSE
             IER = 1
             IP(K) = K
             DO 150 I = K+1, N
-  150       A(I,K) = 0.0D0
+              A(I,K) = 0.0D0
+  150       CONTINUE
             WRITE(*,*) '  (SUBR. GLU)  MATRIX IS SINGULAR AT K =', K
             RETURN
           END IF
@@ -114,14 +118,16 @@
 *
           T = B(K)
           DO 210 I = K+1, N
-  210     B(I) = B(I) + A(I,K)*T
+            B(I) = B(I) + A(I,K)*T
+  210     CONTINUE
   200   CONTINUE
 *             BACKWARD SUBSTITUTION PROCESS
         B(N) = B(N)/A(N,N)
         DO 300 K = N-1, 1, -1
           T = B(K+1)
           DO 310 I = 1, K
-  310     B(I) = B(I) - A(I,K+1)*T
+            B(I) = B(I) - A(I,K+1)*T
+  310     CONTINUE
           B(K) = B(K)/A(K,K)
   300   CONTINUE
         RETURN
