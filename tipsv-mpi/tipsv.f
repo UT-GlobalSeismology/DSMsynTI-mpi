@@ -230,14 +230,14 @@ c --- checking the parameter
      &         stop 'The number of grid points is too large.'
           if ( nslay.gt.maxnslay )
      &         stop
-     &         'The number of the grid points in the solid is too large.'
+     &         'The number of grid points in the solid is too large.'
           if ( nllay.gt.maxnllay )
      &         stop
-     &        'The number of the grid points in the liquid is too large.'
+     &        'The number of grid points in the liquid is too large.'
           if ( jnlayer.gt.2*maxnlay )
-     &         stop 'The number of the total grid points is too large.'
+     &         stop 'The number of total grid points is too large.'
           if ( ( jnslay.gt.2*maxnslay ).or.( jnllay.gt.2*maxnllay ) )
-     &      stop 'The number of the total grid points is too large.'
+     &      stop 'The number of total grid points is too large.'
 c computing the stack points
           call calsp( maxnzone,ndc,nsl,nll,
      &         iphase,nlayer,nslay,nllay,
