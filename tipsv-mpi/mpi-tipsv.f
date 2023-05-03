@@ -2,7 +2,7 @@
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c  ************** tipsv.f ****************
 c Computation of PSV synthetic seismograms
-c in transversely isotropic for anisotropic PREM
+c in transversely isotropic media for anisotropic PREM
 c using modified DSM operators & modified source representation.
 c Synthetics for shallow events can be computed.
 c                                                 2002.12  K.Kawai
@@ -23,7 +23,7 @@ c ---------------------------<< constants >>---------------------------
         parameter ( ilog = 0 )
         parameter ( lmaxdivf = 2.d4 )
         parameter ( shallowdepth = 100.d0 )
-        parameter ( spcform = 0 ) !0:binary, 1:ascii
+        parameter ( spcform = 0 )  ! 0:binary, 1:ascii
 c ---------------------------<< variables >>---------------------------
 c variable for the trial function
         integer nnlayer,nlayer(maxnzone)

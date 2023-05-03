@@ -2,7 +2,7 @@
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c  ************** tipsv.f ****************
 c Computation of PSV synthetic seismograms
-c in transversely isotropic for anisotropic PREM
+c in transversely isotropic media for anisotropic PREM
 c using modified DSM operators & modified source representation.
 c Synthetics for shallow events can be computed.
 c                                                 2002.12  K.Kawai
@@ -18,12 +18,12 @@ c ---------------------------<< constants >>---------------------------
         parameter ( maxnslay = 48840 )
         parameter ( maxnllay = 32040 )
         parameter ( maxnzone = 15 )
-        parameter ( maxnr = 500 )
+        parameter ( maxnr = 1500 )
         parameter ( maxlmax = 80000 )
         parameter ( ilog = 0 )
         parameter ( lmaxdivf = 2.d4 )
         parameter ( shallowdepth = 100.d0 )
-        parameter ( spcform = 0 )  !0:binary, 1:ascii
+        parameter ( spcform = 0 )  ! 0:binary, 1:ascii
 c ---------------------------<< variables >>---------------------------
 c variable for the trial function
         integer nnlayer,nlayer(maxnzone)
@@ -157,14 +157,9 @@ c --- inputting parameter ---
      &       tlen,np,omegai,imin,imax,nnlayer,
      &       nzone,vrmin,vrmax,rrho,
      &       vpv,vph,vsv,vsh,eta,qmu,qkappa,
-     &       r0,eqlat,eqlon,mt,nr,theta,phi,lat,lon,output)
+     &       r0,eqlat,eqlon,mt,nr,theta,phi,lat,lon,output )
         memoryperomega = 3*16 *nr*0.000001
-        outputinterval = outputmemory/memoryperomega != integer * nr
-c      write (*,*) outputinterval
-c      write(*,*)  my_rank
-
-c      call mpi_finalize(ierr)
-c      stop
+        outputinterval = outputmemory/memoryperomega  ! = integer * nr
         allocate (outputi(outputinterval))
         allocate (outputu(3,nr,outputinterval))
 
@@ -175,47 +170,44 @@ c computing and checking the parameters
         rmin = vrmin(1)
         rmax = vrmax(nzone)
         ndc = nzone - 1
-        do ir=1,nr
-          theta(ir)= theta(ir) / 1.8d2 * pi
-          phi(ir)= phi(ir)   / 1.8d2 * pi
+        do ir = 1,nr
+          theta(ir) = theta(ir) / 1.8d2 * pi
+          phi(ir) = phi(ir) / 1.8d2 * pi
         enddo
-        if ( (r0.lt.rmin) .or. (r0.gt.rmax) )
-     &       stop 'Location of the source is improper.'
-c
+        if ((r0 .lt. rmin) .or. (r0 .gt. rmax))
+     &      stop 'Location of the source is improper.'
+
 c ************************** Files Handling **************************
         if (spcform .eq. 0) then
-          do ir=1,nr
+          do ir = 1,nr
             open( unit=11,file=output(ir),status='unknown',
      &         form='unformatted',access='stream',
-     &         convert='big_endian')
-c            write(11,*) "VERSION172"
+     &         convert='big_endian' )
             write(11) tlen
             write(11) np,1,3
             write(11) omegai,lat(ir),lon(ir)
-c            write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
             write(11) eqlat,eqlon,r0
             close(11)
           enddo
         else if (spcform .eq. 1) then
-          do ir=1,nr
-            open( unit=11,file=output(ir),status='unknown')
-c            write(11,*) "VERSION172"
+          do ir = 1,nr
+            open( unit=11,file=output(ir),status='unknown' )
             write(11,*) tlen
             write(11,*) np,1,3
             write(11,*) omegai,lat(ir),lon(ir)
-c            write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
             write(11,*) eqlat,eqlon,r0
             close(11)
           enddo
         else
           write(*,*) 'WARNING:(tipsv.f) set spcform 0 or 1'
         endif
-        if(ilog.eq.1) then
-          open(unit=11,file='llog.log',status='unknown')
+        if (ilog .eq. 1) then
+          open( unit=11,file='llog.log',status='unknown' )
           close(11)
         endif
         iimax = imax
-        if( (rmax-r0).lt.shallowdepth) then ! option for shallow events
+c --- option for shallow events
+        if ((rmax-r0) .lt. shallowdepth) then
 c computing of the number and the location of grid points
           iimax = int(tlen * 2.d0)
           call calgrid( nzone,vrmin,vrmax,vpv,vsv,rmin,rmax,
@@ -226,18 +218,18 @@ c computing of the number and the location of grid points
      &         gridpar,dzpar,nzone,vrmin,vrmax,iphase,
      &         rmin,rmax,r0,nslay,nllay,nlayer,ra,re )
 c --- checking the parameter
-          if ( inlayer.gt.maxnlay )
-     &         stop 'The number of grid points is too large.'
-          if ( nslay.gt.maxnslay )
-     &         stop
-     &         'The number of grid points in the solid is too large.'
-          if ( nllay.gt.maxnllay )
-     &         stop
+          if (inlayer .gt. maxnlay)
+     &        stop 'The number of grid points is too large.'
+          if (nslay .gt. maxnslay)
+     &        stop
+     &        'The number of grid points in the solid is too large.'
+          if (nllay .gt. maxnllay)
+     &        stop
      &        'The number of grid points in the liquid is too large.'
-          if ( jnlayer.gt.2*maxnlay )
-     &         stop 'The number of total grid points is too large.'
-          if ( ( jnslay.gt.2*maxnslay ).or.( jnllay.gt.2*maxnllay ) )
-     &      stop 'The number of total grid points is too large.'
+          if (jnlayer .gt. 2*maxnlay)
+     &        stop 'The number of total grid points is too large.'
+          if ((jnslay .gt. 2*maxnslay) .or. (jnllay .gt. 2*maxnllay))
+     &        stop 'The number of total grid points is too large.'
 c computing the stack points
           call calsp( maxnzone,ndc,nsl,nll,
      &         iphase,nlayer,nslay,nllay,
@@ -270,40 +262,40 @@ c computing the structure grid points
           call calinv( vnp,rho,kappa,rhoinv,kappainv )
           isl = 0
           ill = 0
-          do i=1,ndc+1
-            if ( iphase(i).eq.1 ) then
+          do i = 1,ndc+1
+            if (iphase(i) .eq. 1) then
               isl = isl + 1
-              itmp = isdr+issp(isl)
+              itmp = isdr + issp(isl)
               call calmatc( nlayer(i),vnp,vra,
-     &             rho ,2,0,0,ra(isp(i)), t(itmp) )
+     &             rho,2,0,0,ra(isp(i)),t(itmp) )
               call caltl( nlayer(i),vnp,vra,rho,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), t(itmp),work(itmp), t(itmp) )
+              call calt( nlayer(i),t(itmp),work(itmp),t(itmp) )
               call calmatc( nlayer(i),vnp,vra,
      &             ecKx,0,0,0,ra(isp(i)),h1x(itmp) )
               call calhl( nlayer(i),vnp,vra,ecKx,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), h1x(itmp),work(itmp),h1x(itmp) )
+              call calt( nlayer(i),h1x(itmp),work(itmp),h1x(itmp) )
               call calmatc( nlayer(i),vnp,vra,
      &             ecKy,0,0,0,ra(isp(i)),h1y(itmp) )
               call calhl( nlayer(i),vnp,vra,ecKy,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), h1y(itmp),work(itmp),h1y(itmp) )
+              call calt( nlayer(i),h1y(itmp),work(itmp),h1y(itmp) )
               call calmatc( nlayer(i),vnp,vra,
      &             ecKz,0,0,0,ra(isp(i)),h1z(itmp) )
               call calhl( nlayer(i),vnp,vra,ecKz,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), h1z(itmp),work(itmp),h1z(itmp) )
+              call calt( nlayer(i),h1z(itmp),work(itmp),h1z(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,0,0,0,ra(isp(i)),h2L(itmp) )
+     &             ecL,0,0,0,ra(isp(i)),h2L(itmp) )
               call calhl( nlayer(i),vnp,vra,ecL,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), h2L(itmp),work(itmp),h2L(itmp) )
+              call calt( nlayer(i),h2L(itmp),work(itmp),h2L(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,0,0,0,ra(isp(i)),h2N(itmp) )
+     &             ecN,0,0,0,ra(isp(i)),h2N(itmp) )
               call calhl( nlayer(i),vnp,vra,ecN,
      &             ra(isp(i)),work(itmp) )
-              call calt( nlayer(i), h2N(itmp),work(itmp),h2N(itmp) )
+              call calt( nlayer(i),h2N(itmp),work(itmp),h2N(itmp) )
               call calmatc( nlayer(i),vnp,vra,
      &             ecKx,1,0,1,ra(isp(i)),h5ax(itmp) )
               call calmatc( nlayer(i),vnp,vra,
@@ -311,24 +303,24 @@ c computing the structure grid points
               call calmatc( nlayer(i),vnp,vra,
      &             ecKz,1,0,1,ra(isp(i)),h5az(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,1,0,1,ra(isp(i)),h6aL(itmp) )
+     &             ecL,1,0,1,ra(isp(i)),h6aL(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,1,0,1,ra(isp(i)),h6aN(itmp) )
+     &             ecN,1,0,1,ra(isp(i)),h6aN(itmp) )
               call mtrnp( nlayer(i),h5ax(itmp),h3ax(itmp) )
               call mtrnp( nlayer(i),h5ay(itmp),h3ay(itmp) )
               call mtrnp( nlayer(i),h5az(itmp),h3az(itmp) )
               call mtrnp( nlayer(i),h6aL(itmp),h4aL(itmp) )
               call mtrnp( nlayer(i),h6aN(itmp),h4aN(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecKx,2,1,1,ra(isp(i)), h7x(itmp) )
+     &             ecKx,2,1,1,ra(isp(i)),h7x(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecKy,2,1,1,ra(isp(i)), h7y(itmp) )
+     &             ecKy,2,1,1,ra(isp(i)),h7y(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecKz,2,1,1,ra(isp(i)), h7z(itmp) )
+     &             ecKz,2,1,1,ra(isp(i)),h7z(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,2,1,1,ra(isp(i)), h8L(itmp) )
+     &             ecL,2,1,1,ra(isp(i)),h8L(itmp) )
               call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,2,1,1,ra(isp(i)), h8N(itmp) )
+     &             ecN,2,1,1,ra(isp(i)),h8N(itmp) )
             else
               ill = ill + 1
               itmp = ildr+ilsp(ill)
@@ -352,8 +344,8 @@ c Computing the modified operator of the 1st derivative
      &         nlayer,ra,rmax,
      &         vra,kappa,ecKx,ecKy,ecKz,mu,ecL,ecN )
           isl = 0
-          do i=1,ndc+1
-            if ( iphase(i).eq.1 ) then
+          do i = 1,ndc+1
+            if (iphase(i) .eq. 1) then
               isl = isl + 1
               itmp = isdr+issp(isl)
               jtmp = isp(i)+i-1
@@ -395,29 +387,29 @@ c Computing the modified operator of the 1st derivative
               call mtrnp2( nlayer(i),1,2,h5mx(-1,itmp),h3mx(-2,itmp) )
               call mtrnp2( nlayer(i),1,2,h5my(-1,itmp),h3my(-2,itmp) )
               call mtrnp2( nlayer(i),1,2,h5mz(-1,itmp),h3mz(-2,itmp) )
-              call mtrnp2( nlayer(i),1,2,h6m1L(-1,itmp),h4m2L(-2,itmp))
-              call mtrnp2( nlayer(i),1,2,h6m1N(-1,itmp),h4m2N(-2,itmp))
-              call mtrnp2( nlayer(i),2,1,h6m2L(-2,itmp),h4m1L(-1,itmp))
-              call mtrnp2( nlayer(i),2,1,h6m2N(-2,itmp),h4m1N(-1,itmp))
+              call mtrnp2( nlayer(i),1,2,h6m1L(-1,itmp),h4m2L(-2,itmp) )
+              call mtrnp2( nlayer(i),1,2,h6m1N(-1,itmp),h4m2N(-2,itmp) )
+              call mtrnp2( nlayer(i),2,1,h6m2L(-2,itmp),h4m1L(-1,itmp) )
+              call mtrnp2( nlayer(i),2,1,h6m2N(-2,itmp),h4m1N(-1,itmp) )
             endif
           enddo
 c
-          do ii=1,2              ! omega-loop
+          do ii = 1,2  ! omega-loop
 c
-            if(ii.eq.1) then
-              if(imin.eq.0) then
-                i=1
+            if (ii .eq. 1) then
+              if (imin .eq. 0) then
+                i = 1
               else
-                i=imin
+                i = imin
               endif
             endif
-            if(ii.eq.2) i=imax
-            if ( i.ne.0 ) then
+            if (ii .eq. 2) i = imax
+            if (i .ne. 0) then
               omega = 2.d0 * pi * dble(i) / tlen
-              call callsuf(omega,nzone,vrmax,vsv,lsuf)
+              call callsuf( omega,nzone,vrmax,vsv,lsuf )
               call calcoef( nzone,omega,qmu,qkappa,coef1,coef2,coef )
               mtmp = isp(spn) + int(spo)
-              if ( spo.eq.int(spo) ) mtmp = mtmp - 1
+              if (spo .eq. int(spo)) mtmp = mtmp - 1
               call calabnum( omega,omegai,rmax,
      &             rrho(1,spn),vpv(1,spn),vph(1,spn),
      &             vsv(1,spn),vsh(1,spn),eta(1,spn),
@@ -426,39 +418,39 @@ c
 c computing the matrix elements independent of l
               isl = 0
               ill = 0
-              do j=1,ndc+1
-                if ( iphase(j).eq.1 ) then
+              do j = 1,ndc+1
+                if (iphase(j) .eq. 1) then
                   isl = isl + 1
-                  itmp = isdr+issp(isl)
-                  jtmp = jdr+jsp(j)
-                  mtmp = kdr+ksp(j)
+                  itmp = isdr + issp(isl)
+                  jtmp = jdr + jsp(j)
+                  mtmp = kdr + ksp(j)
                   call cala0( nlayer(j),omega,omegai,
      &                 t(itmp),
-     &                 h1x(itmp), h1y(itmp),h1z(itmp),
-     &                 h2L(itmp), h2N(itmp),
+     &                 h1x(itmp),h1y(itmp),h1z(itmp),
+     &                 h2L(itmp),h2N(itmp),
      &                 h3ax(itmp),h3ay(itmp),h3az(itmp),
      &                 h4aL(itmp),h4aN(itmp),
      &                 h5ax(itmp),h5ay(itmp),h5az(itmp),
      &                 h6aL(itmp),h6aN(itmp),
      &                 h7x(itmp),h7y(itmp),h7z(itmp),
-     &                 h8L(itmp), h8N(itmp),
+     &                 h8L(itmp),h8N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                   call overlapa( nlayer(j),cwork(jtmp),a0(1,mtmp) )
                   call cala1( nlayer(j),
      &                 h1x(itmp),h1y(itmp),h1z(itmp),
      &                 h2L(itmp),h2N(itmp),
-     &                 h3x(itmp), h3y(itmp), h3z(itmp),
-     &                 h4L(itmp), h4N(itmp),
-     &                 h5x(itmp), h5y(itmp), h5z(itmp),
-     &                 h6L(itmp), h6N(itmp),
+     &                 h3x(itmp),h3y(itmp),h3z(itmp),
+     &                 h4L(itmp),h4N(itmp),
+     &                 h5x(itmp),h5y(itmp),h5z(itmp),
+     &                 h6L(itmp),h6N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                   call overlapa( nlayer(j),cwork(jtmp),a1(1,mtmp) )
                   call cala2( nlayer(j),
-     &                 h1x(itmp), h1y(itmp),h1z(itmp),
+     &                 h1x(itmp),h1y(itmp),h1z(itmp),
      &                 h2L(itmp),h2N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                   call overlapa( nlayer(j),cwork(jtmp),a2(1,mtmp) )
-                  jtmp = jsdr+jssp(isl)
+                  jtmp = jsdr + jssp(isl)
                   call calhml( nlayer(j),coef1(j),coef2(j),
      &                 h3mx(-2,jtmp),h3my(-2,jtmp),h3mz(-2,jtmp),
      &                 h5mx(-1,jtmp),h5my(-1,jtmp),h5mz(-1,jtmp),
@@ -469,9 +461,9 @@ c computing the matrix elements independent of l
      &                 a1(1,mtmp) )
                 else
                   ill = ill + 1
-                  itmp = ildr+ilsp(ill)
-                  jtmp = jdr+jsp(j)
-                  mtmp = kdr+ksp(j)
+                  itmp = ildr + ilsp(ill)
+                  jtmp = jdr + jsp(j)
+                  mtmp = kdr + ksp(j)
                   call calb0( nlayer(j),omega,omegai,
      &                 p1(itmp),p3(itmp),coef(j),cwork(jtmp) )
                   call overlapb( nlayer(j),cwork(jtmp),a0(1,mtmp) )
@@ -485,19 +477,19 @@ c
               ismall = 0
               ltmp(ii) = maxlmax
               kc = 1
-              do l=0,maxlmax   ! l-loop
-                do jj=1,maxnlay+1 ! initialize
+              do l = 0,maxlmax  ! l-loop
+                do jj = 1,maxnlay+1  ! initialize
                   tmpc(jj) = dcmplx(0.d0)
                 enddo
-                if ( ismall.gt.20 ) then
-                  if(ltmp(ii).gt.l) ltmp(ii) = l
+                if (ismall .gt. 20) then
+                  if (ltmp(ii) .gt. l) ltmp(ii) = l
                   exit
                 endif
                 l2 = dble(l)*dble(l+1)
                 lsq = dsqrt( l2 )
 c computing the coefficient matrix elements
 c --- renewing  mdr
-                if (  mod(l,50).eq.0  ) then
+                if (mod(l,50) .eq. 0) then
                   call calmdr( omega,l,nzone,vrmin,vrmax,vmin,dzpar,
      &                 rmax,sufzone )
                   call calspdr( maxnzone,nzone,iphase,nlayer,
@@ -512,51 +504,51 @@ c computing the boundary condition elements
 c
                 jtmp = kkdr(spn) + 2 * int(spo)
                 mtmp = isp(spn) + int(spo)
-                if ( spo.eq.int(spo) ) then
+                if (spo .eq. int(spo)) then
                   jtmp = jtmp - 2
                   mtmp = mtmp - 1
                 endif
                 call calya( anum(1,1,1),bnum(1,1,1),
      &               l2,ra(mtmp),r0,ya,yb,yc,yd )
-                do m=-2,2     ! m-loop
-                  if ( iabs(m).le.iabs(l) ) then
+                do m = -2,2     ! m-loop
+                  if (iabs(m) .le. iabs(l)) then
 c computing the excitation vector
                     call cvecinit( nn,g )
                     call calg( l,m,coef1(spn),coef2(spn),lsq,
      &                   ecC0,ecF0,ecL0,ya,yb,yc,yd,
      &                   ra(mtmp),r0,mt,g(jtmp) )
-                    if ( l.eq.0 ) then
+                    if (l .eq. 0) then
 c rearranging the matrix elements for l=0
                       call rea2( nn,a,g,c,d,
      &                     nzone,iphase,kkdr,spn,kkdr0,nn0 )
 c computing the expansion coefficient
-                      itmp=1
-                      if ( rmin.eq.0.d0 ) itmp=2
-                      ns = kkdr0 + ( nint(spo) - 1 )
+                      itmp = 1
+                      if (rmin .eq. 0.d0) itmp = 2
+                      ns = kkdr0 + (nint(spo) - 1)
                       call dcsymbdl( c(1,itmp),1,nn0-itmp+1,1,eps,
      &                     z(itmp),w(itmp),ll,lli,llj,ier )
                       call dcsbdlv( c(1,itmp),d(itmp),1,
      &                     nn0-itmp+1,ns-itmp+1,eps,z(itmp),ier )
                     else
 c computing the expansion coefficient
-                      itmp=1
-                      if ( rmin.eq.0.d0 ) itmp=3
-                      ns = kkdr(spn) + 2 * ( nint(spo) - 1 )
-                      if( mod(l,100).eq.0) then
-                        if ( ( m.eq.-2 ).or.( m.eq.-l ) ) then
+                      itmp = 1
+                      if (rmin .eq. 0.d0) itmp = 3
+                      ns = kkdr(spn) + 2 * (nint(spo) - 1)
+                      if (mod(l,100) .eq. 0) then
+                        if ((m .eq. -2) .or. (m .eq. -l)) then
                           call dcsymbdl0( a(1,itmp),3,nn-itmp+1,
      &                         6,eps,
      &                         z(itmp),w(itmp),ll,lli,llj,ier )
                         endif
                         call dcsbdlv0( a(1,itmp),g(itmp),3,
      &                       nn-itmp+1,eps,z(itmp),ier )
-                        do jj=1,nn ! sum up c of the same l
+                        do jj = 1,nn  ! sum up c of the same l
                           tmpc(jj) = tmpc(jj) + g(jj)
                         enddo
                       else
-                        if ( kc.lt.3 ) kc = 3
+                        if (kc .lt. 3) kc = 3
                         itmp = kc
-                        if ( ( m.eq.-2 ).or.( m.eq.-l ) ) then
+                        if ((m .eq. -2) .or. (m .eq. -l)) then
                           call dcsymbdl( a(1,itmp),3,nn-itmp+1,
      &                         6,eps,
      &                      z(itmp),w(itmp),ll,lli,llj,ier )
@@ -568,7 +560,7 @@ c computing ampratio
                       call calamp( g(nn-1),l,lsuf,
      &                     maxamp,ismall,ratl )
 c
-                      if( mod(l,100).eq.0) then
+                      if (mod(l,100) .eq. 0) then
                         call calcutd(nzone,nlayer,tmpc,ratc,nn,
      &                       iphase,spo,spn,
      &                       ra,kkdr,kc)
@@ -576,12 +568,12 @@ c
 c computing the displacement
                     endif
                   endif
-                enddo         ! m-loop
-              enddo            ! l-loop
+                enddo  ! m-loop
+              enddo  ! l-loop
             endif
-          enddo                  ! omega-loop
+          enddo  ! omega-loop
           iimax = dble(max(ltmp(1),ltmp(2))) * tlen / lmaxdivf
-        endif                     ! option for shallow events
+        endif  ! option for shallow events
         call calgrid( nzone,vrmin,vrmax,vpv,vsv,rmin,rmax,
      &       iimax,1,tlen,
      &       vmin,gridpar,dzpar )
@@ -590,18 +582,18 @@ c computing the displacement
      &       gridpar,dzpar,nzone,vrmin,vrmax,iphase,
      &       rmin,rmax,r0,nslay,nllay,nlayer,ra,re )
 c --- checking the parameter
-        if ( inlayer.gt.maxnlay )
-     &       stop 'The number of grid points is too large.'
-        if ( nslay.gt.maxnslay )
-     &       stop
-     &       'The number of grid points in the solid is too large.'
-        if ( nllay.gt.maxnllay )
-     &       stop
-     &       'The number of grid points in the liquid is too large.'
-        if ( jnlayer.gt.2*maxnlay )
-     &       stop 'The number of total grid points is too large.'
-        if ( ( jnslay.gt.2*maxnslay ).or.( jnllay.gt.2*maxnllay ) )
-     &       stop 'The number of total grid points is too large.'
+        if (inlayer .gt. maxnlay)
+     &      stop 'The number of grid points is too large.'
+        if (nslay .gt. maxnslay)
+     &      stop
+     &      'The number of grid points in the solid is too large.'
+        if (nllay .gt. maxnllay)
+     &      stop
+     &      'The number of grid points in the liquid is too large.'
+        if (jnlayer .gt. 2*maxnlay)
+     &      stop 'The number of total grid points is too large.'
+        if ((jnslay .gt. 2*maxnslay) .or. (jnllay .gt. 2*maxnllay))
+     &      stop 'The number of total grid points is too large.'
 c computing the stack points
         call calsp( maxnzone,ndc,nsl,nll,
      &       iphase,nlayer,nslay,nllay,
@@ -634,40 +626,40 @@ c computing the structure grid points
         call calinv( vnp,rho,kappa,rhoinv,kappainv )
         isl = 0
         ill = 0
-        do i=1,ndc+1
-          if ( iphase(i).eq.1 ) then
+        do i = 1,ndc+1
+          if (iphase(i) .eq. 1) then
             isl = isl + 1
-            itmp = isdr+issp(isl)
+            itmp = isdr + issp(isl)
             call calmatc( nlayer(i),vnp,vra,
-     &             rho ,2,0,0,ra(isp(i)), t(itmp) )
+     &             rho,2,0,0,ra(isp(i)), t(itmp) )
             call caltl( nlayer(i),vnp,vra,rho,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), t(itmp),work(itmp), t(itmp) )
+            call calt( nlayer(i),t(itmp),work(itmp),t(itmp) )
             call calmatc( nlayer(i),vnp,vra,
      &             ecKx,0,0,0,ra(isp(i)),h1x(itmp) )
             call calhl( nlayer(i),vnp,vra,ecKx,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), h1x(itmp),work(itmp),h1x(itmp) )
+            call calt( nlayer(i),h1x(itmp),work(itmp),h1x(itmp) )
             call calmatc( nlayer(i),vnp,vra,
      &             ecKy,0,0,0,ra(isp(i)),h1y(itmp) )
             call calhl( nlayer(i),vnp,vra,ecKy,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), h1y(itmp),work(itmp),h1y(itmp) )
+            call calt( nlayer(i),h1y(itmp),work(itmp),h1y(itmp) )
             call calmatc( nlayer(i),vnp,vra,
      &             ecKz,0,0,0,ra(isp(i)),h1z(itmp) )
             call calhl( nlayer(i),vnp,vra,ecKz,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), h1z(itmp),work(itmp),h1z(itmp) )
+            call calt( nlayer(i),h1z(itmp),work(itmp),h1z(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,0,0,0,ra(isp(i)),h2L(itmp) )
+     &             ecL,0,0,0,ra(isp(i)),h2L(itmp) )
             call calhl( nlayer(i),vnp,vra,ecL,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), h2L(itmp),work(itmp),h2L(itmp) )
+            call calt( nlayer(i),h2L(itmp),work(itmp),h2L(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,0,0,0,ra(isp(i)),h2N(itmp) )
+     &             ecN,0,0,0,ra(isp(i)),h2N(itmp) )
             call calhl( nlayer(i),vnp,vra,ecN,
      &             ra(isp(i)),work(itmp) )
-            call calt( nlayer(i), h2N(itmp),work(itmp),h2N(itmp) )
+            call calt( nlayer(i),h2N(itmp),work(itmp),h2N(itmp) )
             call calmatc( nlayer(i),vnp,vra,
      &             ecKx,1,0,1,ra(isp(i)),h5ax(itmp) )
             call calmatc( nlayer(i),vnp,vra,
@@ -675,27 +667,27 @@ c computing the structure grid points
             call calmatc( nlayer(i),vnp,vra,
      &             ecKz,1,0,1,ra(isp(i)),h5az(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,1,0,1,ra(isp(i)),h6aL(itmp) )
+     &             ecL,1,0,1,ra(isp(i)),h6aL(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,1,0,1,ra(isp(i)),h6aN(itmp) )
+     &             ecN,1,0,1,ra(isp(i)),h6aN(itmp) )
             call mtrnp( nlayer(i),h5ax(itmp),h3ax(itmp) )
             call mtrnp( nlayer(i),h5ay(itmp),h3ay(itmp) )
             call mtrnp( nlayer(i),h5az(itmp),h3az(itmp) )
             call mtrnp( nlayer(i),h6aL(itmp),h4aL(itmp) )
             call mtrnp( nlayer(i),h6aN(itmp),h4aN(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecKx,2,1,1,ra(isp(i)), h7x(itmp) )
+     &             ecKx,2,1,1,ra(isp(i)),h7x(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecKy,2,1,1,ra(isp(i)), h7y(itmp) )
+     &             ecKy,2,1,1,ra(isp(i)),h7y(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecKz,2,1,1,ra(isp(i)), h7z(itmp) )
+     &             ecKz,2,1,1,ra(isp(i)),h7z(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecL ,2,1,1,ra(isp(i)), h8L(itmp) )
+     &             ecL,2,1,1,ra(isp(i)),h8L(itmp) )
             call calmatc( nlayer(i),vnp,vra,
-     &             ecN ,2,1,1,ra(isp(i)), h8N(itmp) )
+     &             ecN,2,1,1,ra(isp(i)),h8N(itmp) )
           else
             ill = ill + 1
-            itmp = ildr+ilsp(ill)
+            itmp = ildr + ilsp(ill)
             call calmatc( nlayer(i),vnp,vra,
      &             rhoinv,2,1,1,ra(isp(i)),p1(itmp) )
             call calmatc( nlayer(i),vnp,vra,
@@ -716,11 +708,11 @@ c Computing the modified operator of the 1st derivative
      &       nlayer,ra,rmax,
      &       vra,kappa,ecKx,ecKy,ecKz,mu,ecL,ecN )
         isl = 0
-        do i=1,ndc+1
-          if ( iphase(i).eq.1 ) then
+        do i = 1,ndc+1
+          if (iphase(i) .eq. 1) then
             isl = isl + 1
-            itmp = isdr+issp(isl)
-            jtmp = isp(i)+i-1
+            itmp = isdr + issp(isl)
+            jtmp = isp(i) + i-1
             call calh5( nlayer(i),vra(jtmp),
      &             ecKx(jtmp),ra(isp(i)),work(itmp) )
             call submat( nlayer(i),h5ax(itmp),work(itmp),h5x(itmp) )
@@ -741,7 +733,7 @@ c Computing the modified operator of the 1st derivative
             call mtrnp( nlayer(i),h5z(itmp),h3z(itmp) )
             call mtrnp( nlayer(i),h6L(itmp),h4L(itmp) )
             call mtrnp( nlayer(i),h6N(itmp),h4N(itmp) )
-            itmp = jsdr+jssp(isl)
+            itmp = jsdr + jssp(isl)
             call calhm1( nlayer(i),vra(jtmp),
      &             ecKx(jtmp),ra(isp(i)),h5mx(-1,itmp) )
             call calhm1( nlayer(i),vra(jtmp),
@@ -767,20 +759,20 @@ c Computing the modified operator of the 1st derivative
         enddo
 c ******************** Computing the displacement *********************
 c
-        outputindex =1
+        outputindex = 1
         llog = 0
-        do i=imin,imax            ! omega-loop
+        do i = imin,imax  ! omega-loop
 c
           call cmatinit( 3,nr,u )
-          if ( i.ne.0 ) then
+          if (i .ne. 0) then
             omega = 2.d0 * pi * dble(i) / tlen
             call callsuf(omega,nzone,vrmax,vsv,lsuf)
-            do ir=1,nr
+            do ir = 1,nr
               call matinit( 3,4,plm(1,0,ir) )
             enddo
             call calcoef( nzone,omega,qmu,qkappa,coef1,coef2,coef )
             mtmp = isp(spn) + int(spo)
-            if ( spo.eq.int(spo) ) mtmp = mtmp - 1
+            if (spo .eq. int(spo)) mtmp = mtmp - 1
             call calabnum( omega,omegai,rmax,
      &             rrho(1,spn),vpv(1,spn),vph(1,spn),
      &             vsv(1,spn),vsh(1,spn),eta(1,spn),
@@ -789,35 +781,35 @@ c
 c computing the matrix elements independent of l
             isl = 0
             ill = 0
-            do j=1,ndc+1
-              if ( iphase(j).eq.1 ) then
+            do j = 1,ndc+1
+              if (iphase(j) .eq. 1) then
                 isl = isl + 1
-                itmp = isdr+issp(isl)
-                jtmp = jdr+jsp(j)
-                mtmp = kdr+ksp(j)
+                itmp = isdr + issp(isl)
+                jtmp = jdr + jsp(j)
+                mtmp = kdr + ksp(j)
                 call cala0( nlayer(j),omega,omegai,
      &                 t(itmp),
-     &                 h1x(itmp), h1y(itmp),h1z(itmp),
-     &                 h2L(itmp), h2N(itmp),
+     &                 h1x(itmp),h1y(itmp),h1z(itmp),
+     &                 h2L(itmp),h2N(itmp),
      &                 h3ax(itmp),h3ay(itmp),h3az(itmp),
      &                 h4aL(itmp),h4aN(itmp),
      &                 h5ax(itmp),h5ay(itmp),h5az(itmp),
      &                 h6aL(itmp),h6aN(itmp),
      &                 h7x(itmp),h7y(itmp),h7z(itmp),
-     &                 h8L(itmp), h8N(itmp),
+     &                 h8L(itmp),h8N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                 call overlapa( nlayer(j),cwork(jtmp),a0(1,mtmp) )
                 call cala1( nlayer(j),
      &                 h1x(itmp),h1y(itmp),h1z(itmp),
      &                 h2L(itmp),h2N(itmp),
-     &                 h3x(itmp), h3y(itmp), h3z(itmp),
-     &                 h4L(itmp), h4N(itmp),
-     &                 h5x(itmp), h5y(itmp), h5z(itmp),
-     &                 h6L(itmp), h6N(itmp),
+     &                 h3x(itmp),h3y(itmp),h3z(itmp),
+     &                 h4L(itmp),h4N(itmp),
+     &                 h5x(itmp),h5y(itmp),h5z(itmp),
+     &                 h6L(itmp),h6N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                 call overlapa( nlayer(j),cwork(jtmp),a1(1,mtmp) )
                 call cala2( nlayer(j),
-     &                 h1x(itmp), h1y(itmp),h1z(itmp),
+     &                 h1x(itmp),h1y(itmp),h1z(itmp),
      &                 h2L(itmp),h2N(itmp),
      &                 coef1(j),coef2(j),cwork(jtmp) )
                 call overlapa( nlayer(j),cwork(jtmp),a2(1,mtmp) )
@@ -832,9 +824,9 @@ c computing the matrix elements independent of l
      &                 a1(1,mtmp) )
               else
                 ill = ill + 1
-                itmp = ildr+ilsp(ill)
-                jtmp = jdr+jsp(j)
-                mtmp = kdr+ksp(j)
+                itmp = ildr + ilsp(ill)
+                jtmp = jdr + jsp(j)
+                mtmp = kdr + ksp(j)
                 call calb0( nlayer(j),omega,omegai,
      &                 p1(itmp),p3(itmp),coef(j),cwork(jtmp) )
                 call overlapb( nlayer(j),cwork(jtmp),a0(1,mtmp) )
@@ -848,19 +840,19 @@ c
             ismall = 0
             llog = maxlmax
             kc = 1
-            do l=0,maxlmax      ! l-loop
-              do jj=1,maxnlay+1 ! initialize
+            do l = 0,maxlmax  ! l-loop
+              do jj = 1,maxnlay+1  ! initialize
                 tmpc(jj) = dcmplx(0.d0)
               enddo
-              if ( ismall.gt.20 ) then
-                if(llog.gt.l) llog = l
+              if (ismall .gt. 20) then
+                if (llog .gt. l) llog = l
                 exit
               endif
               l2 = dble(l)*dble(l+1)
               lsq = dsqrt( l2 )
 c computing the coefficient matrix elements
 c --- renewing  mdr
-              if (  mod(l,50).eq.0  ) then
+              if (mod(l,50) .eq. 0) then
                 call calmdr( omega,l,nzone,vrmin,vrmax,vmin,dzpar,
      &               rmax,sufzone )
                 call calspdr( maxnzone,nzone,iphase,nlayer,
@@ -868,7 +860,7 @@ c --- renewing  mdr
                 nn = kkdr(nzone) + 2 * nlayer(nzone) + 1
               endif
 c ***** Computing the trial function *****
-              do ir=1,nr
+              do ir = 1,nr
                 call calbvec( l,theta(ir),phi(ir),
      &          plm(1,0,ir),bvec(1,-2,ir) )
               enddo
@@ -880,55 +872,55 @@ c computing the boundary condition elements
 c
               jtmp = kkdr(spn) + 2 * int(spo)
               mtmp = isp(spn) + int(spo)
-              if ( spo.eq.int(spo) ) then
+              if (spo .eq. int(spo)) then
                 jtmp = jtmp - 2
                 mtmp = mtmp - 1
               endif
               call calya( anum(1,1,1),bnum(1,1,1),
      &             l2,ra(mtmp),r0,ya,yb,yc,yd )
-              do m=-2,2        ! m-loop
-                if ( iabs(m).le.iabs(l) ) then
+              do m = -2,2  ! m-loop
+                if (iabs(m) .le. iabs(l)) then
 c computing the excitation vector
                   call cvecinit( nn,g )
                   call calg( l,m,coef1(spn),coef2(spn),lsq,
      &                 ecC0,ecF0,ecL0,ya,yb,yc,yd,
      &                 ra(mtmp),r0,mt,g(jtmp) )
-                  if ( l.eq.0 ) then
+                  if (l .eq. 0) then
 c rearranging the matrix elements for l=0
                     call rea2( nn,a,g,c,d,
      &                   nzone,iphase,kkdr,spn,kkdr0,nn0 )
 c computing the expansion coefficient
-                    itmp=1
-                    if ( rmin.eq.0.d0 ) itmp=2
+                    itmp = 1
+                    if (rmin .eq. 0.d0) itmp=2
                     ns = kkdr0 + ( nint(spo) - 1 )
                     call dcsymbdl( c(1,itmp),1,nn0-itmp+1,1,eps,
      &                   z(itmp),w(itmp),ll,lli,llj,ier )
                     call dcsbdlv( c(1,itmp),d(itmp),1,
      &                   nn0-itmp+1,ns-itmp+1,eps,z(itmp),ier )
 c computing the displacement
-                    do ir=1,nr
+                    do ir = 1,nr
                       call calu0( d(nn0),bvec(1,m,ir),u(1,ir) )
                     enddo
                   else
 c computing the expansion coefficient
-                    itmp=1
-                    if ( rmin.eq.0.d0 ) itmp=3
+                    itmp = 1
+                    if (rmin .eq. 0.d0) itmp=3
                     ns = kkdr(spn) + 2 * ( nint(spo) - 1 )
-                    if( mod(l,100).eq.0) then
-                      if ( ( m.eq.-2 ).or.( m.eq.-l ) ) then
+                    if (mod(l,100) .eq. 0) then
+                      if ((m .eq. -2) .or. (m .eq. -l)) then
                         call dcsymbdl0( a(1,itmp),3,nn-itmp+1,
      &                       6,eps,
      &                       z(itmp),w(itmp),ll,lli,llj,ier )
                       endif
                       call dcsbdlv0( a(1,itmp),g(itmp),3,
      &                     nn-itmp+1,eps,z(itmp),ier )
-                      do jj=1,nn ! sum up c of the same l
+                      do jj = 1,nn  ! sum up c of the same l
                         tmpc(jj) = tmpc(jj) + g(jj)
                       enddo
                     else
-                      if ( kc.lt.3 ) kc = 3
+                      if (kc .lt. 3) kc = 3
                       itmp = kc
-                      if ( ( m.eq.-2 ).or.( m.eq.-l ) ) then
+                      if ((m .eq. -2) .or. (m .eq. -l)) then
                         call dcsymbdl( a(1,itmp),3,nn-itmp+1,
      &                       6,eps,
      &                       z(itmp),w(itmp),ll,lli,llj,ier )
@@ -939,45 +931,27 @@ c computing the expansion coefficient
 c computing ampratio
                     call calamp( g(nn-1),l,lsuf,maxamp,ismall,ratl )
 c
-                    if( mod(l,100).eq.0) then
+                    if (mod(l,100) .eq. 0) then
                       call calcutd(nzone,nlayer,tmpc,ratc,nn,
      &                     iphase,spo,spn,
      &                     ra,kkdr,kc)
                     endif
 c computing the displacement
-                    do ir=1,nr
+                    do ir = 1,nr
                       call calu( g(nn-1),lsq,bvec(1,m,ir),u(1,ir) )
                     enddo
                   endif
                 endif
-              enddo            ! m-loop
-            enddo               ! l-loop
+              enddo  ! m-loop
+            enddo  ! l-loop
           endif
-ccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
 c ************************** Files Handling **************************
-          outputi (outputindex)=i
-c	write(*,*) outputindex, outputinterval, "J"
-          do ir=1,nr
-c	      stop
-c              open( unit=filenum,file=trim(output(ir))//".tmp",
-c     &             position='append',status='old')
-c              write(filenum,*) i,dble(u(1,ir)),dimag(u(1,ir))
-c              write(filenum,*) dble(u(2,ir)),dimag(u(2,ir))
-c              write(filenum,*) dble(u(3,ir)),dimag(u(3,ir))
-c              close(filenum)
-            outputu (1,ir,outputindex) =u (1,ir)
-c		write (*,*) u(1,ir), ir
-            outputu (2, ir, outputindex)= u (2,ir)
-c	      outputu (2, ir, outputindex)=
-c	1	   cmplx(dble(u (2,ir)), dimag(u(2,ir)))
-            outputu (3, ir, outputindex)= u(3,ir)
-c	      write (*,*) outputu (1,ir,outputindex)
-c	      write(*,*) dimag(outputu (1,ir,outputindex)
-c	      write(*,*)outputu (2,ir,outputindex)
-c	      write(*,*)u (2,ir)
-c	      write (*,*) dimag(outputu(2,ir,outputindex))
-c	      write(*,*) dimag(u(2,ir))
-c              write(*,*)  my_rank, outputindex
+          outputi(outputindex) = i
+          do ir = 1,nr
+            outputu(1,ir,outputindex) = u(1,ir)
+            outputu(2,ir,outputindex) = u(2,ir)
+            outputu(3,ir,outputindex) = u(3,ir)
           enddo
 
           if (outputindex .ge. outputinterval .or.
@@ -985,34 +959,33 @@ c              write(*,*)  my_rank, outputindex
             write(*,*) "kakikomimasu"
 c              write (*,*) my_rank, outputindex
             if (spcform .eq. 0) then
-              do ir = 1 ,nr
-                open( unit=10,file=output(ir),
-     &                           position='append',status='unknown',
-     &                           form='unformatted',access='stream',
-     &                           convert='big_endian')
-                do mpii= 1, outputindex
+              do ir = 1,nr
+                open( unit=10,file=output(ir),position='append',
+     &                           status='unknown',form='unformatted',
+     &                           access='stream',convert='big_endian' )
+                do mpii = 1,outputindex
                   write(10) outputi(mpii),
-     $                                  dble(outputu(1,ir,mpii)),
-     $                                  dimag(outputu(1,ir,mpii))
+     $                      dble(outputu(1,ir,mpii)),
+     $                      dimag(outputu(1,ir,mpii))
                   write(10) dble(outputu(2,ir,mpii)),
-     $                                  dimag(outputu(2,ir,mpii))
+     $                      dimag(outputu(2,ir,mpii))
                   write(10) dble(outputu(3,ir,mpii)),
-     $                                  dimag(outputu(3,ir,mpii))
+     $                      dimag(outputu(3,ir,mpii))
                 enddo
                 close(10)
               enddo
             else if (spcform .eq. 1) then
-              do ir = 1 ,nr
-                open( unit=10,file=output(ir),
-     &                           position='append',status='unknown')
-                do mpii= 1, outputindex
+              do ir = 1,nr
+                open( unit=10,file=output(ir),position='append',
+     &                           status='unknown' )
+                do mpii = 1,outputindex
                   write(10,*) outputi(mpii),
-     $                                  dble(outputu(1,ir,mpii)),
-     $                                  dimag(outputu(1,ir,mpii))
+     $                        dble(outputu(1,ir,mpii)),
+     $                        dimag(outputu(1,ir,mpii))
                   write(10,*) dble(outputu(2,ir,mpii)),
-     $                                  dimag(outputu(2,ir,mpii))
+     $                        dimag(outputu(2,ir,mpii))
                   write(10,*) dble(outputu(3,ir,mpii)),
-     $                                  dimag(outputu(3,ir,mpii))
+     $                        dimag(outputu(3,ir,mpii))
                 enddo
                 close(10)
               enddo
@@ -1021,25 +994,18 @@ c              write (*,*) my_rank, outputindex
             endif
             outputindex = 0
           endif
-          outputindex = outputindex + 1
-          if(ilog.eq.1) then
-            open(unit=10,file='llog.log',
-     &       position='append',status='old')
-            write(10,*) i,llog,nnlayer
-            close(10)
+
+          if (ilog .eq. 1) then
+            open( unit=11,file='llog.log',
+     &             position='append',status='old' )
+            write(11,*) i,llog,nnlayer
+            close(11)
           endif
 
-
-c	   call mpi_finalize(ierr)
-c	   stop
-
-
-        enddo                   ! omega-loop
+          outputindex = outputindex + 1
+        enddo  ! omega-loop
 c
 c
-c	call mpi_finalize(ierr)
-c	stop
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         write(*,*) "Ivalice looks to the horizon"
 
         stop
