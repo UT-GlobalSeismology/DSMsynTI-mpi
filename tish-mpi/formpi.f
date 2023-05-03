@@ -18,29 +18,29 @@ c     i(i) = istart+remainder+(i-1)*deltai,
 c     ......istart+remainder+n*deltai-1
 cccccccccccccccccccccccccccccccccccccc
 c     input parameters
-         implicit none
-         integer, intent(in) :: istart, iend
-         integer, intent(in) :: n  ! the number of processors
+        implicit none
+        integer, intent(in) :: istart, iend
+        integer, intent(in) :: n  ! the number of processors
 c
-         integer, dimension(*), intent(out) :: imin, imax
+        integer, dimension(*), intent(out) :: imin, imax
 c
-         integer :: remainder
-         integer :: inum
-         integer :: deltai
+        integer :: remainder
+        integer :: inum
+        integer :: deltai
 c
-         integer :: i
+        integer :: i
 c
-         inum = iend-istart+1
-         remainder = mod (inum, n)
-         deltai = (inum-remainder)/n
+        inum = iend-istart+1
+        remainder = mod (inum, n)
+        deltai = (inum-remainder)/n
 c
-         imin (1) = istart
-         imax (1) = istart + remainder-1 + deltai
-         do i = 2, n
-            imin(i)= istart + remainder + (i-1) * deltai
-            imax(i)= istart + remainder + i * deltai -1
-         enddo
-         return
+        imin (1) = istart
+        imax (1) = istart + remainder-1 + deltai
+        do i = 2, n
+          imin(i)= istart + remainder + (i-1) * deltai
+          imax(i)= istart + remainder + i * deltai -1
+        enddo
+        return
       end
 
       subroutine trianglesplit (istart, iend, n, imin, imax)
@@ -65,43 +65,43 @@ c
 
 cccccccccccccccccccccccccccccccccccccc
 c     input parameters
-         implicit none
-         integer, intent(in) :: istart, iend
-         integer, intent(in) :: n  ! the number of processors
+        implicit none
+        integer, intent(in) :: istart, iend
+        integer, intent(in) :: n  ! the number of processors
 c
-         integer, dimension(*), intent(out) :: imin, imax
+        integer, dimension(*), intent(out) :: imin, imax
 c
-         integer :: remainder
-         integer :: inum
-         integer :: deltai
+        integer :: remainder
+        integer :: inum
+        integer :: deltai
 c
-         integer :: i
-         integer, dimension(0:n) :: x
-         real(8) :: s  !  0.5 *  iend **2 / n
-         real(8) ::p
+        integer :: i
+        integer, dimension(0:n) :: x
+        real(8) :: s  !  0.5 *  iend **2 / n
+        real(8) ::p
 c
-         inum = iend-istart+1
-         s =  iend *iend / n
+        inum = iend-istart+1
+        s =  iend *iend / n
 c
-         x(0) = istart
-         do i = 1, n
-            x(i)= s+x(i-1)**2
-            !   print *,x(i)
-            x(i) = x(i)**0.5
+        x(0) = istart
+        do i = 1, n
+          x(i)= s+x(i-1)**2
+          !   print *,x(i)
+          x(i) = x(i)**0.5
 c         p= x(i)**2-x(i-1)**2
 c         print *,p
 c         print *,x(i)
-         enddo
+        enddo
 
 c      print *,x(0)
-         do i = 1, n
-            imin(i)= x(i-1)
-            imax(i)= x(i)-1
+        do i = 1, n
+          imin(i)= x(i-1)
+          imax(i)= x(i)-1
 c         print *, imin(i),imax(i)
-         enddo
-         imax (n) = iend
+        enddo
+        imax (n) = iend
 c      print *, x(1), s,n,iend
-         return
+        return
 
       end
 
