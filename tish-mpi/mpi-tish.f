@@ -169,78 +169,59 @@ c --- inputting parameter ---
         call MPI_BCAST (output, 80*maxnr, MPI_CHARACTER,
      3    0, MPI_COMM_WORLD, ierr)
 ccccccccccccccccccccccccccccccccccccccccccccc
-        memoryperomega = 1*3*16 *nr*0.000001
-        outputinterval = outputmemory/memoryperomega != integer * nr
-c	write (*,*) outputinterval
-c	call mpi_finalize(ierr)
-c	stop
+        memoryperomega = 3 * 16 * nr * 0.000001
+        outputinterval = outputmemory / memoryperomega  ! = integer * nr
         allocate (outputi(outputinterval))
         allocate (outputu(3,nr,outputinterval))
-c	do i=1,3
-c	   do j = 1,nr
-c	      do ii = 1, outputinterval
-c		 outputu(i,j,ii)=cmplx(1,0)
-c	      enddo
-c	   enddo
-c	enddo
-
-ccccccccccccccccccccccccccccccccccccccccccccccc
 
 c --- computing the required parameters ---
 c computing and checking the parameters
         rmin = vrmin(1)
         rmax = vrmax(nzone)
         ndc = nzone - 1
-c	write(*,*) my_rank  ! debug
-c	call mpi_finalize (ierr)
-c	stop
-        do ir=1,nr
-          theta(ir)= theta(ir) / 1.8d2 * pi
-          phi(ir)= phi(ir)   / 1.8d2 * pi
+        do ir = 1,nr
+          theta(ir) = theta(ir) / 1.8d2 * pi
+          phi(ir) = phi(ir) / 1.8d2 * pi
         enddo
-        if ( (r0.lt.rmin) .or. (r0.gt.rmax) )
-     &         pause 'Location of the source is improper.'
+        if ((r0 .lt. rmin) .or. (r0 .gt. rmax))
+     &      stop 'Location of the source is improper.'
+
 c ************************** Files Handling **************************
-        if (my_rank.eq.0)then
-          if (spcform.eq.0)then
-            do ir=1,nr
-c	   open( unit=filenum,file=trim(output(ir))//"."//char_rank,
-c	1	status='unknown')
-c	   close(filenum)
-              open( 10,file=trim(output(ir)),
-     $        status='unknown',form='unformatted',
-     $           access='stream',convert='big_endian')
+        if (my_rank .eq. 0) then
+          if (spcform .eq. 0) then
+            do ir = 1,nr
+              open(10,file=trim(output(ir)),
+     &            status='unknown',form='unformatted',
+     &            access='stream',convert='big_endian')
               write(10) tlen
               write(10) np,1,3
               write(10) omegai,lat(ir),lon(ir)
-c       write(11,*) theta(ir)*1.8d2/pi,phi(ir)*1.8d2/pi
               write(10) eqlat,eqlon,r0
-              close (10)
+              close(10)
             enddo
-          else if(spcform.eq.1)then
-            do ir=1,nr
-              open( 10,file=trim(output(ir)),
-     $             status='unknown')
+          else if (spcform .eq. 1) then
+            do ir = 1,nr
+              open(10,file=trim(output(ir)),
+     &            status='unknown')
               write(10,*) tlen
               write(10,*) np,1,3
               write(10,*) omegai,lat(ir),lon(ir)
               write(10,*) eqlat,eqlon,r0
-              close (10)
+              close(10)
             enddo
           else
-            write(*,*) 'WARNING:(mpi-tish.f) set spcform 0 or 1'
+            write(*,*) 'WARNING:(mpi-tish.f)  set spcform 0 or 1'
           end if
         endif
 
+        if (ilog .eq. 1) then
+          open(unit=11,file='llog.log',status='unknown')
+          close(11)
+        endif
 
-
-c	if(ilog.eq.1) then
-c	   open(unit=filenum,file='llog.log.'//char_rank,
-c	1	status='unknown')
-c	   close(filenum)
-c	endif
         iimax = imax
-        if( (rmax-r0).lt.shallowdepth) then ! option for shallow events
+c --- option for shallow events
+        if ((rmax-r0) .lt. shallowdepth) then
 c computing of the number and the location of grid points
           iimax = int(tlen * 2.d0)
           call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
@@ -584,116 +565,89 @@ c
                     call calu( g(nn),lsq,bvec(1,m,ir),u(1,ir) )
                   enddo
                 endif
-              enddo          ! m-loop
-            enddo             ! l-loop
+              enddo  ! m-loop
+            enddo  ! l-loop
           endif
-c ************************** Files Handling **************************
 
-c	   filenum = 11+my_rank
-c	   write (char_rank,'(I1)') my_rank
-c       outputinterval
-          outputi(outputindex)=i
-          do ir=1,nr
-c	      call mpi_finalize(ierr)
-c	      stop
-c              open( unit=filenum,file=trim(output(ir))//"."//char_rank,
-c     &             position='append',status='old')
-c              write(filenum,*) i,dble(u(1,ir)),dimag(u(1,ir))
-c              write(filenum,*) dble(u(2,ir)),dimag(u(2,ir))
-c              write(filenum,*) dble(u(3,ir)),dimag(u(3,ir))
-c              close(filenum)
-c	      outputi (outputindex)=i
-            outputu (1,ir,outputindex) =u (1,ir)
-            outputu (2, ir, outputindex)= u (2,ir)
-c	      outputu (2, ir, outputindex)=
-c	1	   cmplx(dble(u (2,ir)), dimag(u(2,ir)))
-            outputu (3, ir, outputindex)= u(3,ir)
-c	      write (*,*) outputu (1,ir,outputindex)
-c	      write(*,*) dimag(outputu (1,ir,outputindex)
-c	      write(*,*)outputu (2,ir,outputindex)
-c	      write(*,*)u (2,ir)
-c	      write (*,*) dimag(outputu(2,ir,outputindex))
-c	      write(*,*) dimag(u(2,ir))
+c ************************** Files Handling **************************
+          outputi(outputindex) = i
+          do ir = 1,nr
+            outputu(1,ir,outputindex) = u(1,ir)
+            outputu(2,ir,outputindex) = u(2,ir)
+            outputu(3,ir,outputindex) = u(3,ir)
           enddo
 
           if (outputindex .ge. outputinterval .or.
-     1    i .eq. mpimax(my_rank+1)) then
+     &        i .eq. mpimax(my_rank+1)) then
 c	      write(*,*) "kakikomimasu"
-            if(spcform.eq.0)then
-              do ir = 1 ,nr
+            if (spcform .eq. 0) then
+              do ir = 1,nr
   120           continue
                 open(unit=filenum,file=trim(output(ir)),
-     &          position='append',status='unknown',
-     &          form='unformatted', access='stream',
-     &              convert='big_endian',
-     &                 err=100, share='denyrw' )
+     &              position='append',status='unknown',
+     &              form='unformatted',access='stream',
+     &              convert='big_endian',share='denyrw',err=100)
                 goto 555
   100           continue
-c       write(*,*) my_rank, "waiting for 100s", output(ir)
                 call system("sleep 100")
                 goto 120
   555           continue
-                do mpii= 1, outputindex
+                do mpii = 1,outputindex
                   write(filenum) outputi(mpii),
-     1            dble(outputu(1,ir,mpii)),
-     1            dimag(outputu(1,ir,mpii))
-                  write(filenum) dble(outputu(2,ir,mpii)),
-     1            dimag(outputu(2,ir,mpii))
-                  write(filenum) dble(outputu(3,ir,mpii)),
-     2            dimag(outputu(3,ir,mpii))
+     &                dble(outputu(1,ir,mpii)),
+     &                dimag(outputu(1,ir,mpii))
+                  write(filenum)
+     &                dble(outputu(2,ir,mpii)),
+     &                dimag(outputu(2,ir,mpii))
+                  write(filenum)
+     &                dble(outputu(3,ir,mpii)),
+     &                dimag(outputu(3,ir,mpii))
                 enddo
                 close(filenum)
               enddo
-            else if(spcform.eq.1)then
-              do ir = 1 ,nr
+            else if (spcform .eq. 1) then
+              do ir = 1,nr
   220           continue
                 open(unit=filenum,file=trim(output(ir)),
-     &             position='append',status='unknown',
-     &                 err=200, share='denyrw' )
+     &              position='append',status='unknown',
+     &              share='denyrw',err=200)
                 goto 655
   200           continue
                 call system("sleep 100")
                 goto 220
   655           continue
-                do mpii= 1, outputindex
+                do mpii = 1,outputindex
                   write(filenum,*) outputi(mpii),
-     1            dble(outputu(1,ir,mpii)),
-     1            dimag(outputu(1,ir,mpii))
-                  write(filenum,*) dble(outputu(2,ir,mpii)),
-     1            dimag(outputu(2,ir,mpii))
-                  write(filenum,*) dble(outputu(3,ir,mpii)),
-     2            dimag(outputu(3,ir,mpii))
+     &                dble(outputu(1,ir,mpii)),
+     &                dimag(outputu(1,ir,mpii))
+                  write(filenum,*)
+     &                dble(outputu(2,ir,mpii)),
+     &                dimag(outputu(2,ir,mpii))
+                  write(filenum,*)
+     &                dble(outputu(3,ir,mpii)),
+     &                dimag(outputu(3,ir,mpii))
                 enddo
                 close(filenum)
               enddo
             else
-              write(*,*) 'WARNING:(mpi-tish.f) set spcform 0 or 1'
+              write(*,*) 'WARNING:(mpi-tish.f)  set spcform 0 or 1'
             end if
-            outputindex =0
+            outputindex = 0
           endif
+
+          if (ilog .eq. 1) then
+            open(unit=11,file='llog.log',
+     &          position='append',status='old')
+            write(11,*) i,llog,nnlayer
+            close(11)
+          endif
+
           outputindex = outputindex + 1
-          if(ilog.eq.1) then
-            open(unit=filenum,file='llog.log.'//char_rank,
-     &       position='append',status='old')
-            write(filenum,*) i,llog,nnlayer
-            close(filenum)
-          endif
-
-
-c	   call mpi_finalize(ierr)
-c	   stop
-
-
-        enddo                   ! omega-loop
+        enddo  ! omega-loop
 c
 c
-c	call mpi_finalize(ierr)
-c	stop
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         write(*,*) my_rank, "Ivalice looks to the horizon!"
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
-ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-        call mpi_finalize (ierr)
+        call mpi_finalize(ierr)
         stop
       end
