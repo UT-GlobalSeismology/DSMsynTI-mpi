@@ -396,6 +396,7 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
     char output[80];
     double stla, stlo, evla, evlo, r0;
     long tmpint;
+    double tmpDouble0, tmpDouble1;
     struct sacheader hv;
 
     evla = 89.99999;
@@ -466,52 +467,64 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
         }
         if (icomplexinv == 0) {
             for (i = 0; i <= np0; i++) {
-                if (!fscanf(file_psv, "%ld %lf %lf\n", &tmpint, &psvr[2 * i], &psvr[2 * i + 1]))
+                if (!fscanf(file_psv, "%ld %lf %lf\n", &tmpint, &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
-                if (!fscanf(file_psv, "%lf %lf\n", &psvt[2 * i], &psvt[2 * i + 1]))
+                psvr[2 * tmpint] = tmpDouble0;
+                psvr[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_psv, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
-                if (!fscanf(file_psv, "%lf %lf\n", &psvp[2 * i], &psvp[2 * i + 1]))
+                psvt[2 * tmpint] = tmpDouble0;
+                psvt[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_psv, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
+                psvp[2 * tmpint] = tmpDouble0;
+                psvp[2 * tmpint + 1] = tmpDouble1;
             }
         } else if (icomplexinv == 1) {
             for (i = 0; i <= np0; i++) {
-                if (!fscanf(file_psv, "%ld %lf %lf\n", &tmpint, &psvr[2 * i], &psvr[2 * i + 1]))
+                if (!fscanf(file_psv, "%ld %lf %lf\n", &tmpint, &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
-                if (!fscanf(file_psv, "%lf %lf\n", &psvt[2 * i], &psvt[2 * i + 1]))
+                psvr[2 * tmpint] = tmpDouble0;
+                psvr[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_psv, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
-                if (!fscanf(file_psv, "%lf %lf\n", &psvp[2 * i], &psvp[2 * i + 1]))
+                psvt[2 * tmpint] = tmpDouble0;
+                psvt[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_psv, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(psvfile);
+                psvp[2 * tmpint] = tmpDouble0;
+                psvp[2 * tmpint + 1] = tmpDouble1;
 
-                if (i != 0) {
+                if (tmpint != 0) {
                     double parreal, parimag, frequency;
                     double parQr, parQi;
                     double factor;
-                    frequency = (double)i / tlen;
+                    frequency = (double)tmpint / tlen;
                     parQr = muRperturb * 2 * log(frequency) / PI;
                     parQi = muRperturb * (1 + 4 * log(frequency) / PI / Qperturb);
                     factor = 1 + 2 * log(frequency) / PI / Qperturb;
                     factor *= sqrt(1 + 1 / (Qperturb * Qperturb));
                     printf("%lf\n", factor);
-                    parreal = psvr[2 * i];
-                    parimag = psvr[2 * i + 1];
-                    psvr[2 * i] = parreal * parQr - parimag * parQi;
-                    psvr[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    psvr[2 * i] *= 0.001 / factor;
-                    psvr[2 * i + 1] *= 0.001 / factor;
+                    parreal = psvr[2 * tmpint];
+                    parimag = psvr[2 * tmpint + 1];
+                    psvr[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    psvr[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    psvr[2 * tmpint] *= 0.001 / factor;
+                    psvr[2 * tmpint + 1] *= 0.001 / factor;
 
-                    parreal = psvt[2 * i];
-                    parimag = psvr[2 * i + 1];
-                    psvt[2 * i] = parreal * parQr - parimag * parQi;
-                    psvt[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    psvt[2 * i] *= 0.001 / factor;
-                    psvt[2 * i] *= 0.001 / factor;
+                    parreal = psvt[2 * tmpint];
+                    parimag = psvr[2 * tmpint + 1];
+                    psvt[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    psvt[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    psvt[2 * tmpint] *= 0.001 / factor;
+                    psvt[2 * tmpint] *= 0.001 / factor;
 
-                    parreal = psvp[2 * i];
-                    parimag = psvp[2 * i + 1];
-                    psvp[2 * i] = parreal * parQr - parimag * parQi;
-                    psvp[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    psvp[2 * i] *= 0.001 / factor;
-                    psvp[2 * i + 1] *= 0.001 / factor;
+                    parreal = psvp[2 * tmpint];
+                    parimag = psvp[2 * tmpint + 1];
+                    psvp[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    psvp[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    psvp[2 * tmpint] *= 0.001 / factor;
+                    psvp[2 * tmpint + 1] *= 0.001 / factor;
                 }
             }
         }
@@ -546,28 +559,41 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
 
         if (icomplexinv == 0) {
             for (i = 0; i <= np0; i++) {
-                if (!fscanf(file_sh, "%ld %lf %lf\n", &tmpint, &shr[2 * i], &shr[2 * i + 1]))
+                if (!fscanf(file_sh, "%ld %lf %lf\n", &tmpint, &tmpDouble0, &tmpDouble1))
                     error01(shfile);
-                if (!fscanf(file_sh, "%lf %lf\n", &sht[2 * i], &sht[2 * i + 1]))
+                shr[2 * tmpint] = tmpDouble0;
+                shr[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_sh, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(shfile);
-                if (!fscanf(file_sh, "%lf %lf\n", &shp[2 * i], &shp[2 * i + 1]))
+                sht[2 * tmpint] = tmpDouble0;
+                sht[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_sh, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(shfile);
+                shp[2 * tmpint] = tmpDouble0;
+                shp[2 * tmpint + 1] = tmpDouble1;
             }
         } else if (icomplexinv == 1) {
             /*printf ("%lf, %lf\n", muRperturb, Qperturb);*/
 
             for (i = 0; i <= np0; i++) {
-                if (!fscanf(file_sh, "%ld %lf %lf\n", &tmpint, &shr[2 * i], &shr[2 * i + 1]))
+                if (!fscanf(file_sh, "%ld %lf %lf\n", &tmpint, &tmpDouble0, &tmpDouble1))
                     error01(shfile);
-                if (!fscanf(file_sh, "%lf %lf\n", &sht[2 * i], &sht[2 * i + 1]))
+                shr[2 * tmpint] = tmpDouble0;
+                shr[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_sh, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(shfile);
-                if (!fscanf(file_sh, "%lf %lf\n", &shp[2 * i], &shp[2 * i + 1]))
+                sht[2 * tmpint] = tmpDouble0;
+                sht[2 * tmpint + 1] = tmpDouble1;
+                if (!fscanf(file_sh, "%lf %lf\n", &tmpDouble0, &tmpDouble1))
                     error01(shfile);
-                if (i != 0) {
+                shp[2 * tmpint] = tmpDouble0;
+                shp[2 * tmpint + 1] = tmpDouble1;
+
+                if (tmpint != 0) {
                     double parreal, parimag, frequency;
                     double parQr, parQi;
                     double factor;
-                    frequency = (double)i / tlen;
+                    frequency = (double)tmpint / tlen;
                     parQr = muRperturb * 2 * log(frequency) / PI;
                     parQi = muRperturb * (1 + 4 * log(frequency) / PI / Qperturb);
 
@@ -575,27 +601,27 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
                     factor *= sqrt(1 + 1 / (Qperturb * Qperturb));
                     /*printf("%e %e %e %lf\n", parQr, parQi, Qperturb, factor);
                      */
-                    parreal = shr[2 * i];
-                    parimag = shr[2 * i + 1];
-                    shr[2 * i] = parreal * parQr - parimag * parQi;
-                    shr[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    shr[2 * i] *= 0.001 / factor;
-                    shr[2 * i + 1] *= 0.001 / factor;
+                    parreal = shr[2 * tmpint];
+                    parimag = shr[2 * tmpint + 1];
+                    shr[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    shr[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    shr[2 * tmpint] *= 0.001 / factor;
+                    shr[2 * tmpint + 1] *= 0.001 / factor;
 
-                    parreal = sht[2 * i];
-                    parimag = sht[2 * i + 1];
+                    parreal = sht[2 * tmpint];
+                    parimag = sht[2 * tmpint + 1];
 
-                    sht[2 * i] = parreal * parQr - parimag * parQi;
-                    sht[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    sht[2 * i] *= 0.001 / factor;
-                    sht[2 * i + 1] *= 0.001 / factor;
+                    sht[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    sht[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    sht[2 * tmpint] *= 0.001 / factor;
+                    sht[2 * tmpint + 1] *= 0.001 / factor;
 
-                    parreal = shp[2 * i];
-                    parimag = shp[2 * i + 1];
-                    shp[2 * i] = parreal * parQr - parimag * parQi;
-                    shp[2 * i + 1] = parreal * parQi + parimag * parQr;
-                    shp[2 * i] *= 0.001 / factor;
-                    shp[2 * i + 1] *= 0.001 / factor;
+                    parreal = shp[2 * tmpint];
+                    parimag = shp[2 * tmpint + 1];
+                    shp[2 * tmpint] = parreal * parQr - parimag * parQi;
+                    shp[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
+                    shp[2 * tmpint] *= 0.001 / factor;
+                    shp[2 * tmpint + 1] *= 0.001 / factor;
                 }
             }
         }
