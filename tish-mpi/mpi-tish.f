@@ -1,12 +1,26 @@
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c  ************** tish ****************
+c  Computation of SH synthetic seismograms
+c  in transversely isotropic media for anisotropic PREM
+c  using modified DSM operators & modified source representation.
+c  Synthetics for shallow events can be computed.
+c  (C) 2002.10  K.Kawai
+c
+c  This program is free software: you can redistribute it and/or modify
+c  it under the terms of the GNU General Public License as published by
+c  the Free Software Foundation, either version 3 of the License, or
+c  (at your option) any later version.
+c
+c  This program is distributed in the hope that it will be useful,
+c  but WITHOUT ANY WARRANTY; without even the implied warranty of
+c  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+c  GNU General Public License for more details.
+c
+c  You should have received a copy of the GNU General Public License
+c  along with this program. If not, see <https://www.gnu.org/licenses/>.
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       program tish
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c  ************** tish.f ****************
-c Computation of SH synthetic seismograms
-c in transversely isotropic media for anisotropic PREM
-c using modified DSM operators & modified source representation.
-c Synthetics for shallow events can be computed.
-c                                                 2002.10  K.Kawai
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         implicit none
 c ----------------------------<<constants>>----------------------------
         real*8 pi,lmaxdivf,shallowdepth
@@ -233,7 +247,7 @@ c computing of the number and the location of grid points
      &        rmin,rmax,nlayer,ra,re )
 c --- checking the parameter
           if ( nnlayer.gt.maxnlay )
-     &        pause 'The number of grid points is too large.'
+     &        stop 'The number of grid points is too large.'
 c computing the stack points
           call calsp( ndc,nlayer,isp,jsp )
 c computing the source location
@@ -390,7 +404,7 @@ c computing of the number and the location of grid points
      &         rmin,rmax,nlayer,ra,re )
 c --- checking the parameter
         if ( nnlayer.gt.maxnlay )
-     &         pause 'The number of grid points is too large.'
+     &      stop 'The number of grid points is too large.'
 c computing the stack points
         call calsp( ndc,nlayer,isp,jsp )
 c computing the source location
