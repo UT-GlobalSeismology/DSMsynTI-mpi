@@ -1,11 +1,11 @@
 # makefile for tish
-# For CentOS, you don't have to set $(LDFLAGS) and -fdec option
-# For Ubuntu, you have to set -L option in $(LDFLAGS) to path to intel compiler library
-PROGS = mpi-tish
+
+PROGS = mpi-tish tish
 FC = mpif90
 FC2 = ifort
 FFLAGS = -O -no-pie
-LDFLAGS = -lifport -lifcoremt -limf -lintlc -lsvml -lirng -L /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
+## The following may be needed for Ubuntu (set -L option in $LDFLAGS to path to intel compiler library)
+#LDFLAGS = -lifport -lifcoremt -limf -lintlc -lsvml -lirng -L /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
 
 SRC = calmat.f trialf.f others.f dclisb.f dclisb3.f formpi.f mpi-tish.f
 SRC2 = calmat.f trialf.f others.f dclisb.f dclisb3.f tish.f
@@ -13,7 +13,7 @@ OBJS = $(SRC:.f=.o)
 OBJS2 = $(SRC2:.f=.o)
 .SUFFIXES: .f .o
 
-all:$(PROGS) tish
+all: $(PROGS)
 
 mpi-tish: $(OBJS)
 	$(FC) $(FFLAGS) -o $@ $(OBJS) $(LDFLAGS)
@@ -28,4 +28,4 @@ mpi-tish.o: mpi-tish.f
 	$(FC2) $(FFLAGS) -c $< 
 
 clean:
-	rm -f $(OBJS) $(OBJS2) $(PROGS) tish work
+	rm -f $(OBJS) $(OBJS2) $(PROGS) work

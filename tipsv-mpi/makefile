@@ -1,11 +1,11 @@
 # makefile for tipsv
-# For CentOS, you don't have to set $(LDFLAGS) and -fdec option
-# For Ubuntu, you have to set -L option in $(LDFLAGS) to path to intel compiler library
-PROGS = mpi-tipsv
+
+PROGS = mpi-tipsv tipsv
 FC = mpif90
 FC2 = ifort
 FFLAGS = -O -no-pie
-LDFLAGS = -lifport -lifcoremt -limf -lintlc -lsvml -lirng -L /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
+## The following may be needed for Ubuntu (set -L option in $LDFLAGS to path to intel compiler library)
+#LDFLAGS = -lifport -lifcoremt -limf -lintlc -lsvml -lirng -L /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
 
 SRC = calmat.f trialf.f others.f rk3.f glu2.f dcsymbdl0.f dcsymbdl.f mpi-tipsv.f formpi.f
 SRC2 = calmat.f trialf.f others.f rk3.f glu2.f dcsymbdl0.f dcsymbdl.f tipsv.f
@@ -13,7 +13,7 @@ OBJS = $(SRC:.f=.o)
 OBJS2 = $(SRC2:.f=.o)
 .SUFFIXES: .f .o
 
-all:$(PROGS) tipsv
+all: $(PROGS)
 
 mpi-tipsv: $(OBJS)
 	$(FC) $(FFLAGS) -o $@ $(OBJS) $(LDFLAGS)
@@ -28,4 +28,4 @@ mpi-tipsv.o: mpi-tipsv.f
 	$(FC2) $(FFLAGS) -c $< 
 
 clean:
-	rm -f $(OBJS) $(OBJS2) $(PROGS) tipsv work
+	rm -f $(OBJS) $(OBJS2) $(PROGS) work

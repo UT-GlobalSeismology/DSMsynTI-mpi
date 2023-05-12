@@ -11,7 +11,7 @@ spcsac: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o spcsac;
 
 .c.o: 
-	$(CC) -c $(FFLAGS) $<
+	$(CC) -c $(CFLAGS) $<
 
 clean:
 	rm -f $(OBJS) spcsac
