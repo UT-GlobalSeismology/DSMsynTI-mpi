@@ -2,7 +2,9 @@
  *  ************** spcsac ****************
  *  Tool to transform frequency spectrums computed by the DSM software
  *  into time domain data in a SAC binary format.
- *  (C) 2006.3  FUJI Nobuaki
+ *
+ *  Main historical authors: N.Fuji, K.Kawai, N.Takeuchi, R.J.Geller
+ *  (C) 2006.3  University of Tokyo
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

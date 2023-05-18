@@ -4,7 +4,9 @@ c  Computation of SH synthetic seismograms
 c  in transversely isotropic media for anisotropic PREM
 c  using modified DSM operators & modified source representation.
 c  Synthetics for shallow events can be computed.
-c  (C) 2002.10  K.Kawai
+c
+c  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
+c  (C) 2002.10  University of Tokyo
 c
 c  This program is free software: you can redistribute it and/or modify
 c  it under the terms of the GNU General Public License as published by
