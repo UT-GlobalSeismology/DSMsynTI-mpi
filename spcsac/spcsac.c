@@ -234,11 +234,6 @@ int main(int argc, char *argv[]) {
     strcpy(backp, ".PSV.spc");
     strcpy(backs, ".SH.spc");
     strcpy(spcfile, "./");
-    puts(" ----------------------------------------------------------------------");
-    puts("<< spcsac, Release 1.0.0 >>");
-    puts("                                              FUJI Nobuaki, 2006.3");
-    puts("                                              FUJI Nobuaki, 2009.4");
-    puts("-----------------------------------------------------------------------");
 
     while ((ch = getopt(argc, argv, "M:Q:H:hevid:f:l:m:c:r:t:z:p:s:a")) != -1) {
         switch (ch) {
@@ -263,6 +258,7 @@ int main(int argc, char *argv[]) {
                 modeprompt(&filordir, &psvorsh, &component, backr, backt, backz, backp, backs, spcfile);
                 break;
             case 'v':
+                puts("<< spcsac, Release 1.0.0 >>");
                 nojokenoscience();
                 break;
             case 'i':
@@ -389,8 +385,6 @@ int main(int argc, char *argv[]) {
 
     puts(" ----------------------------------------------------------------------");
     puts("  ARIGATO, VIELEN DANK, XIEXIE, MERCI, OBRIGADO, DOBRE, THANK YOU...   ");
-    puts(" If you have any questions, requests, or red wines, don't hesitate     ");
-    puts("   to contact me : FUJI Nobuaki (seismobassoon@gmail.com)              ");
 
     return 0;
 }
@@ -1015,17 +1009,16 @@ void gcc2ggc(double *theta) {
 
 void helpmessage(void) {
     puts("USAGE:  spcsac [option]");
-    puts("-v:            If you are so lucky, you can see the version");
-    puts("               of this software :-) otherwise...: quotes and unquotes...");
+    puts("-v:            See the version of this software.");
     puts("-a:            ASCII output for non-SAC-users.");
-    puts("-h:            If you want to call help file (this text).");
+    puts("-h:            See the help message (this text).");
     puts("-e:            If you want to work in a prompt mode rather than");
-    puts("               in a commandline mode.");
-    puts("-l LSMOOTH:    Smoothness parameter LSMOOTH has to be determined.");
-    puts("               If you want to know appropriate lsmooth for your");
+    puts("               in a command line mode.");
+    puts("-l LSMOOTH:    Set the smoothness parameter to the specified value LSMOOTH.");
+    puts("               If you want to know the appropriate lsmooth for your");
     puts("               expected sampling frequency,");
     puts("               you can calculate with this spcsac software:");
-    puts("               %spcsac -t");
+    puts("               %spcsac -i");
     puts("-i:            In order to obtain appropriate lsmooth, spcsac will");
     puts("               help you to calculate the value.");
     puts("-H SAMPLINGHZ: If you put Sampling Hz value, spcsac will automatically");
@@ -1033,26 +1026,23 @@ void helpmessage(void) {
     puts("-d DIRECTORY:  All spc files in DIRECTORY will be transformed.");
     puts("               default: (./)");
     puts("-f FILE:       One specified spc FILE only will be transformed.");
-    puts("-p/-s STRINGS: In order to discriminate PSV or SH spc files,");
-    puts("               you have to put common strings back in the file names.");
+    puts("-p/-s STRINGS: Set the suffixes that the input SH and PSV spc files shall have.");
     puts("               (default: .PSV.spc and .SH.spc");
     puts("-c RTZ:        You can choose which component to be transformed.");
     puts("               (R/T/Z)               (default: RTZ)");
     puts("-m MODE:       You can choose PSV/SH channel. (SH/PSV, sh/psv) (default: PSVSH)");
-    puts("-r/-t/-z STR:  In order to discriminate radial/transverse/vertical");
-    puts("               component output sac files, you have to put common");
-    puts("               strings back in the file names. (default: .Rs/.Ts/.Zs)");
+    puts("-r/-t/-z STR:  Set the suffixes of the radial/transverse/vertical");
+    puts("               component output SAC files. (default: .Rs/.Ts/.Zs)");
     puts("");
-    puts("If you do not put any options, you are to transform all set of");
+    puts("If you do not put any options, you are to transform all sets of");
     puts(" PSV and SH spc files named \"xxxxxx.PSV.spc\" and \"xxxxxx.SH.spc\"");
-    puts(" in current working directory. LSMOOTH is set as 4.");
-    puts("In addition to that, you will obtain complete seismograms");
-    puts("named \"xxxxxx.Rs\" something.");
+    puts(" in the current working directory. LSMOOTH is set as 4.");
+    puts(" You will obtain complete seismograms with names like \"xxxxxx.Rs\".");
     puts("");
     puts("EXAMPLES:");
     puts("\tspcsac -l 8 -mPSV -ppsv.spc_tmp -cZT -t .transverse.sac");
     puts("");
-    puts("You can also check README.pdf in the spcsac directory.");
+    puts("Check the spcsac manual for more information.");
     exit(1);
 }
 
@@ -1080,7 +1070,7 @@ void lsmoothfinder(void) {
     fclose(fp);
     np = 1;
     while (np < np0) np = np * 2;
-    printf("How much do you expect as a sampling frequency? (in Hz)\t");
+    printf("How much do you expect as the sampling frequency? (in Hz)\t");
     scanf("%f", &freq);
     lsmooth = (int)(0.5 * tlen * freq / (float)np);
     i = 1;
@@ -1182,20 +1172,18 @@ void nojokenoscience(void) {
         puts("We will rebuilt the detector, there's no question.");
         puts("                                   --- Yoji Totsuka");
     } else {
-        puts("You have finally find me! ");
-        puts("Thank you very much for your working with DSM softwares.");
-        puts("DSM was developed in the laboratory of");
-        puts("Dr. R.J.Geller in the Univ. of Tokyo.");
-        puts("This is spcsac-v0.1.0 by FUJI Nobuaki");
+        puts("You have finally found me! ");
+        puts("Thank you very much for working with DSM softwares.");
+        puts("DSM was developed by the Global Seismology Group at the Univ. of Tokyo.");
         puts("You can see our site here:");
-        puts("http://www-solid.eps.s.u-tokyo.ac.jp/~dsm");
+        puts("https://utglobalseismology.org");
     }
     exit(1);
 }
 
 void error01(char *spcfile) {
-    printf("spcfile %s is not an appropriate.\nPlease check it and if you want to know more,\n", spcfile);
-    puts("you can read help message by typing");
+    printf("spcfile %s is not appropriate.\nPlease check it and if you want to know more,\n", spcfile);
+    puts("you can read the help message by typing");
     puts("> spcsac -h");
     exit(1);
 }
@@ -1209,9 +1197,9 @@ void modeprompt(int *filordir, int *psvorsh, int *component, char *backr,
     puts("This is spcsac command prompt mode. You are to be asked some questions:");
     puts("When encountering the question which you do not care, which you do not");
     puts("even have to think of or whose default answer you agree,");
-    puts("please press \"\\\" key (back slush) in order to skip the question.");
+    puts("please press \"\\\" key (backslash) in order to skip the question.");
     puts("-----------------------------------------------------------------------");
-    puts("Do you want to transform a spc files");
+    puts("Do you want to transform an spc file");
     puts("\trather than all spc files in a certain directory?");
     printf("(y/n/q) (default n)");
     scanf("%s", tmpchar);
