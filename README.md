@@ -25,9 +25,9 @@ If you compute only the toroidal contribution to the transverse component and th
 -   Cummins, P.R., R.J. Geller, and N. Takeuchi, DSM complete synthetic seismograms: P-SV, spherically symmetric, case, Geophys. Res. Lett., 21, 1663-1666, 1994.
 -   Geller, R.J., and T. Ohminato, Computation of synthetic seismograms and their partial derivatives for heterogeneous media with arbitrary natural boundary conditions using the Direct Solution Method, Geophys. J. Int., 116, 421-446, 1994.
 
-# Authorship of software
+# Authorship and copyright of software
 
-This software was written and improved by the members of the Global Seismology Group of the University of Tokyo from 1994 to present.
+This software was written and improved, and is copyrighted (C), by the members of the Global Seismology Group of the University of Tokyo from 1994 to present.
 
 # License
 
