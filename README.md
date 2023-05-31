@@ -27,7 +27,7 @@ If you compute only the toroidal contribution to the transverse component and th
 
 # Authorship and copyright of software
 
-This software was written and improved, and is copyrighted (C), by the members of the Global Seismology Group of the University of Tokyo from 1994 to present.
+This software was written and improved, and is copyrighted &copy;, by the members of the Global Seismology Group of the University of Tokyo from 1994 to present.
 
 # License
 
