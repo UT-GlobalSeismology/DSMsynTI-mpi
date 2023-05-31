@@ -1,6 +1,8 @@
 **_Welcome to the DSM world._**
 
-This package is a bundle of 3 separate programs for computing synthetic seismograms in a spherically symmetric, transversely isotropic model: tish, tipsv, and spcsac.
+This is a software for computing synthetic seismograms in a spherically symmetric, transversely isotropic (TI) model using the Direct Solution Method (DSM).
+
+This package is a bundle of 3 separate programs: tish, tipsv, and spcsac.
 You must build each program separately.
 
 ```
