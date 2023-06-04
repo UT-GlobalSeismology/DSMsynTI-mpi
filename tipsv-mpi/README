@@ -1,9 +1,8 @@
 -------- Documentation for tipsv-mpi --------
 
-This is a package for P-SV computation 
-for transversely isotropic spherically symmetric media
+This is a package for the P-SV wavefield computation
+in spherically symmetric, transversely isotropic (TI) media
 in the frequency domain.
-You need a fortran compiler to run this program.
 
 
 CONFIGURATION:

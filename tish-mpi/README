@@ -1,9 +1,8 @@
 -------- Documentation for tish-mpi --------
 
-This is a package for SH computation 
-for transversely isotropic spherically symmetric media 
+This is a package for the SH wavefield computation
+in spherically symmetric, transversely isotropic (TI) media
 in the frequency domain.
-You need a fortran compiler to run this program.
 
 
 CONFIGURATION:
