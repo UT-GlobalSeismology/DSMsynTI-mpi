@@ -33,7 +33,7 @@ c ---------------------------<< constants >>---------------------------
         parameter ( maxnlay = 80880 )
         parameter ( maxnslay = 48840 )
         parameter ( maxnllay = 32040 )
-        parameter ( maxnzone = 15 )
+        parameter ( maxnzone = 200 )
         parameter ( maxnr = 1500 )
         parameter ( maxlmax = 80000 )
         parameter ( ilog = 0 )

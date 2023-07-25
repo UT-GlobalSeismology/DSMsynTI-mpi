@@ -31,7 +31,7 @@ c ----------------------------<<constants>>----------------------------
         integer spcform
         parameter ( pi=3.1415926535897932d0 )
         parameter ( maxnlay = 88300 )
-        parameter ( maxnzone = 15 )
+        parameter ( maxnzone = 200 )
         parameter ( maxnr = 1500 )
         parameter ( maxlmax = 80000 )
         parameter ( ilog = 0 )
