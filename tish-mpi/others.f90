@@ -156,6 +156,7 @@ end subroutine
 ! Function to compute a + bx + cx^2 + dx^3, where x = r/R
 !------------------------------------------------------------------------
 subroutine valueatradius(coefficients, radius, rmax, result)
+!------------------------------------------------------------------------
   implicit none
   real(8), intent(in) :: coefficients(4)  ! Coefficients of cubic function. [a, b, c, d] in a + bx + cx^2 + dx^3.
   real(8), intent(in) :: radius  ! r
