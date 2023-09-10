@@ -4,32 +4,37 @@
 ! The input is temporarily written in a work file, excluding the comments.
 ! Then, that temporary file is read in.
 !------------------------------------------------------------------------
-subroutine pinput2(maxnzone, maxnr, &
-  re, ratc, ratl, &
-  tlen, np, omegai, imin, imax, &
-  nzone, vrmin, vrmax, rho, vsv, vsh, qmu, &
-  r0, eqlat, eqlon, mt, nr, theta, phi, lat, lon, output)
+subroutine readInput(maxNZone, maxNStation, tlen, np, re, ratc, ratl, omegai, imin, imax, &
+  nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
+  r0, eqlat, eqlon, mt, nStation, theta, phi, lat, lon, output)
 !------------------------------------------------------------------------
   implicit none
-  integer :: maxnzone, maxnr  ! Maximum number of zones and stations.
-  integer :: np  ! Number of points in frequency domain.
-  integer :: imin, imax  ! Index of minimum and maximum frequency.
-  integer :: nzone, nr
-  real(8) :: tlen, omegai, re, ratc, ratl
-  real(8), dimension(*) :: vrmin, vrmax, qmu
-  real(8), dimension(4,*) :: rho, vsv, vsh
-  real(8) :: r0, eqlat, eqlon, eqlattmp
-  real(8), dimension(3,3) :: mt
-  real(8), dimension(*) :: theta, phi, lat, lon
-  character(len=80), dimension(*) :: output
+  character(len=80), parameter :: tmpfile = 'workSH.txt'
+
+  integer, intent(in) :: maxNZone, maxNStation  ! Maximum number of zones and stations.
+  real(8), intent(out) :: tlen  ! Time length.
+  integer, intent(out) :: np  ! Number of points in frequency domain.
+  real(8), intent(out) :: re  ! Desired relative error due to vertical gridding.
+  real(8), intent(out) :: ratc  ! Amplitude ratio for vertical grid cut-off.
+  real(8), intent(out) :: ratl  ! Amplitude ratio for angular order cut-off.
+  real(8), intent(out) :: omegai  ! omegai
+  integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
+  integer, intent(out) :: nZone  ! Number of zones.
+  real(8), intent(out) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radius of each zone.
+  real(8), intent(out) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), qmuOfZone(:)
+  integer, intent(out) :: nStation  ! Number of stations.
+  real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)
+  real(8), intent(out) :: theta(:), phi(:), lat(:), lon(:)
+  character(len=80), intent(out) :: output(:)
+
   integer :: i
-  character(len=80) :: dummy, tmpfile
+  character(len=80) :: dummy
+  real(8) :: eqlattmp
 
-  data tmpfile / 'workSH.txt' /
-
-! Temporary file open
+  ! Temporary file open
   open(unit=11, file=tmpfile, status='unknown')
-! Writing to the temporary file
+
+  ! Writing to the temporary file
   do
     read(5,'(a80)') dummy
     if (dummy(1:1) == 'c') cycle
@@ -37,50 +42,51 @@ subroutine pinput2(maxnzone, maxnr, &
     write(11,'(a80)') dummy
   end do
 
-! Temporary file close
+  ! Temporary file close
   close(11)
 
-! Temporary file open
+  ! Temporary file open
   open(unit=11, file=tmpfile, status='unknown')
-! Reading the parameter
+
+  ! Reading parameters
   read(11,*) tlen, np
   read(11,*) re      ! relative error (vertical grid)
   read(11,*) ratc    ! ampratio (vertical grid cut-off)
   read(11,*) ratl    ! ampratio (for l-cutoff)
   read(11,*) omegai  ! omegai
   omegai = -dlog(omegai) / tlen
+  read(11,*) imin, imax  ! index of minimum and maximum frequency
 
-  read(11,*) imin, imax
-
-  read(11,*) nzone
-  if (nzone > maxnzone) stop 'nzone is too large. (pinput)'
-  do i = 1, nzone
-    read(11,*) vrmin(i), vrmax(i), &
-      rho(1,i), rho(2,i), rho(3,i), rho(4,i), &
-      vsv(1,i), vsv(2,i), vsv(3,i), vsv(4,i), &
-      vsh(1,i), vsh(2,i), vsh(3,i), vsh(4,i), qmu(i)
+  ! Earth structure
+  read(11,*) nZone
+  if (nZone > maxNZone) stop 'nzone is too large. (pinput)'
+  do i = 1, nZone
+    read(11,*) rminOfZone(i), rmaxOfZone(i), &
+      rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i), &
+      vsvPolynomials(1,i), vsvPolynomials(2,i), vsvPolynomials(3,i), vsvPolynomials(4,i), &
+      vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
   end do
 
-! Source parameter
+  ! Source parameter
   read(11,*) r0, eqlat, eqlon
   eqlattmp = eqlat
   call translat(eqlattmp, eqlattmp)
   read(11,*) mt(1,1), mt(1,2), mt(1,3), mt(2,2), mt(2,3), mt(3,3)
 
-! Stations
-  read(11,*) nr
-  if (nr > maxnr) stop 'nr is too large. (pinput)'
-  do i = 1, nr
+  ! Stations
+  read(11,*) nStation
+  if (nStation > maxNStation) stop 'nr is too large. (pinput)'
+  do i = 1, nStation
     read(11,*) lat(i), lon(i)
     call translat(lat(i), lat(i))
     call calthetaphi(eqlattmp, eqlon, lat(i), lon(i), theta(i), phi(i))
   end do
 
-  do i = 1, nr
+  do i = 1, nStation
     read(11,'(a80)') output(i)
   end do
 
-! Temporary file close
+  ! Temporary file close
   close(11)
 
   return
@@ -95,11 +101,12 @@ subroutine translat(geodetic, geocentric)
   implicit none
   real(8), parameter :: flattening = 1.d0 / 298.25d0
   real(8), parameter :: pi = 3.1415926535897932d0
+
   real(8), intent(in) :: geodetic  ! Input geodetic latitude.
   real(8), intent(out) :: geocentric  ! Output geocentric latitude.
   real(8) :: latitude  ! Latitude variable for use in computation.
 
-  if (geodetic > 90.d0) stop 'Latitude is over 90. (pinput)'
+  if (geodetic < -90.d0 .or. 90.d0 < geodetic) stop 'Latitude is out of range. (pinput)'
 
   ! degrees to radians
   latitude = geodetic / 180.d0 * pi
@@ -119,6 +126,7 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
+
   real(8), intent(in) :: iEvLat, iEvLon, iStLat, iStLon  ! Input latitudes and longitudes of event and station (in degrees).
   real(8) :: evColat, evLon, stColat, stLon  ! Colatitudes and longitudes of event and station (in radians).
   real(8), intent(out) :: theta, phi  ! Resulting distance and azimuth.
@@ -155,9 +163,10 @@ end subroutine
 !------------------------------------------------------------------------
 ! Function to compute a + bx + cx^2 + dx^3, where x = r/R
 !------------------------------------------------------------------------
-subroutine valueatradius(coefficients, radius, rmax, result)
+subroutine valueAtRadius(coefficients, radius, rmax, result)
 !------------------------------------------------------------------------
   implicit none
+
   real(8), intent(in) :: coefficients(4)  ! Coefficients of cubic function. [a, b, c, d] in a + bx + cx^2 + dx^3.
   real(8), intent(in) :: radius  ! r
   real(8), intent(in) :: rmax  ! R
@@ -181,75 +190,74 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeKz(nzone, vrmin, vrmax, vs, rmin, rmax, imax, lmin, tlen, kz)
+subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmin, rmax, imax, lmin, tlen, kz)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
-  integer, intent(in) :: nzone  ! Number of zones.
+  integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: imax  ! Index of maximum frequency.
   integer, intent(in) :: lmin  ! Smallest angular order l.
-  real(8), intent(in) :: vrmin(:), vrmax(:), vs(:,:), rmin, rmax, tlen
+  real(8), intent(in) :: rminOfZone(:), rmaxOfZone(:), vsPolynomials(:,:), rmin, rmax, tlen
   real(8), intent(out) :: kz(:)  ! Computed value of vertical wavenumber k_z at each zone.
-  integer :: izone
+  integer :: iZone
   real(8) :: v(4), vs1, vs2, vmin, rh, omega, kx, gtmp
 
-  do izone = 1, nzone
-    v(:) = vs(:, izone)
+  do iZone = 1, nZone
+    v(:) = vsPolynomials(:, iZone)
     ! compute Vs at bottom (vs1) and top (vs2) of zone
-    call valueatradius(v, vrmin(izone), rmax, vs1)
-    call valueatradius(v, vrmax(izone), rmax, vs2)
+    call valueAtRadius(v, rminOfZone(iZone), rmax, vs1)
+    call valueAtRadius(v, rmaxOfZone(iZone), rmax, vs2)
     ! zone thickness
-    rh = vrmax(izone) - vrmin(izone)
+    rh = rmaxOfZone(iZone) - rminOfZone(iZone)
     ! compute omega
     omega = 2.d0 * pi * real(imax,8) / tlen
     ! get smaller Vs value (This is to get larger k_z value.)
     vmin = min(vs1, vs2)
     ! compute k_x (eq. 30 of Kawai et al. 2006)
-    kx = (real(lmin,8) + 0.5d0) / vrmax(izone)
+    kx = (real(lmin,8) + 0.5d0) / rmaxOfZone(iZone)
     ! compute k_z^2 (eq. 32 of Kawai et al. 2006)
     gtmp = ( omega * omega ) / ( vmin * vmin ) - ( kx * kx )
     ! compute k_z (When it is not real, it is set to 0.)
     if ( gtmp > 0.d0 ) then
-      kz(izone) = sqrt(gtmp)
+      kz(iZone) = sqrt(gtmp)
     else
-      kz(izone) = 0.d0
+      kz(iZone) = 0.d0
     endif
   enddo
 
   return
-end subroutine computekz
+end subroutine
 
 
 !------------------------------------------------------------------------
 ! Deciding the distribution of grid points.
 !------------------------------------------------------------------------
-subroutine computeGridRadii(maxnlayer, maxnzone, nzone, kz, vrmin, vrmax, rmin, rmax, re, nlayer, nlayerinzone, radii)
+subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, rmax, re, nLayer, nLayerInZone, gridRadii)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
-  integer, intent(in) :: maxnlayer, maxnzone
-  integer, intent(in) :: nzone  ! Number of zones.
-  real(8), intent(in) :: kz(*)  ! Vertical wavenumber k_z at each zone.
-  real(8), intent(in) :: vrmin(*), vrmax(*), rmin, rmax
-  real(8), intent(in) :: re  ! Desired relative error.
-  integer, intent(out) :: nlayer  ! Total number of grid points.
-  integer, intent(out) :: nlayerinzone(maxnzone)  ! Number of grid points in each zone.
-  real(8), intent(out) :: radii(maxnlayer + maxnzone + 1)  ! Radius at each grid point.
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: kz(:)  ! Vertical wavenumber k_z at each zone.
+  real(8), intent(in) :: rminOfZone(:), rmaxOfZone(:), rmin, rmax
+  real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
+  integer, intent(out) :: nLayer  ! Total number of layers (= number of grid points + 1).
+  integer, intent(out) :: nLayerInZone(:)  ! Number of layers in each zone.
+  real(8), intent(out) :: gridRadii(:)  ! Radius at each grid point.
   integer :: izone, igrid, i, ntmp
   real(8) :: rh
 
 ! initializing variables
-  radii = 0.d0
-  nlayerinzone = 0
+  gridRadii = 0.d0
+  nLayerInZone = 0
 
 ! computing the distribution of grid points
   igrid = 1
-  radii(1) = rmin
-  do izone = 1, nzone
+  gridRadii(1) = rmin
+  do izone = 1, nZone
     ! zone thickness
-    rh = vrmax(izone) - vrmin(izone)
+    rh = rmaxOfZone(izone) - rminOfZone(izone)
     ! decide the number of layers in this zone
     if (kz(izone) == 0.d0) then
       ntmp = 1
@@ -259,19 +267,185 @@ subroutine computeGridRadii(maxnlayer, maxnzone, nzone, kz, vrmin, vrmax, rmin, 
       !  The "/0.7 +1" is to increase the number of grids a bit.
       ntmp = int(sqrt(3.3d0 / re) * rh * kz(izone) / 2.d0 / pi / 7.d-1 + 1)
     endif
-    nlayerinzone(izone) = min(ntmp, 5)
+    nLayerInZone(izone) = min(ntmp, 5)
     ! compute radius at each grid point
-    do i = 1, nlayerinzone(izone)
+    do i = 1, nLayerInZone(izone)
       igrid = igrid + 1
-      radii(igrid) = vrmin(izone) + dble(i) * rh / dble(nlayerinzone(izone))
+      gridRadii(igrid) = rminOfZone(izone) + dble(i) * rh / dble(nLayerInZone(izone))
     enddo
   enddo
 
-! recounting the total number of grid points
-  nlayer = sum(nlayerinzone)
+! recounting the total number of layers
+  nLayer = sum(nLayerInZone)
 
   return
-end subroutine computeGridRadii
+end subroutine
 
 
+!------------------------------------------------------------------------
+! Computing the stack points.
+!------------------------------------------------------------------------
+subroutine computeStackPoints(nZone, nLayerInZone, isp, jsp)
+!------------------------------------------------------------------------
+  implicit none
 
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
+  integer, intent(out) :: isp(:)  ! Index of the first grid point in each zone.
+  integer, intent(out) :: jsp(:)  ! Index of the first stack point in each zone.
+  integer :: i
+
+  isp(1) = 1
+  jsp(1) = 1
+  do i = 1, nZone - 1
+    isp(i+1) = isp(i) + nLayerInZone(i)
+    jsp(i+1) = jsp(i) + 4 * nLayerInZone(i)
+  enddo
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing the source position.
+!------------------------------------------------------------------------
+subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayer  ! Total number of layers.
+  real(8), intent(in) :: rmaxOfZone(:), rmin, rmax
+  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  integer, intent(in) :: isp(:)  ! Index of the first grid point in each zone.
+  real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
+  integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
+  real(8), intent(out) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nlayer(iZone) at top of zone.)
+  integer :: itmp
+  real(8) :: xLayerOfSource  ! A double-value index of source position. (0 at rmin, nlayer at rmax.)
+
+  ! checking the parameter
+  if (r0 < rmin .or. rmax < r0) stop 'The source location is improper.(calspo)'
+
+  ! computing a double-value index of source position
+  if (r0 == rmax) then
+    xLayerOfSource = dble(nLayer) - 0.01d0
+    r0 = gridRadii(nLayer) + (xLayerOfSource - dble(nLayer-1)) * (gridRadii(nLayer+1) - gridRadii(nLayer))  ! Note that radii(nlayer+1) = rmax.
+    !!! (xLayerOfSource - dble(nlayer-1)) = 0.99d0 ?
+
+  else
+    ! find the layer that the source is in (Here, the index of the lowermost layer is 2.)
+    itmp = 2
+    do
+      if (r0 < gridRadii(itmp)) exit
+      itmp = itmp + 1
+    enddo
+
+    xLayerOfSource = dble(itmp-2) + (r0 - gridRadii(itmp-1)) / (gridRadii(itmp) - gridRadii(itmp-1))
+
+    ! fix source position when it is too close to a grid point
+    if ((xLayerOfSource - dble(itmp-2)) < 0.01d0) then
+      xLayerOfSource = dble(itmp-2) + 0.01d0
+      r0 = gridRadii(itmp-1) + (xLayerOfSource - dble(itmp-2)) * (gridRadii(itmp) - gridRadii(itmp-1))  !!! (xLayerOfSource - dble(itmp-2)) = 0.01d0 ?
+    elseif ((xLayerOfSource - dble(itmp-2)) > 0.99d0) then
+      xLayerOfSource = dble(itmp-2) + 0.99d0
+      r0 = gridRadii(itmp-1) + (xLayerOfSource - dble(itmp-2)) * (gridRadii(itmp) - gridRadii(itmp-1))  !!! (xLayerOfSource - dble(itmp-2)) = 0.99d0 ?
+    endif
+  endif
+
+  ! find the zone that the source is in
+  iZoneOfSource = 1
+  do
+    if (r0 <= rmaxOfZone(iZoneOfSource)) exit
+    iZoneOfSource = iZoneOfSource + 1
+  enddo
+
+  ! compute the double-value index of source position in its zone
+  qLayerOfSource = xLayerOfSource - dble(isp(iZoneOfSource) - 1)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Compute grids for the source based on input parameters.
+!------------------------------------------------------------------------
+subroutine computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gra)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: isp(:)  ! Index of the first grid point in each zone.
+  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  real(8), intent(in) :: r0  ! Input source radius.
+  integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
+  real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nlayer(iZone) at top of zone.)
+  real(8), intent(out) :: gra(:)
+  integer :: itmp
+
+  ! find the layer that the source is in
+  itmp = isp(iZoneOfSource) + int(qLayerOfSource)  ! Note that int(x) rounds down the value x.
+
+  ! assign values to 'gra' array
+  gra(1) = gridRadii(itmp)  ! radius of bottom of layer
+  gra(2) = r0 ! radius of source
+  gra(3) = gridRadii(itmp + 1) ! radius of top of layer
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing variable values at grid points.
+!------------------------------------------------------------------------
+subroutine computeStructureValues(nZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
+  nLayerInZone, gridRadii, rmax, nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
+  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)  ! Polynomial functions of rho, vsv, and vsh structure.
+  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  real(8), intent(in) :: rmax
+  integer, intent(out) :: nValue  ! Total number of values for each variable.
+  real(8), intent(out) :: valuedRadii(:)  ! Radii corresponding to each variable value.
+  real(8), intent(out) :: rhoValues(:), ecLValues(:), ecNValues(:)  ! Values of rho, L, and N at each point (with 2 values at boundaries).
+  real(8) :: rhoTemp, vsvTemp, vshTemp
+  integer :: iZone, iLayer, iValue, iGrid
+
+  ! Initializing the data
+  valuedRadii = 0.d0
+  rhoValues = 0.d0
+  ecLValues = 0.d0
+  ecNValues = 0.d0
+  iValue = 0
+  iGrid = 0
+
+  ! Computing variable values at grid points
+  do iZone = 1, nZone
+    do iLayer = 1, nLayerInZone(iZone) + 1
+      iValue = iValue + 1
+      iGrid = iGrid + 1
+      valuedRadii(iValue) = gridRadii(iGrid)
+
+      ! Evaluating the density and elastic constants at this point
+      call valueAtRadius(rhoPolynomials(:, iZone), valuedRadii(iValue), rmax, rhoTemp)
+      call valueAtRadius(vsvPolynomials(:, iZone), valuedRadii(iValue), rmax, vsvTemp)
+      call valueAtRadius(vshPolynomials(:, iZone), valuedRadii(iValue), rmax, vshTemp)
+      rhoValues(iValue) = rhoTemp
+      ecLValues(iValue) = rhoValues(iValue) * vsvTemp**2
+      ecNValues(iValue) = rhoValues(iValue) * vshTemp**2
+    end do
+
+    iGrid = iGrid - 1
+  end do
+
+  nValue = iValue
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------

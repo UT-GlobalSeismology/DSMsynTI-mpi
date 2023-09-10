@@ -48,7 +48,7 @@ subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, 
     do j = 1, 2
       do k = 1, 2
         c = 0.d0
-        call pmulti(2, a(:, j), 2, b(:, k), 3, c)
+        call multiplyPolynomials(2, a(:, j), 2, b(:, k), 3, c)
         do l = 3, 1, -1
           c(l+rpow) = c(l)
           if (rpow > 0) c(l) = 0.d0
@@ -74,14 +74,14 @@ subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, 
     m = work
   endif
 
-end subroutine computeIntermediateIntegral
+end subroutine
 
 
 !------------------------------------------------------------------------
 ! Computing the (l-1)-degree polynomial c(n) which is the product of
 ! the (n-1)-degree polynomial a(n) and the (m-1)-degree polynomial b(n).
 !------------------------------------------------------------------------
-subroutine pmulti(n, a, m, b, l, c)
+subroutine multiplyPolynomials(n, a, m, b, l, c)
 !------------------------------------------------------------------------
   implicit none
 
@@ -92,10 +92,7 @@ subroutine pmulti(n, a, m, b, l, c)
   integer :: i, j
 
   ! Check for invalid arguments
-  if (n + m - 1 /= l) then
-    write(*,*) "Invalid arguments.(pmulti)"
-    return
-  endif
+  if (n + m - 1 /= l) stop "Invalid arguments.(multiplyPolynomials)"
 
   ! Initialize the polynomial c
   c = 0.d0
@@ -107,7 +104,7 @@ subroutine pmulti(n, a, m, b, l, c)
     enddo
   enddo
 
-end subroutine pmulti
+end subroutine
 
 
 !------------------------------------------------------------------------
@@ -144,7 +141,7 @@ subroutine computeLumpedT(nlayer, vnp, vra, rho, ra, tl)
     call pinteg(snp, 3, c, from, to, vnp, vra, rho, tl(nn+4))
   enddo
 
-end subroutine computeLumpedT
+end subroutine
 
 
 !------------------------------------------------------------------------
@@ -181,7 +178,7 @@ subroutine computeLumpedH(nlayer, vnp, vra, mu, ra, hl)
     call pinteg(snp, 1, c, from, to, vnp, vra, mu, hl(nn+4))
   enddo
 
-end subroutine computeLumpedH
+end subroutine
 
 
 !------------------------------------------------------------------------
@@ -201,7 +198,7 @@ subroutine computeAverage(nlayer, v1, v2, average)
     average(i) = (v1(i) + v2(i)) / 2.d0
   enddo
 
-end subroutine computeAverage
+end subroutine
 
 
 

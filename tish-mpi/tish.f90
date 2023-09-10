@@ -27,80 +27,87 @@ program tish
   implicit none
 
   !----------------------------<<constants>>----------------------------
-  real(8) :: pi, lmaxdivf, shallowdepth
-  integer :: maxnlayer, maxnzone, maxnr, maxlmax, ilog, spcform
-  parameter (pi = 3.1415926535897932d0)
-  parameter (maxnlayer = 88300)  ! Maximum number of layers.
-  parameter (maxnzone = 15)  ! Maximum number of zones.
-  parameter (maxnr = 1500)
-  parameter (maxlmax = 80000)
-  parameter (ilog = 0)
-  parameter (lmaxdivf = 2.d4)
-  parameter (shallowdepth = 100.d0)
-  parameter (spcform = 0)  ! 0:binary, 1:ascii
+  real(8), parameter :: pi = 3.1415926535897932d0
+  integer, parameter :: maxNLayer = 88300  ! Maximum number of layers.
+  integer, parameter :: maxNZone = 15  ! Maximum number of zones.
+  integer, parameter :: maxNStation = 1500  ! Maximum number of stations.
+  integer, parameter :: maxlmax = 80000
+  integer, parameter :: ilog = 0
+  real(8), parameter :: lmaxdivf = 2.d4
+  real(8), parameter :: shallowdepth = 100.d0
+  integer, parameter :: spcform = 0  ! 0:binary, 1:ascii
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the trial function
-  integer :: nlayer, nlayerinzone(maxnzone)  ! Number of layers (total, and in each zone).
+  integer :: nLayer, nLayerInZone(maxNZone)  ! Number of layers (total, and in each zone).
   integer :: l, m
-  real(8) :: radii(maxnlayer + maxnzone + 1)  ! Radii of each grid point.
+  real(8) :: gridRadii(maxNLayer + maxNZone + 1)  ! Radii of each grid point.
   real(8) :: gra(3)
 
   ! Variables for the structure
-  integer :: nzone  ! Number of zones.
-  integer :: ndc, vnp
+  integer :: nZone  ! Number of zones.
   real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled.
-  real(8) :: vrmin(maxnzone), vrmax(maxnzone)  ! Minimum and maximum radii of each zone.
-  real(8) :: rrho(4, maxnzone), vsv(4, maxnzone), vsh(4, maxnzone)  ! Rho, vsv, and vsh of each zone (coefficients of cubic function).
-  real(8) :: qmu(maxnzone)
-  real(8) :: vra(maxnlayer + 2 * maxnzone + 1)
-  real(8) :: rho(maxnlayer + 2 * maxnzone + 1)
-  real(8) :: ecL(maxnlayer + 2 * maxnzone + 1)
-  real(8) :: ecN(maxnlayer + 2 * maxnzone + 1)
+  real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone.
+  real(8) :: rhoPolynomials(4, maxNZone)  ! Rho of each zone (coefficients of cubic function).
+  real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function).
+  real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function).
+  real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
+  integer :: nValue  ! Total number of values.
+  real(8) :: valuedRadii(maxNLayer + 2 * maxNZone + 1)  ! Radii corresponding to each variable value.
+  real(8) :: rhoValues(maxNLayer + 2 * maxNZone + 1)  ! Rho at each grid point (with 2 values at boundaries).
+  real(8) :: ecLValues(maxNLayer + 2 * maxNZone + 1)  ! L at each grid point (with 2 values at boundaries).
+  real(8) :: ecNValues(maxNLayer + 2 * maxNZone + 1)  ! N at each grid point (with 2 values at boundaries).
   real(8) :: gvra(3), grho(3), gecL(3), gecN(3)
-  complex(16) :: coef(maxnzone)
+  complex(16) :: coef(maxNZone)
 
   ! Variables for the periodic range
+  real(8) :: tlen  ! Time length.
   integer :: np  ! Number of points in frequency domain.
+  real(8) :: omega, omegai
   integer :: imin, imax  ! Index of minimum and maximum frequency.
-  real(8) :: tlen, omega, omegai
 
   ! Variables for the source
-  integer :: spn, ns
-  real(8) :: r0, mt(3, 3), spo, mu0, eqlat, eqlon
+  integer :: ns
+  real(8) :: r0, mt(3, 3), mu0, eqlat, eqlon
+  integer :: iZoneOfSource  ! Which zone the source is in.
+  real(8) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
 
   ! Variables for the stations
-  integer :: nr, ir
-  real(8) :: theta(maxnr), phi(maxnr)
-  real(8) :: lat(maxnr), lon(maxnr)
+  integer :: nStation  ! Number of stations.
+  real(8) :: theta(maxNStation), phi(maxNStation)
+  real(8) :: lat(maxNStation), lon(maxNStation)
+  integer :: ir
 
   ! Variables for the matrix elements
-  complex(16) :: a0(2, maxnlayer+1), a2(2, maxnlayer+1)
-  complex(16) :: a(2, maxnlayer+1)
-  real(8) :: t(4 * maxnlayer)
-  real(8) :: h1(4 * maxnlayer), h2(4 * maxnlayer)
-  real(8) :: h3(4 * maxnlayer), h4(4 * maxnlayer)
+  complex(16) :: a0(2, maxNLayer+1), a2(2, maxNLayer+1)
+  complex(16) :: a(2, maxNLayer+1)
+  real(8) :: t(4 * maxNLayer)
+  real(8) :: h1(4 * maxNLayer), h2(4 * maxNLayer)
+  real(8) :: h3(4 * maxNLayer), h4(4 * maxNLayer)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
   complex(16) :: aa(4), ga(8), ga2(2, 3), gdr(3)
-  complex(16) :: g(maxnlayer + 1)
+  complex(16) :: g(maxNLayer + 1)
 
   ! Variables for the output file
-  character(len=80) :: output(maxnr)
+  character(len=80) :: output(maxNStation)
 
   ! Variables for grid spacing
-  real(8) :: tmpr(maxnlayer + 1)
-  real(8) :: kz(maxnzone)  ! Vertical wavenumber k_z. (See section 3.2 of Kawai et al. 2006.)
-  real(8) :: re, ratc, ratl, maxamp
+  real(8) :: tmpr(maxNLayer + 1)
+  real(8) :: kz(maxNZone)  ! Vertical wavenumber k_z. (See section 3.2 of Kawai et al. 2006.)
+  real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
+  real(8) :: ratc  ! Amplitude ratio for vertical grid cut-off.
+  real(8) :: ratl  ! Amplitude ratio for angular order cut-off.
+  real(8) :: maxamp
   integer :: kc, lsuf, ismall, llog
 
   ! Variables for the stack points
-  integer :: isp(maxnzone), jsp(maxnzone), ins
+  integer :: isp(maxNZone), jsp(maxNZone), ins
 
   ! Other variables
   integer :: i, j, ii, jj, nn, ier
-  real(8) :: work(4 * maxnlayer), lsq
-  complex(16) :: dr(maxnlayer + 1), z(maxnlayer + 1)
-  complex(16) :: cwork(4 * maxnlayer)
+  real(8) :: work(4 * maxNLayer), lsq
+  complex(16) :: dr(maxNLayer + 1), z(maxNLayer + 1)
+  complex(16) :: cwork(4 * maxNLayer)
   integer :: ltmp(2), iimax
 
   ! Constants with data statements
@@ -108,37 +115,32 @@ program tish
   real(8) :: eps = -1.d0
 
   ! Efficiency improvement variables
-  integer :: mpios
   integer :: outputmemory = 10  ! MB
   integer :: outputinterval
   real(8) :: memoryperomega ! MB
-  integer :: outputindex, mpii
   integer, allocatable :: outputi(:)
   complex(16), allocatable :: outputu(:,:,:)
 !     When the values to be output use memory over outputmemory MB,
 !     they are written in output files. The interval is outputinterval.
 !     memoryperomega is the quantity of memory used for one omega step.
-  character(len=2) :: char_rank
-  real(8) :: ark, angel
 
 
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
-  call pinput2(maxnzone, maxnr, re, ratc, ratl, tlen, np, omegai, &
-    imin, imax, nzone, vrmin, vrmax, rrho, vsv, vsh, qmu, &
-    r0, eqlat, eqlon, mt, nr, theta, phi, lat, lon, output)
+  call readInput(maxNZone, maxNStation, tlen, np, re, ratc, ratl, omegai, imin, imax, &
+    nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
+    r0, eqlat, eqlon, mt, nStation, theta, phi, lat, lon, output)
 
-  memoryperomega = 3 * 16 * nr * 0.000001
+  memoryperomega = 3 * 16 * nStation * 0.000001
   outputinterval = outputmemory / memoryperomega
   allocate(outputi(outputinterval))
-  allocate(outputu(3, nr, outputinterval))
+  allocate(outputu(3, nStation, outputinterval))
 
   ! --- computing the required parameters ---
-  rmin = vrmin(1)
-  rmax = vrmax(nzone)
-  ndc = nzone - 1
+  rmin = rminOfZone(1)
+  rmax = rmaxOfZone(nZone)
 
-  do ir = 1, nr
+  do ir = 1, nStation
     theta(ir) = theta(ir) / 180.0d0 * pi ! Convert theta from degrees to radians
     phi(ir) = phi(ir) / 180.0d0 * pi     ! Convert phi from degrees to radians
   end do
@@ -149,7 +151,7 @@ program tish
 
   ! ************************** Files handling **************************
   if (spcform == 0) then
-    do ir = 1, nr
+    do ir = 1, nStation
       open(unit = 11, file = output(ir), status = 'unknown', &
         form = 'unformatted', access = 'stream', convert = 'big_endian')
       write(11) tlen
@@ -159,7 +161,7 @@ program tish
       close(11)
     end do
   else if (spcform == 1) then
-    do ir = 1, nr
+    do ir = 1, nStation
       open(unit = 11, file = output(ir), status = 'unknown')
       write(11, *) tlen
       write(11, *) np, 1, 3
@@ -180,41 +182,41 @@ program tish
 
   ! ************************** Option for shallow events **************************
   iimax = imax
-  if ((rmax-r0) < shallowdepth) then
-    ! computing of the number and the location of grid points
+  if ((rmax - r0) < shallowdepth) then
+    ! ******************* Computing parameters *******************
+    ! computing of the number and position of grid points
     iimax = int(tlen * 2.d0)
-    call computeKz(nzone, vrmin, vrmax, vsv, rmin, rmax, iimax, 1, tlen, kz)
-    call computeGridRadii(maxnlayer, maxnzone, nzone, kz, vrmin, vrmax, rmin, rmax, re, nlayer, nlayerinzone, radii)
-
-    ! checking the parameter
-    if (nlayer > maxnlayer) stop 'The number of grid points is too large.'
+    call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmin, rmax, iimax, 1, tlen, kz)
+    call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, rmax, re, nLayer, nLayerInZone, gridRadii)
+    if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
     ! computing the stack points
-    call calsp(ndc, nlayerinzone, isp, jsp)
+    call computeStackPoints(nZone, nLayerInZone, isp, jsp)
 
-    ! computing the source location
-    call calspo(ndc, vrmax, nlayer, r0, rmin, rmax, radii, isp, spo, spn)
+    ! computing the source position
+    call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
 
     ! computing grids for source computations
-    call calgra(isp, radii, r0, spn, spo, gra)
+    call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gra)
 
     ! ******************* Computing the matrix elements *******************
-    ! computing the structure grid points
-    call calstg(nzone, rrho, vsv, vsh, nlayer, nlayerinzone, radii, rmax, vnp, vra, rho, ecL, ecN)
-    call calgstg(spn, rrho, vsv, vsh, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
+    ! computing variable values at grid points
+    call computeStructureValues(nZone, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, rmax, &
+      nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
+    call calgstg(iZoneOfSource, rhoPolynomials, vsvPolynomials, vshPolynomials, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
 
-    do i = 1, ndc + 1
-      call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, rho, 2, 0, 0, radii(isp(i)), t(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 2, 1, 1, radii(isp(i)), h1(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 1, 1, 0, radii(isp(i)), h2(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 0, 0, 0, radii(isp(i)), h3(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecN, 0, 0, 0, radii(isp(i)), h4(jsp(i)), work(jsp(i)))
-      call computeLumpedT(nlayerinzone(i), vnp, vra, rho, radii(isp(i)), work(jsp(i)))
-      call computeAverage(nlayerinzone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
-      call computeLumpedH(nlayerinzone(i), vnp, vra, ecL, radii(isp(i)), work(jsp(i)))
-      call computeAverage(nlayerinzone(i), h3(jsp(i)), work(jsp(i)), h3(jsp(i)))
-      call computeLumpedH(nlayerinzone(i), vnp, vra, ecN, radii(isp(i)), work(jsp(i)))
-      call computeAverage(nlayerinzone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
+    do i = 1, nZone
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), h2(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), h3(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), h4(jsp(i)), work(jsp(i)))
+      call computeLumpedT(nLayerInZone(i), nValue, valuedRadii, rhoValues, gridRadii(isp(i)), work(jsp(i)))
+      call computeAverage(nLayerInZone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
+      call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecLValues, gridRadii(isp(i)), work(jsp(i)))
+      call computeAverage(nLayerInZone(i), h3(jsp(i)), work(jsp(i)), h3(jsp(i)))
+      call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecNValues, gridRadii(isp(i)), work(jsp(i)))
+      call computeAverage(nLayerInZone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
     end do
 
     call computeIntermediateIntegral(2, 3, gvra, grho, 2, 0, 0, gra, gt, work)
@@ -229,8 +231,8 @@ program tish
     call computeLumpedH(2, 3, gvra, gecN, gra, work)
     call computeAverage(2, gh4, work, gh4)
 
-    nn = nlayer + 1
-    ns = isp(spn) + dint(spo)
+    nn = nLayer + 1
+    ns = isp(iZoneOfSource) + int(qLayerOfSource)
     ins = 4 * ns - 3
 
 
@@ -245,16 +247,16 @@ program tish
       endif
       if (ii == 2) i = imax
       omega = 2.d0 * pi * dble(i) / tlen
-      call callsuf(omega, nzone, vrmax, vsv, lsuf)
-      call calcoef(nzone, omega, qmu, coef)
+      call callsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+      call calcoef(nZone, omega, qmuOfZone, coef)
 
       call cmatinit(lda, nn, a0)
       call cmatinit(lda, nn, a2)
-      do j = 1, ndc + 1
-        call cala0(nlayerinzone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), cwork(jsp(j)))
-        call overlap(nlayerinzone(j), cwork(jsp(j)), a0(1, isp(j)))
-        call cala2(nlayerinzone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
-        call overlap(nlayerinzone(j), cwork(jsp(j)), a2(1, isp(j)))
+      do j = 1, nZone
+        call cala0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), cwork(jsp(j)))
+        call overlap(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
+        call cala2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
+        call overlap(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
       enddo
 
       kc = 1
@@ -276,14 +278,14 @@ program tish
         call cmatinit(lda, nn, a)
         call cmatinit(lda, 3, ga2)
         call cala(nn, l, lda, a0, a2, a)
-        call calga(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), h4(ins), coef(spn), aa)
-        call calga(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(spn), ga)
+        call calga(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), h4(ins), coef(iZoneOfSource), aa)
+        call calga(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
         call overlap(2, ga, ga2)
 
         do m = -2, 2  ! m-loop
           if ((m /= 0) .and. (iabs(m) <= iabs(l))) then
             call cvecinit(nn, g)
-            call calg2(l, m, spo, r0, mt, mu0, coef(spn), ga, aa, ga2, gdr, g(isp(spn)))
+            call calg2(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, g(isp(iZoneOfSource)))
             if (mod(l, 100) == 0) then
               if ((m == -2) .or. (m == -l)) then
                 call dclisb0(a, nn, 1, lda, g, eps, dr, z, ier)
@@ -302,7 +304,7 @@ program tish
             endif
 
             if (mod(l, 100) == 0) then
-              call calcutd(nzone, nlayerinzone, tmpr, ratc, nn, radii, kc)
+              call calcutd(nZone, nLayerInZone, tmpr, ratc, nn, gridRadii, kc)
             endif
 
             call calamp(g(nn), l, lsuf, maxamp, ismall, ratl)
@@ -316,39 +318,38 @@ program tish
 
 
 ! ******************* Computing parameters *******************
-! computing of the number and the location of grid points
-  call computeKz(nzone, vrmin, vrmax, vsv, rmin, rmax, iimax, 1, tlen, kz)
-  call computeGridRadii(maxnlayer, maxnzone, nzone, kz, vrmin, vrmax, rmin, rmax, re, nlayer, nlayerinzone, radii)
-
-! checking the parameter
-  if (nlayer > maxnlayer) stop 'The number of grid points is too large.'
+! computing of the number and position of grid points
+  call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmin, rmax, iimax, 1, tlen, kz)
+  call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, rmax, re, nLayer, nLayerInZone, gridRadii)
+  if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
 ! computing the stack points
-  call calsp(ndc, nlayerinzone, isp, jsp)
+  call computeStackPoints(nZone, nLayerInZone, isp, jsp)
 
-! computing the source location
-  call calspo(ndc, vrmax, nlayer, r0, rmin, rmax, radii, isp, spo, spn)
+! computing the source position
+  call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
 
 ! computing grids for source computations
-  call calgra(isp, radii, r0, spn, spo, gra)
+  call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gra)
 
 ! ******************* Computing the matrix elements *******************
-! computing the structure grid points
-  call calstg(nzone, rrho, vsv, vsh, nlayer, nlayerinzone, radii, rmax, vnp, vra, rho, ecL, ecN)
-  call calgstg(spn, rrho, vsv, vsh, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
+! computing variable values at grid points
+  call computeStructureValues(nZone, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, rmax, &
+    nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
+  call calgstg(iZoneOfSource, rhoPolynomials, vsvPolynomials, vshPolynomials, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
 
-  do i = 1, ndc + 1
-    call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, rho, 2, 0, 0, radii(isp(i)), t(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 2, 1, 1, radii(isp(i)), h1(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 1, 1, 0, radii(isp(i)), h2(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecL, 0, 0, 0, radii(isp(i)), h3(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nlayerinzone(i), vnp, vra, ecN, 0, 0, 0, radii(isp(i)), h4(jsp(i)), work(jsp(i)))
-    call computeLumpedT(nlayerinzone(i), vnp, vra, rho, radii(isp(i)), work(jsp(i)))
-    call computeAverage(nlayerinzone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
-    call computeLumpedH(nlayerinzone(i), vnp, vra, ecL, radii(isp(i)), work(jsp(i)))
-    call computeAverage(nlayerinzone(i), h3(jsp(i)), work(jsp(i)), h3(jsp(i)))
-    call computeLumpedH(nlayerinzone(i), vnp, vra, ecN, radii(isp(i)), work(jsp(i)))
-    call computeAverage(nlayerinzone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
+  do i = 1, nZone
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), h2(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), h3(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), h4(jsp(i)), work(jsp(i)))
+    call computeLumpedT(nLayerInZone(i), nValue, valuedRadii, rhoValues, gridRadii(isp(i)), work(jsp(i)))
+    call computeAverage(nLayerInZone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
+    call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecLValues, gridRadii(isp(i)), work(jsp(i)))
+    call computeAverage(nLayerInZone(i), h3(jsp(i)), work(jsp(i)), h3(jsp(i)))
+    call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecNValues, gridRadii(isp(i)), work(jsp(i)))
+    call computeAverage(nLayerInZone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
   enddo
 
   call computeIntermediateIntegral(2, 3, gvra, grho, 2, 0, 0, gra, gt, work)
