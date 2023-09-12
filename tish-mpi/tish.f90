@@ -30,7 +30,7 @@ program tish
   real(8), parameter :: pi = 3.1415926535897932d0
   integer, parameter :: maxNLayer = 88300  ! Maximum number of layers.
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
-  integer, parameter :: maxNStation = 1500  ! Maximum number of stations.
+  integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxlmax = 80000
   integer, parameter :: ilog = 0
   real(8), parameter :: lmaxdivf = 2.d4
@@ -42,7 +42,7 @@ program tish
   integer :: nLayer, nLayerInZone(maxNZone)  ! Number of layers (total, and in each zone).
   integer :: l, m
   real(8) :: gridRadii(maxNLayer + maxNZone + 1)  ! Radii of each grid point.
-  real(8) :: gra(3)
+  real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
 
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
@@ -57,7 +57,7 @@ program tish
   real(8) :: rhoValues(maxNLayer + 2 * maxNZone + 1)  ! Rho at each grid point (with 2 values at boundaries).
   real(8) :: ecLValues(maxNLayer + 2 * maxNZone + 1)  ! L at each grid point (with 2 values at boundaries).
   real(8) :: ecNValues(maxNLayer + 2 * maxNZone + 1)  ! N at each grid point (with 2 values at boundaries).
-  real(8) :: gvra(3), grho(3), gecL(3), gecN(3)
+  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
   complex(16) :: coef(maxNZone)
 
   ! Variables for the periodic range
@@ -68,14 +68,14 @@ program tish
 
   ! Variables for the source
   integer :: ns
-  real(8) :: r0, mt(3, 3), mu0, eqlat, eqlon
+  real(8) :: r0, mt(3, 3), eqlat, eqlon, mu0
   integer :: iZoneOfSource  ! Which zone the source is in.
   real(8) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
 
-  ! Variables for the stations
-  integer :: nStation  ! Number of stations.
-  real(8) :: theta(maxNStation), phi(maxNStation)
-  real(8) :: lat(maxNStation), lon(maxNStation)
+  ! Variables for the receivers
+  integer :: nReceiver  ! Number of receivers.
+  real(8) :: theta(maxNReceiver), phi(maxNReceiver)
+  real(8) :: lat(maxNReceiver), lon(maxNReceiver)
   integer :: ir
 
   ! Variables for the matrix elements
@@ -89,7 +89,7 @@ program tish
   complex(16) :: g(maxNLayer + 1)
 
   ! Variables for the output file
-  character(len=80) :: output(maxNStation)
+  character(len=80) :: output(maxNReceiver)
 
   ! Variables for grid spacing
   real(8) :: tmpr(maxNLayer + 1)
@@ -120,27 +120,27 @@ program tish
   real(8) :: memoryperomega ! MB
   integer, allocatable :: outputi(:)
   complex(16), allocatable :: outputu(:,:,:)
-!     When the values to be output use memory over outputmemory MB,
-!     they are written in output files. The interval is outputinterval.
-!     memoryperomega is the quantity of memory used for one omega step.
+  !     When the values to be output use memory over outputmemory MB,
+  !     they are written in output files. The interval is outputinterval.
+  !     memoryperomega is the quantity of memory used for one omega step.
 
 
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
-  call readInput(maxNZone, maxNStation, tlen, np, re, ratc, ratl, omegai, imin, imax, &
+  call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, imin, imax, &
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
-    r0, eqlat, eqlon, mt, nStation, theta, phi, lat, lon, output)
+    r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 
-  memoryperomega = 3 * 16 * nStation * 0.000001
+  memoryperomega = 3 * 16 * nReceiver * 0.000001
   outputinterval = outputmemory / memoryperomega
   allocate(outputi(outputinterval))
-  allocate(outputu(3, nStation, outputinterval))
+  allocate(outputu(3, nReceiver, outputinterval))
 
   ! --- computing the required parameters ---
   rmin = rminOfZone(1)
   rmax = rmaxOfZone(nZone)
 
-  do ir = 1, nStation
+  do ir = 1, nReceiver
     theta(ir) = theta(ir) / 180.0d0 * pi ! Convert theta from degrees to radians
     phi(ir) = phi(ir) / 180.0d0 * pi     ! Convert phi from degrees to radians
   end do
@@ -151,7 +151,7 @@ program tish
 
   ! ************************** Files handling **************************
   if (spcform == 0) then
-    do ir = 1, nStation
+    do ir = 1, nReceiver
       open(unit = 11, file = output(ir), status = 'unknown', &
         form = 'unformatted', access = 'stream', convert = 'big_endian')
       write(11) tlen
@@ -161,7 +161,7 @@ program tish
       close(11)
     end do
   else if (spcform == 1) then
-    do ir = 1, nStation
+    do ir = 1, nReceiver
       open(unit = 11, file = output(ir), status = 'unknown')
       write(11, *) tlen
       write(11, *) np, 1, 3
@@ -186,8 +186,8 @@ program tish
     ! ******************* Computing parameters *******************
     ! computing of the number and position of grid points
     iimax = int(tlen * 2.d0)
-    call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmin, rmax, iimax, 1, tlen, kz)
-    call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, rmax, re, nLayer, nLayerInZone, gridRadii)
+    call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmax, iimax, 1, tlen, kz)
+    call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer, nLayerInZone, gridRadii)
     if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
     ! computing the stack points
@@ -197,14 +197,16 @@ program tish
     call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
 
     ! computing grids for source computations
-    call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gra)
+    call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gridRadiiForSource)
 
     ! ******************* Computing the matrix elements *******************
     ! computing variable values at grid points
-    call computeStructureValues(nZone, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, rmax, &
+    call computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, &
       nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
-    call calgstg(iZoneOfSource, rhoPolynomials, vsvPolynomials, vshPolynomials, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
+    call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, gridRadiiForSource, &
+      rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, mu0)
 
+    ! computing mass and rigitidy matrices
     do i = 1, nZone
       call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
       call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
@@ -219,16 +221,17 @@ program tish
       call computeAverage(nLayerInZone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
     end do
 
-    call computeIntermediateIntegral(2, 3, gvra, grho, 2, 0, 0, gra, gt, work)
-    call computeIntermediateIntegral(2, 3, gvra, gecL, 2, 1, 1, gra, gh1, work)
-    call computeIntermediateIntegral(2, 3, gvra, gecL, 1, 1, 0, gra, gh2, work)
-    call computeIntermediateIntegral(2, 3, gvra, gecL, 0, 0, 0, gra, gh3, work)
-    call computeIntermediateIntegral(2, 3, gvra, gecN, 0, 0, 0, gra, gh4, work)
-    call computeLumpedT(2, 3, gvra, grho, gra, work)
+    ! computing mass and rigitidy matrices near source
+    call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
+    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gridRadiiForSource, gh1, work)
+    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gridRadiiForSource, gh2, work)
+    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gridRadiiForSource, gh3, work)
+    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gridRadiiForSource, gh4, work)
+    call computeLumpedT(2, 3, gridRadiiForSource, rhoValuesForSource, gridRadiiForSource, work)
     call computeAverage(2, gh3, work, gh3)
-    call computeLumpedH(2, 3, gvra, gecL, gra, work)
+    call computeLumpedH(2, 3, gridRadiiForSource, ecLValuesForSource, gridRadiiForSource, work)
     call computeAverage(2, gh3, work, gh3)
-    call computeLumpedH(2, 3, gvra, gecN, gra, work)
+    call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
     call computeAverage(2, gh4, work, gh4)
 
     nn = nLayer + 1
@@ -317,27 +320,29 @@ program tish
   endif  ! option for shallow events
 
 
-! ******************* Computing parameters *******************
-! computing of the number and position of grid points
-  call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmin, rmax, iimax, 1, tlen, kz)
-  call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, rmax, re, nLayer, nLayerInZone, gridRadii)
+  ! ******************* Computing parameters *******************
+  ! computing of the number and position of grid points
+  call computeKz(nZone, rminOfZone, rmaxOfZone, vsvPolynomials, rmax, iimax, 1, tlen, kz)
+  call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer, nLayerInZone, gridRadii)
   if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
-! computing the stack points
+  ! computing the stack points
   call computeStackPoints(nZone, nLayerInZone, isp, jsp)
 
-! computing the source position
+  ! computing the source position
   call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
 
-! computing grids for source computations
-  call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gra)
+  ! computing grids for source computations
+  call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gridRadiiForSource)
 
-! ******************* Computing the matrix elements *******************
-! computing variable values at grid points
-  call computeStructureValues(nZone, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, rmax, &
+  ! ******************* Computing the matrix elements *******************
+  ! computing variable values at grid points
+  call computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, &
     nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
-  call calgstg(iZoneOfSource, rhoPolynomials, vsvPolynomials, vshPolynomials, gra, gvra, rmax, grho, gecL, gecN, r0, mu0)
+  call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, gridRadiiForSource, &
+    rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, mu0)
 
+  ! computing mass and rigitidy matrices
   do i = 1, nZone
     call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
     call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
@@ -352,16 +357,17 @@ program tish
     call computeAverage(nLayerInZone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
   enddo
 
-  call computeIntermediateIntegral(2, 3, gvra, grho, 2, 0, 0, gra, gt, work)
-  call computeIntermediateIntegral(2, 3, gvra, gecL, 2, 1, 1, gra, gh1, work)
-  call computeIntermediateIntegral(2, 3, gvra, gecL, 1, 1, 0, gra, gh2, work)
-  call computeIntermediateIntegral(2, 3, gvra, gecL, 0, 0, 0, gra, gh3, work)
-  call computeIntermediateIntegral(2, 3, gvra, gecN, 0, 0, 0, gra, gh4, work)
-  call computeLumpedT(2, 3, gvra, grho, gra, work)
+  ! computing mass and rigitidy matrices near source
+  call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
+  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gridRadiiForSource, gh1, work)
+  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gridRadiiForSource, gh2, work)
+  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gridRadiiForSource, gh3, work)
+  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gridRadiiForSource, gh4, work)
+  call computeLumpedT(2, 3, gridRadiiForSource, rhoValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gt, work, gt)
-  call computeLumpedH(2, 3, gvra, gecL, gra, work)
+  call computeLumpedH(2, 3, gridRadiiForSource, ecLValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh3, work, gh3)
-  call computeLumpedH(2, 3, gvra, gecN, gra, work)
+  call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh4, work, gh4)
 
 

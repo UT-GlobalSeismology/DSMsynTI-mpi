@@ -2,16 +2,19 @@
 !------------------------------------------------------------------------
 ! Computing \int r^rpow con W_p^(w1dn) W_q^(w2dn) dr. (See eq. 16 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, ra, m, work)
+subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, rpow, w1dn, w2dn, gridRadiiInZoneI, m, work)
 !------------------------------------------------------------------------
   implicit none
   integer, parameter :: maxrpow = 2  ! Maximum value of rpow to allow.
 
-  integer, intent(in) :: nlayer, vnp, rpow, w1dn, w2dn
-  real(8), intent(in) :: vra(vnp), con(vnp), ra(nlayer+1)
-  real(8), intent(out) :: m(4*nlayer), work(4*nlayer)
-
-  integer :: i, j, k, kk, l, nn, snp
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  integer, intent(in) :: nValue  ! Total number of values for each variable.
+  integer, intent(in) :: rpow, w1dn, w2dn
+  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: con(nValue)  ! Values of a variable at each point (with 2 values at boundaries).
+  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
+  real(8), intent(out) :: m(4*nLayerInZoneI), work(4*nLayerInZoneI)
+  integer :: i, j, k, l, nn, snp
   real(8) :: a(2,2), b(2,2), c(5), rh
 
   ! Parameter check
@@ -19,14 +22,14 @@ subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, 
 
   ! Computing matrix elements
   snp = 1
-  do i = 1, nlayer
+  do i = 1, nLayerInZoneI
     ! layer thickness
-    rh = ra(i+1) - ra(i)
+    rh = gridRadiiInZoneI(i+1) - gridRadiiInZoneI(i)
 
     select case(w1dn)
      case (0)
-      a(:, 1) = [ra(i+1)/rh, -1.d0/rh]
-      a(:, 2) = [-ra(i)/rh, 1.d0/rh]
+      a(:, 1) = [gridRadiiInZoneI(i+1)/rh, -1.d0/rh]
+      a(:, 2) = [-gridRadiiInZoneI(i)/rh, 1.d0/rh]
      case (1)
       a(:, 1) = [-1.d0/rh, 0.d0]
       a(:, 2) = [1.d0/rh, 0.d0]
@@ -36,8 +39,8 @@ subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, 
 
     select case(w2dn)
      case (0)
-      b(:, 1) = [ra(i+1)/rh, -1.d0/rh]
-      b(:, 2) = [-ra(i)/rh, 1.d0/rh]
+      b(:, 1) = [gridRadiiInZoneI(i+1)/rh, -1.d0/rh]
+      b(:, 2) = [-gridRadiiInZoneI(i)/rh, 1.d0/rh]
      case (1)
       b(:, 1) = [-1.d0/rh, 0.d0]
       b(:, 2) = [1.d0/rh, 0.d0]
@@ -54,13 +57,13 @@ subroutine computeIntermediateIntegral(nlayer, vnp, vra, con, rpow, w1dn, w2dn, 
           if (rpow > 0) c(l) = 0.d0
         enddo
         nn = 4 * (i-1) + 2 * (j-1) + k
-        call pinteg(snp, 5, c, ra(i), ra(i+1), vnp, vra, con, work(nn))
+        call pinteg(snp, 5, c, gridRadiiInZoneI(i), gridRadiiInZoneI(i+1), nValue, valuedRadii, con, work(nn))
       enddo
     enddo
   enddo
 
   if (w1dn /= w2dn) then
-    do i = 1, 4*nlayer
+    do i = 1, 4*nLayerInZoneI
       select case(mod(i,4))
        case (0, 1)
         m(i) = 2.d0 * work(i)
@@ -110,14 +113,16 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the lumped mass matrix. (See eq. 15 of Cummins et al. 1994.)
 !------------------------------------------------------------------------
-subroutine computeLumpedT(nlayer, vnp, vra, rho, ra, tl)
+subroutine computeLumpedT(nLayerInZoneI, nValue, valuedRadii, rhoValues, gridRadiiInZoneI, tl)
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: nlayer, vnp
-  real(8), intent(in) :: vra(vnp), rho(vnp), ra(nlayer+1)
-  real(8), intent(out) :: tl(4*nlayer)
-
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  integer, intent(in) :: nValue  ! Total number of values for each variable.
+  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: rhoValues(nValue)  ! Rho values at each point (with 2 values at boundaries).
+  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
+  real(8), intent(out) :: tl(4*nLayerInZoneI)
   integer :: i, nn, snp
   real(8) :: c(3), from, to
 
@@ -125,20 +130,20 @@ subroutine computeLumpedT(nlayer, vnp, vra, rho, ra, tl)
   snp = 1
   c = [0.d0, 0.d0, 1.d0]
 
-  do i = 1, nlayer
-    from = ra(i)
-    to = (ra(i) + ra(i+1)) / 2.d0
+  do i = 1, nLayerInZoneI
+    from = gridRadiiInZoneI(i)
+    to = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i+1)) / 2.d0
     nn = 4 * (i-1)
 
-    call pinteg(snp, 3, c, from, to, vnp, vra, rho, tl(nn+1))
+    call pinteg(snp, 3, c, from, to, nValue, valuedRadii, rhoValues, tl(nn+1))
 
     tl(nn+2) = 0.d0
     tl(nn+3) = 0.d0
 
     from = to
-    to = ra(i+1)
+    to = gridRadiiInZoneI(i+1)
 
-    call pinteg(snp, 3, c, from, to, vnp, vra, rho, tl(nn+4))
+    call pinteg(snp, 3, c, from, to, nValue, valuedRadii, rhoValues, tl(nn+4))
   enddo
 
 end subroutine
@@ -147,14 +152,16 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the lumped rigidity matrix. (See eq. 15 of Cummins et al. 1994.)
 !------------------------------------------------------------------------
-subroutine computeLumpedH(nlayer, vnp, vra, mu, ra, hl)
+subroutine computeLumpedH(nLayerInZoneI, nValue, valuedRadii, muValues, gridRadiiInZoneI, hl)
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: nlayer, vnp
-  real(8), intent(in) :: vra(vnp), mu(vnp), ra(nlayer+1)
-  real(8), intent(out) :: hl(4*nlayer)
-
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  integer, intent(in) :: nValue  ! Total number of values for each variable.
+  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: muValues(nValue)  ! Mu values at each point (with 2 values at boundaries).
+  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
+  real(8), intent(out) :: hl(4*nLayerInZoneI)
   integer :: i, nn, snp
   real(8) :: c(1), from, to
 
@@ -162,20 +169,20 @@ subroutine computeLumpedH(nlayer, vnp, vra, mu, ra, hl)
   snp = 1
   c = [1.d0]
 
-  do i = 1, nlayer
-    from = ra(i)
-    to = (ra(i) + ra(i+1)) / 2.d0
+  do i = 1, nLayerInZoneI
+    from = gridRadiiInZoneI(i)
+    to = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i+1)) / 2.d0
     nn = 4 * (i-1)
 
-    call pinteg(snp, 1, c, from, to, vnp, vra, mu, hl(nn+1))
+    call pinteg(snp, 1, c, from, to, nValue, valuedRadii, muValues, hl(nn+1))
 
     hl(nn+2) = 0.d0
     hl(nn+3) = 0.d0
 
     from = to
-    to = ra(i+1)
+    to = gridRadiiInZoneI(i+1)
 
-    call pinteg(snp, 1, c, from, to, vnp, vra, mu, hl(nn+4))
+    call pinteg(snp, 1, c, from, to, nValue, valuedRadii, muValues, hl(nn+4))
   enddo
 
 end subroutine
@@ -184,17 +191,17 @@ end subroutine
 !------------------------------------------------------------------------
 ! Averaging the values of two matrices. (See eq. 17 of Cummins et al. 1994.)
 !------------------------------------------------------------------------
-subroutine computeAverage(nlayer, v1, v2, average)
+subroutine computeAverage(nLayerInZoneI, v1, v2, average)
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: nlayer
-  real(8), intent(in) :: v1(4*nlayer), v2(4*nlayer)
-  real(8), intent(out) :: average(4*nlayer)
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: v1(4*nLayerInZoneI), v2(4*nLayerInZoneI)
+  real(8), intent(out) :: average(4*nLayerInZoneI)
 
   integer :: i
 
-  do i = 1, 4*nlayer
+  do i = 1, 4*nLayerInZoneI
     average(i) = (v1(i) + v2(i)) / 2.d0
   enddo
 
