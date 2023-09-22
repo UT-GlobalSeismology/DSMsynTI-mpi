@@ -43,6 +43,8 @@ program tish
   integer :: l, m
   real(8) :: gridRadii(maxNLayer + maxNZone + 1)  ! Radii of each grid point.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
+  real(8) :: plm(3, 0:3, maxNReceiver)
+  complex(16) :: bvec(3, -2:2, maxNReceiver)
 
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
@@ -65,6 +67,7 @@ program tish
   integer :: np  ! Number of points in frequency domain.
   real(8) :: omega, omegai
   integer :: imin, imax  ! Index of minimum and maximum frequency.
+  complex(16) :: u(3,maxNReceiver)
 
   ! Variables for the source
   integer :: ns
@@ -118,6 +121,7 @@ program tish
   integer :: outputmemory = 10  ! MB
   integer :: outputinterval
   real(8) :: memoryperomega ! MB
+  integer :: outputindex
   integer, allocatable :: outputi(:)
   complex(16), allocatable :: outputu(:,:,:)
   !     When the values to be output use memory over outputmemory MB,
@@ -370,6 +374,107 @@ program tish
   call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh4, work, gh4)
 
+  !******************** Computing the displacement *********************
+
+  outputindex = 1
+  nn = nLayer + 1
+  ns = isp(iZoneOfSource) + nint(qLayerOfSource)
+  ins = 4 * ns - 3
+
+  llog = 0
+  do i = imin, imax  ! omega-loop
+    call cmatinit(3, nReceiver, u)
+
+    if (i == 0) cycle
+
+    omega = 2.d0 * pi * real(i) / tlen
+    call callsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+
+    do ir = 1, nReceiver
+      call matinit(3, 4, plm(1, 0, ir))
+    end do
+
+    call calcoef(nZone, omega, qmuOfZone, coef)
+
+    call cmatinit(lda, nn, a0)
+    call cmatinit(lda, nn, a2)
+
+    do j = 1, nZone
+      call cala0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), &
+        h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), cwork(jsp(j)))
+      call overlap(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
+
+      call cala2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
+      call overlap(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
+    end do
+
+    kc = 1
+    ismall = 0
+    maxamp = -1.d0
+    llog = maxlmax
+
+    do l = 0, maxlmax  ! l-loop
+      if (ismall > 20) then
+        llog = min(llog, l)
+        cycle
+      end if
+
+      tmpr(:) = 0.d0
+      lsq = sqrt(real(l) * real(l+1))
+
+      !***** Computing the trial function *****
+      do ir = 1, nReceiver
+        call calbvec(l, theta(ir), phi(ir), plm(1, 0, ir), bvec(1, -2, ir))
+      end do
+
+      !computing the coefficient matrix elements
+      !--- Initializing the matrix elements
+      call cmatinit(lda, nn, a)
+      call cmatinit(lda, 3, ga2)
+
+      call cala(nn, l, lda, a0, a2, a)
+      call calga(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), &
+        h4(ins), coef(iZoneOfSource), aa)
+
+      call calga(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
+      call overlap(2, ga, ga2)
+
+      do m = -2, 2  ! m-loop
+        if (m == 0 .or. abs(m) > abs(l)) cycle
+
+        call cvecinit( nn,g )
+
+        call calg2(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, &
+          g(isp(iZoneOfSource)))
+
+        if (mod(l, 100) == 0) then
+          if (m == -2 .or. m == -l) then
+            call dclisb0(a, nn, 1, lda, g, eps, dr, z, ier)
+          else
+            call dcsbsub0(a, nn, 1, lda, g, eps, dr, z, ier)
+          end if
+
+          tmpr(:) = tmpr(:) + real(abs(g(:)))
+        else
+          if (m == -2 .or. m == -l) then
+            call dclisb(a(1, kc), nn-kc+1, 1, lda, ns-kc+1, g(kc), eps, dr, z, ier)
+          else
+            call dcsbsub(a(1, kc), nn-kc+1, 1, lda, ns-kc+1, g(kc), eps, dr, z, ier)
+          end if
+        end if
+
+        if (mod(l, 100) == 0) then
+          call calcutd(nzone, nLayerInZone, tmpr, ratc, nn, gridRadii, kc)
+        end if
+
+        call calamp(g(nn), l, lsuf, maxamp, ismall, ratl)
+
+        do ir = 1, nReceiver
+          call calu(g(nn), lsq, bvec(1, m, ir), u(1, ir))
+        end do
+      end do  ! m-loop
+    end do  ! l-loop
+  end do  ! omega-loop
 
 
 

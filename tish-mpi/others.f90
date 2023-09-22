@@ -338,7 +338,7 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
     !!! (xLayerOfSource - dble(nLayer-1)) = 0.99d0 ?
 
   else
-    ! find the layer that the source is in (Note that the index of the lowermost layer is 1.)
+    ! find the layer that the source is in (Note that the index of the lowermost layer is 1, not 0.)
     iLayer = 1
     do
       if (r0 < gridRadii(iLayer + 1)) exit
