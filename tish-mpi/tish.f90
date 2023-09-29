@@ -40,11 +40,11 @@ program tish
   !----------------------------<<variables>>----------------------------
   ! Variables for the trial function
   integer :: nLayer, nLayerInZone(maxNZone)  ! Number of layers (total, and in each zone).
-  integer :: l, m
   real(8) :: gridRadii(maxNLayer + maxNZone + 1)  ! Radii of each grid point.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
+  integer :: l, m  ! Angular order.
   real(8) :: plm(3, 0:3, maxNReceiver)
-  complex(16) :: bvec(3, -2:2, maxNReceiver)
+  complex(8) :: bvec(3, -2:2, maxNReceiver)
 
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
@@ -60,20 +60,21 @@ program tish
   real(8) :: ecLValues(maxNLayer + 2 * maxNZone + 1)  ! L at each grid point (with 2 values at boundaries).
   real(8) :: ecNValues(maxNLayer + 2 * maxNZone + 1)  ! N at each grid point (with 2 values at boundaries).
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(16) :: coef(maxNZone)
+  complex(8) :: coef(maxNZone)
 
   ! Variables for the periodic range
   real(8) :: tlen  ! Time length.
   integer :: np  ! Number of points in frequency domain.
   real(8) :: omega, omegai
   integer :: imin, imax  ! Index of minimum and maximum frequency.
-  complex(16) :: u(3,maxNReceiver)
+  complex(8) :: u(3,maxNReceiver)
 
   ! Variables for the source
   integer :: ns
   real(8) :: r0, mt(3, 3), eqlat, eqlon, mu0
   integer :: iZoneOfSource  ! Which zone the source is in.
-  real(8) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
+  real(8) :: qLayerOfSource  ! A double-value index of source position in its zone.
+  !:::::::::::::::::::::::::::::(0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
 
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
@@ -82,14 +83,14 @@ program tish
   integer :: ir
 
   ! Variables for the matrix elements
-  complex(16) :: a0(2, maxNLayer+1), a2(2, maxNLayer+1)
-  complex(16) :: a(2, maxNLayer+1)
+  complex(8) :: a0(2, maxNLayer+1), a2(2, maxNLayer+1)
+  complex(8) :: a(2, maxNLayer+1)
   real(8) :: t(4 * maxNLayer)
   real(8) :: h1(4 * maxNLayer), h2(4 * maxNLayer)
   real(8) :: h3(4 * maxNLayer), h4(4 * maxNLayer)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
-  complex(16) :: aa(4), ga(8), ga2(2, 3), gdr(3)
-  complex(16) :: g(maxNLayer + 1)
+  complex(8) :: aa(4), ga(8), ga2(2, 3), gdr(3)
+  complex(8) :: g(maxNLayer + 1)
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -109,8 +110,8 @@ program tish
   ! Other variables
   integer :: i, j, ii, jj, nn, ier
   real(8) :: work(4 * maxNLayer), lsq
-  complex(16) :: dr(maxNLayer + 1), z(maxNLayer + 1)
-  complex(16) :: cwork(4 * maxNLayer)
+  complex(8) :: dr(maxNLayer + 1), z(maxNLayer + 1)
+  complex(8) :: cwork(4 * maxNLayer)
   integer :: ltmp(2), iimax
 
   ! Constants with data statements
@@ -121,9 +122,9 @@ program tish
   integer :: outputmemory = 10  ! MB
   integer :: outputinterval
   real(8) :: memoryperomega ! MB
-  integer :: outputindex
+  integer :: outputindex, mpii
   integer, allocatable :: outputi(:)
-  complex(16), allocatable :: outputu(:,:,:)
+  complex(8), allocatable :: outputu(:,:,:)
   !     When the values to be output use memory over outputmemory MB,
   !     they are written in output files. The interval is outputinterval.
   !     memoryperomega is the quantity of memory used for one omega step.
@@ -152,6 +153,7 @@ program tish
   if (r0 < rmin .or. r0 > rmax) then
     stop 'Location of the source is improper.'
   end if
+
 
   ! ************************** Files handling **************************
   if (spcform == 0) then
@@ -194,8 +196,8 @@ program tish
     call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer, nLayerInZone, gridRadii)
     if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
-    ! computing the stack points
-    call computeStackPoints(nZone, nLayerInZone, isp, jsp)
+    ! computing the first indices in each zone
+    call computeFirstIndices(nZone, nLayerInZone, isp, jsp)
 
     ! computing the source position
     call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
@@ -212,11 +214,16 @@ program tish
 
     ! computing mass and rigitidy matrices
     do i = 1, nZone
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), h2(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), h3(jsp(i)), work(jsp(i)))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), h4(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), &
+        t(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), &
+        h1(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), &
+        h2(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), &
+        h3(jsp(i)), work(jsp(i)))
+      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), &
+        h4(jsp(i)), work(jsp(i)))
       call computeLumpedT(nLayerInZone(i), nValue, valuedRadii, rhoValues, gridRadii(isp(i)), work(jsp(i)))
       call computeAverage(nLayerInZone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
       call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecLValues, gridRadii(isp(i)), work(jsp(i)))
@@ -250,21 +257,22 @@ program tish
           i = 1
         else
           i = imin
-        endif
-      endif
+        end if
+      end if
       if (ii == 2) i = imax
       omega = 2.d0 * pi * dble(i) / tlen
-      call callsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
-      call calcoef(nZone, omega, qmuOfZone, coef)
+      call computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+      call computeCoef(nZone, omega, qmuOfZone, coef)
 
-      call cmatinit(lda, nn, a0)
-      call cmatinit(lda, nn, a2)
+      call initComplexMatrix(lda, nn, a0)
+      call initComplexMatrix(lda, nn, a2)
       do j = 1, nZone
-        call cala0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), cwork(jsp(j)))
-        call overlap(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
-        call cala2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
-        call overlap(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
-      enddo
+        call computeA0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), &
+          cwork(jsp(j)))
+        call overlapMatrixBlocks(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
+        call computeA2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
+        call overlapMatrixBlocks(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
+      end do
 
       kc = 1
       ismall = 0
@@ -274,20 +282,20 @@ program tish
         if (ismall > 20) then
           if (ltmp(ii) > l) ltmp(ii) = l
           exit
-        endif
+        end if
 
         do jj = 1, maxnlayer + 1  ! initialize
           tmpr(jj) = 0.d0
-        enddo
+        end do
         lsq = dsqrt(dble(l) * dble(l + 1))
         ! computing the coefficient matrix elements
         ! --- Initializing the matrix elements
-        call cmatinit(lda, nn, a)
-        call cmatinit(lda, 3, ga2)
-        call cala(nn, l, lda, a0, a2, a)
-        call calga(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), h4(ins), coef(iZoneOfSource), aa)
-        call calga(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
-        call overlap(2, ga, ga2)
+        call initComplexMatrix(lda, nn, a)
+        call initComplexMatrix(lda, 3, ga2)
+        call assembleA(nn, l, a0, a2, a)
+        call computeA(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), h4(ins), coef(iZoneOfSource), aa)
+        call computeA(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
+        call overlapMatrixBlocks(2, ga, ga2)
 
         do m = -2, 2  ! m-loop
           if ((m /= 0) .and. (iabs(m) <= iabs(l))) then
@@ -298,30 +306,30 @@ program tish
                 call dclisb0(a, nn, 1, lda, g, eps, dr, z, ier)
               else
                 call dcsbsub0(a, nn, 1, lda, g, eps, dr, z, ier)
-              endif
+              end if
               do jj = 1, nn  ! sum up c of the same l
                 tmpr(jj) = tmpr(jj) + abs(g(jj))
-              enddo
+              end do
             else
               if ((m == -2) .or. (m == -l)) then
                 call dclisb(a(1, kc), nn - kc + 1, 1, lda, ns - kc + 1, g(kc), eps, dr, z, ier)
               else
                 call dcsbsub(a(1, kc), nn - kc + 1, 1, lda, ns - kc + 1, g(kc), eps, dr, z, ier)
-              endif
-            endif
+              end if
+            end if
 
             if (mod(l, 100) == 0) then
               call calcutd(nZone, nLayerInZone, tmpr, ratc, nn, gridRadii, kc)
-            endif
+            end if
 
             call calamp(g(nn), l, lsuf, maxamp, ismall, ratl)
-          endif
-        enddo  ! m-loop
-      enddo  ! l-loop
-    enddo  ! omega-loop
+          end if
+        end do  ! m-loop
+      end do  ! l-loop
+    end do  ! omega-loop
 
     iimax = dble(max(ltmp(1),ltmp(2))) * tlen / lmaxdivf
-  endif  ! option for shallow events
+  end if  ! option for shallow events
 
 
   ! ******************* Computing parameters *******************
@@ -330,14 +338,15 @@ program tish
   call computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer, nLayerInZone, gridRadii)
   if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
 
-  ! computing the stack points
-  call computeStackPoints(nZone, nLayerInZone, isp, jsp)
+  ! computing the first indices in each zone
+  call computeFirstIndices(nZone, nLayerInZone, isp, jsp)
 
   ! computing the source position
   call computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp, r0, iZoneOfSource, qLayerOfSource)
 
   ! computing grids for source computations
   call computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, gridRadiiForSource)
+
 
   ! ******************* Computing the matrix elements *******************
   ! computing variable values at grid points
@@ -348,18 +357,23 @@ program tish
 
   ! computing mass and rigitidy matrices
   do i = 1, nZone
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), t(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), h1(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), h2(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), h3(jsp(i)), work(jsp(i)))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), h4(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, rhoValues, 2, 0, 0, gridRadii(isp(i)), &
+      t(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 2, 1, 1, gridRadii(isp(i)), &
+      h1(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 1, 1, 0, gridRadii(isp(i)), &
+      h2(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecLValues, 0, 0, 0, gridRadii(isp(i)), &
+      h3(jsp(i)), work(jsp(i)))
+    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii, ecNValues, 0, 0, 0, gridRadii(isp(i)), &
+      h4(jsp(i)), work(jsp(i)))
     call computeLumpedT(nLayerInZone(i), nValue, valuedRadii, rhoValues, gridRadii(isp(i)), work(jsp(i)))
     call computeAverage(nLayerInZone(i), t(jsp(i)), work(jsp(i)), t(jsp(i)))
     call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecLValues, gridRadii(isp(i)), work(jsp(i)))
     call computeAverage(nLayerInZone(i), h3(jsp(i)), work(jsp(i)), h3(jsp(i)))
     call computeLumpedH(nLayerInZone(i), nValue, valuedRadii, ecNValues, gridRadii(isp(i)), work(jsp(i)))
     call computeAverage(nLayerInZone(i), h4(jsp(i)), work(jsp(i)), h4(jsp(i)))
-  enddo
+  end do
 
   ! computing mass and rigitidy matrices near source
   call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
@@ -374,8 +388,8 @@ program tish
   call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh4, work, gh4)
 
-  !******************** Computing the displacement *********************
 
+  !******************** Computing the displacement *********************
   outputindex = 1
   nn = nLayer + 1
   ns = isp(iZoneOfSource) + nint(qLayerOfSource)
@@ -383,29 +397,32 @@ program tish
 
   llog = 0
   do i = imin, imax  ! omega-loop
-    call cmatinit(3, nReceiver, u)
-
     if (i == 0) cycle
+    omega = 2.d0 * pi * dble(i) / tlen
 
-    omega = 2.d0 * pi * real(i) / tlen
-    call callsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+    call initComplexMatrix(3, nReceiver, u)
+
+    ! compute the angular order that is sufficient to compute the slowest phase velocity
+    call computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
 
     do ir = 1, nReceiver
       call matinit(3, 4, plm(1, 0, ir))
     end do
 
-    call calcoef(nZone, omega, qmuOfZone, coef)
+    ! compute coefficient related to attenuation
+    call computeCoef(nZone, omega, qmuOfZone, coef)
 
-    call cmatinit(lda, nn, a0)
-    call cmatinit(lda, nn, a2)
+    call initComplexMatrix(lda, nn, a0)
+    call initComplexMatrix(lda, nn, a2)
 
+    ! compute parts of A matrix (omega^2 T - H) (It is split into parts to exclude l-dependence.)
     do j = 1, nZone
-      call cala0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), &
-        h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), cwork(jsp(j)))
-      call overlap(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
+      call computeA0(nLayerInZone(j), omega, omegai, t(jsp(j)), h1(jsp(j)), h2(jsp(j)), h3(jsp(j)), h4(jsp(j)), coef(j), &
+        cwork(jsp(j)))
+      call overlapMatrixBlocks(nLayerInZone(j), cwork(jsp(j)), a0(1, isp(j)))
 
-      call cala2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
-      call overlap(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
+      call computeA2(nLayerInZone(j), h4(jsp(j)), coef(j), cwork(jsp(j)))
+      call overlapMatrixBlocks(nLayerInZone(j), cwork(jsp(j)), a2(1, isp(j)))
     end do
 
     kc = 1
@@ -420,7 +437,7 @@ program tish
       end if
 
       tmpr(:) = 0.d0
-      lsq = sqrt(real(l) * real(l+1))
+      lsq = sqrt(dble(l) * dble(l+1))
 
       !***** Computing the trial function *****
       do ir = 1, nReceiver
@@ -429,20 +446,23 @@ program tish
 
       !computing the coefficient matrix elements
       !--- Initializing the matrix elements
-      call cmatinit(lda, nn, a)
-      call cmatinit(lda, 3, ga2)
+      call initComplexMatrix(lda, nn, a)
+      call initComplexMatrix(lda, 3, ga2)
 
-      call cala(nn, l, lda, a0, a2, a)
-      call calga(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), &
+      ! assemble A matrix from parts that have already been computed
+      call assembleA(nn, l, a0, a2, a)
+
+      call computeA(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), &
         h4(ins), coef(iZoneOfSource), aa)
 
-      call calga(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
-      call overlap(2, ga, ga2)
+      ! compute A matrix near source
+      call computeA(2, omega, omegai, l, gt, gh1, gh2, gh3, gh4, coef(iZoneOfSource), ga)
+      call overlapMatrixBlocks(2, ga, ga2)
 
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
 
-        call cvecinit( nn,g )
+        call cvecinit(nn, g)
 
         call calg2(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, &
           g(isp(iZoneOfSource)))
@@ -454,7 +474,7 @@ program tish
             call dcsbsub0(a, nn, 1, lda, g, eps, dr, z, ier)
           end if
 
-          tmpr(:) = tmpr(:) + real(abs(g(:)))
+          tmpr(:) = tmpr(:) + abs(g(:))
         else
           if (m == -2 .or. m == -l) then
             call dclisb(a(1, kc), nn-kc+1, 1, lda, ns-kc+1, g(kc), eps, dr, z, ier)
@@ -474,12 +494,56 @@ program tish
         end do
       end do  ! m-loop
     end do  ! l-loop
+
+
+    ! ************************** Files Handling **************************
+    outputi(outputindex) = i
+    do ir = 1, nReceiver
+      outputu(:, ir, outputindex) = u(:, ir)
+    end do
+
+    if (outputindex >= outputinterval .or. i == imax) then
+      write(*,*) "kakikomimasu"
+      if (spcform == 0) then
+        do ir = 1, nReceiver
+          open(unit=10, file=output(ir), position='append', status='unknown', &
+            form='unformatted', access='stream', convert='big_endian')
+          do mpii = 1, outputindex
+            write(10) outputi(mpii), dble(outputu(1, ir, mpii)), imag(outputu(1, ir, mpii))
+            write(10) dble(outputu(2, ir, mpii)), imag(outputu(2, ir, mpii))
+            write(10) dble(outputu(3, ir, mpii)), imag(outputu(3, ir, mpii))
+          end do
+          close(10)
+        end do
+      else if (spcform == 1) then
+        do ir = 1, nReceiver
+          open(unit=10, file=output(ir), position='append', status='unknown')
+          do mpii = 1, outputindex
+            write(10,*) outputi(mpii), dble(outputu(1, ir, mpii)), imag(outputu(1, ir, mpii))
+            write(10,*) dble(outputu(2, ir, mpii)), imag(outputu(2, ir, mpii))
+            write(10,*) dble(outputu(3, ir, mpii)), imag(outputu(3, ir, mpii))
+          end do
+          close(10)
+        end do
+      else
+        write(*,*) "WARNING: set spcform 0 or 1"
+      end if
+      outputindex = 0
+    end if
+
+    if (ilog == 1) then
+      open(unit=11, file='llog.log', position='append', status='old')
+      write(11,*) i, llog, nLayer
+      close(11)
+    end if
+
+    outputindex = outputindex + 1
+
   end do  ! omega-loop
 
+  write(*,*) "Ivalice looks to the horizon"
 
-
-
-
+  stop
 end program tish
 
 

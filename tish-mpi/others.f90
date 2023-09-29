@@ -21,7 +21,8 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
   integer, intent(out) :: nZone  ! Number of zones.
   real(8), intent(out) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
-  real(8), intent(out) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)  ! Polynomial functions of rho, vsv, and vsh structure.
+  real(8), intent(out) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(out) :: qmuOfZone(:)  ! Qmu of each zone.
   integer, intent(out) :: nReceiver  ! Number of receivers.
   real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)
@@ -205,30 +206,28 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   real(8), intent(in) :: tlen  ! Time length.
   real(8), intent(out) :: kz(:)  ! Computed value of vertical wavenumber k_z at each zone.
   integer :: iZone
-  real(8) :: v(4), vs1, vs2, vmin, rh, omega, kx, kz2
+  real(8) :: v(4), vs1, vs2, vmin, omega, kx, kz2
 
   do iZone = 1, nZone
     v(:) = vsPolynomials(:, iZone)
     ! compute Vs at bottom (vs1) and top (vs2) of zone
     call valueAtRadius(v, rminOfZone(iZone), rmax, vs1)
     call valueAtRadius(v, rmaxOfZone(iZone), rmax, vs2)
-    ! zone thickness
-    rh = rmaxOfZone(iZone) - rminOfZone(iZone)
-    ! compute omega
-    omega = 2.d0 * pi * real(imax,8) / tlen
     ! get smaller Vs value (This is to get larger k_z value.)
     vmin = min(vs1, vs2)
-    ! compute k_x (eq. 30 of Kawai et al. 2006)
-    kx = (real(lmin,8) + 0.5d0) / rmaxOfZone(iZone)
-    ! compute k_z^2 (eq. 32 of Kawai et al. 2006)
-    kz2 = ( omega * omega ) / ( vmin * vmin ) - ( kx * kx )
+    ! compute largest omega (This is to get larger k_z value.)
+    omega = 2.d0 * pi * dble(imax) / tlen
+    ! compute smallest k_x (See eq. 30 of Kawai et al. 2006.) (This is to get larger k_z value.)
+    kx = (dble(lmin) + 0.5d0) / rmaxOfZone(iZone)
+    ! compute k_z^2 (See eq. 32 of Kawai et al. 2006.)
+    kz2 = (omega ** 2) / (vmin ** 2) - (kx ** 2)
     ! compute k_z (When it is not real, it is set to 0.)
-    if ( kz2 > 0.d0 ) then
+    if (kz2 > 0.d0) then
       kz(iZone) = sqrt(kz2)
     else
       kz(iZone) = 0.d0
-    endif
-  enddo
+    end if
+  end do
 
   return
 end subroutine
@@ -271,14 +270,14 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
       !  (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
       !  The "/0.7 +1" is to increase the number of grids a bit.
       nTemp = int(sqrt(3.3d0 / re) * rh * kz(iZone) / 2.d0 / pi / 7.d-1 + 1)
-    endif
+    end if
     nLayerInZone(iZone) = min(nTemp, 5)
     ! compute radius at each grid point
     do i = 1, nLayerInZone(iZone)
       iGrid = iGrid + 1
       gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
-    enddo
-  enddo
+    end do
+  end do
 
 ! recounting the total number of layers
   nLayer = sum(nLayerInZone)
@@ -288,24 +287,24 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the stack points.
+! Computing the indices of the first grid point and the first (iLayer, k', k)-pair in each zone.
 !------------------------------------------------------------------------
-subroutine computeStackPoints(nZone, nLayerInZone, isp, jsp)
+subroutine computeFirstIndices(nZone, nLayerInZone, iFirstGrid, jFirstComponent)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
-  integer, intent(out) :: isp(:)  ! Index of the first grid point in each zone.
-  integer, intent(out) :: jsp(:)  ! Index of the first stack point in each zone.
+  integer, intent(out) :: iFirstGrid(:)  ! Index of the first grid point in each zone.
+  integer, intent(out) :: jFirstComponent(:)  ! Index of the first component of (iLayer, k', k)-pairs in each zone.
   integer :: i
 
-  isp(1) = 1
-  jsp(1) = 1
+  iFirstGrid(1) = 1
+  jFirstComponent(1) = 1
   do i = 1, nZone - 1
-    isp(i+1) = isp(i) + nLayerInZone(i)
-    jsp(i+1) = jsp(i) + 4 * nLayerInZone(i)
-  enddo
+    iFirstGrid(i+1) = iFirstGrid(i) + nLayerInZone(i)
+    jFirstComponent(i+1) = jFirstComponent(i) + 4 * nLayerInZone(i)
+  end do
 
 end subroutine
 
@@ -324,7 +323,8 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
   integer, intent(in) :: isp(:)  ! Index of the first grid point in each zone.
   real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
-  real(8), intent(out) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nlayer(iZone) at top of zone.)
+  real(8), intent(out) :: qLayerOfSource  ! A double-value index of source position in its zone.
+  !::::::::::::::::::::::::::::::::::::::::::(0 at bottom of zone, nlayer(iZone) at top of zone.)
   integer :: iLayer  ! Index of layer. (1 at rmin, nLayer+1 at rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (0 at rmin, nLayer at rmax.)
 
@@ -334,8 +334,9 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
   ! computing a double-value index of source position
   if (r0 == rmax) then
     xLayerOfSource = dble(nLayer) - 0.01d0
-    r0 = gridRadii(nLayer) + (xLayerOfSource - dble(nLayer-1)) * (gridRadii(nLayer+1) - gridRadii(nLayer))  ! Note that radii(nLayer+1) = rmax.
-    !!! (xLayerOfSource - dble(nLayer-1)) = 0.99d0 ?
+    r0 = gridRadii(nLayer) + (xLayerOfSource - dble(nLayer-1)) * (gridRadii(nLayer+1) - gridRadii(nLayer))
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Note that radii(nLayer+1) = rmax.
+    !!!TODO (xLayerOfSource - dble(nLayer-1)) = 0.99d0 ?
 
   else
     ! find the layer that the source is in (Note that the index of the lowermost layer is 1, not 0.)
@@ -343,26 +344,28 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
     do
       if (r0 < gridRadii(iLayer + 1)) exit
       iLayer = iLayer + 1
-    enddo
+    end do
 
-    xLayerOfSource = dble(iLayer-1) + (r0 - gridRadii(iLayer)) / (gridRadii(iLayer+1) - gridRadii(iLayer))
+    xLayerOfSource = dble(iLayer - 1) + (r0 - gridRadii(iLayer)) / (gridRadii(iLayer + 1) - gridRadii(iLayer))
 
     ! fix source position when it is too close to a grid point
     if ((xLayerOfSource - dble(iLayer-1)) < 0.01d0) then
       xLayerOfSource = dble(iLayer-1) + 0.01d0
-      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))  !!! (xLayerOfSource - dble(iLayer-1)) = 0.01d0 ?
+      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))
+      !!!TODO (xLayerOfSource - dble(iLayer-1)) = 0.01d0 ?
     elseif ((xLayerOfSource - dble(iLayer-1)) > 0.99d0) then
       xLayerOfSource = dble(iLayer-1) + 0.99d0
-      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))  !!! (xLayerOfSource - dble(iLayer-1)) = 0.99d0 ?
-    endif
-  endif
+      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))
+      !!!TODO (xLayerOfSource - dble(iLayer-1)) = 0.99d0 ?
+    end if
+  end if
 
   ! find the zone that the source is in
   iZoneOfSource = 1
   do
     if (r0 <= rmaxOfZone(iZoneOfSource)) exit
     iZoneOfSource = iZoneOfSource + 1
-  enddo
+  end do
 
   ! compute the double-value index of source position in its zone
   qLayerOfSource = xLayerOfSource - dble(isp(iZoneOfSource) - 1)
@@ -381,7 +384,8 @@ subroutine computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, 
   real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
   real(8), intent(in) :: r0  ! Input source radius.
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
-  real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone. (0 at bottom of zone, nlayer(iZone) at top of zone.)
+  real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone.
+  !:::::::::::::::::::::::::::::::::::::::::(0 at bottom of zone, nlayer(iZone) at top of zone.)
   real(8), intent(out) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
   integer :: iLayer
 
@@ -407,11 +411,13 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
   integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
-  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)  ! Polynomial functions of rho, vsv, and vsh structure.
+  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(:)  ! Radii corresponding to each variable value.
-  real(8), intent(out) :: rhoValues(:), ecLValues(:), ecNValues(:)  ! Values of rho, L, and N at each point (with 2 values at boundaries).
+  real(8), intent(out) :: rhoValues(:), ecLValues(:), ecNValues(:)  ! Values of rho, L, and N at each point
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::(with 2 values at boundaries).
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: iZone, iLayer, iValue, iGrid
 
@@ -457,7 +463,8 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
 
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
-  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)  ! Polynomial functions of rho, vsv, and vsh structure.
+  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(in) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
   real(8), intent(out) :: rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0
   real(8) :: rhoTemp, vsvTemp, vshTemp
@@ -477,6 +484,90 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
   mu0 = ecLValuesForSource(2)
 
 end subroutine
+
+
+!------------------------------------------------------------------------
+! Initialize complex matrix of shape (n1, n2) with zeros.
+!------------------------------------------------------------------------
+subroutine initComplexMatrix(n1, n2, a)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: n1, n2
+  complex(8), intent(out) :: a(n1, n2)
+  integer :: i, j
+
+  ! Initialize the matrix 'a' with zeros
+  do j = 1, n2
+    do i = 1, n1
+      a(i, j) = dcmplx(0.d0, 0.d0)
+    end do
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computes the lsuf parameter based on given input.
+!------------------------------------------------------------------------
+subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+!------------------------------------------------------------------------
+  implicit none
+
+  real(8), intent(in) :: omega  ! Angular frequency.
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone.
+  real(8), intent(in) :: vsvPolynomials(4, nZone)  ! Polynomial functions of vsv structure.
+  integer, intent(out) :: lsuf  !!TODO probably The angular order that is sufficient to compute the slowest phase velocity.
+  real(8) :: vsAtSurface
+
+  ! Compute vs at planet surface
+  call valueAtRadius(vsvPolynomials(:, nZone), 1.d0, 1.d0, vsAtSurface)
+
+  ! Calculate lsuf (See eq. 29 of Kawai et al. 2006.)
+  ! The slowest velocity (vs at surface) and largest radius (planet radius) is used to gain larger bound of angular order.
+  lsuf = int(omega * rmaxOfZone(nZone) / vsAtSurface - 0.5d0) + 1
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computes the coefficient based on the given input.   !!TODO probably coefficient of attenuation
+!------------------------------------------------------------------------
+subroutine computeCoef(nZone, omega, qmuOfZone, coef)
+!------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: omega  ! Angular frequency.
+  real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
+  complex(8), intent(out) :: coef(nZone)  !!TODO probably Coefficient derived from attenuation for each zone.
+  real(8) :: aa, bb
+  integer :: iZone
+
+  ! Calculate coefficients
+  do iZone = 1, nZone
+    if (omega == 0.d0) then
+      aa = 1.d0
+    else
+      aa = 1.d0 + log(omega / (2.d0 * pi)) / (pi * qmuOfZone(iZone))
+    end if
+    bb = 1.d0 / (2.d0 * qmuOfZone(iZone))
+    coef(iZone) = dcmplx(aa, bb) * dcmplx(aa, bb)
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------
