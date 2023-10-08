@@ -42,9 +42,11 @@ program tish
   integer :: nLayer, nLayerInZone(maxNZone)  ! Number of layers (total, and in each zone).
   real(8) :: gridRadii(maxNLayer + maxNZone + 1)  ! Radii of each grid point.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
-  integer :: l, m  ! Angular order.
-  real(8) :: plm(3, 0:3, maxNReceiver)
-  complex(8) :: bvec(3, -2:2, maxNReceiver)
+  integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
+  real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
+  !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
+  complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1:3), m (-2:2), iReceiver.
 
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
@@ -74,7 +76,7 @@ program tish
   real(8) :: r0, mt(3, 3), eqlat, eqlon, mu0
   integer :: iZoneOfSource  ! Which zone the source is in.
   real(8) :: qLayerOfSource  ! A double-value index of source position in its zone.
-  !:::::::::::::::::::::::::::::(0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
+  !:::::::::::::::::::::::::::: (0 at bottom of zone, nLayerOfZone(iZone) at top of zone.)
 
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
@@ -109,12 +111,12 @@ program tish
 
   ! Other variables
   integer :: i, j, ii, jj, nn, ier
-  real(8) :: work(4 * maxNLayer), lsq
+  real(8) :: work(4 * maxNLayer)
   complex(8) :: dr(maxNLayer + 1), z(maxNLayer + 1)
   complex(8) :: cwork(4 * maxNLayer)
   integer :: ltmp(2), iimax
 
-  ! Constants with data statements
+  ! Constants
   integer :: lda = 2
   real(8) :: eps = -1.d0
 
@@ -287,7 +289,6 @@ program tish
         do jj = 1, maxnlayer + 1  ! initialize
           tmpr(jj) = 0.d0
         end do
-        lsq = dsqrt(dble(l) * dble(l + 1))
         ! computing the coefficient matrix elements
         ! --- Initializing the matrix elements
         call initComplexMatrix(lda, nn, a)
@@ -299,8 +300,8 @@ program tish
 
         do m = -2, 2  ! m-loop
           if ((m /= 0) .and. (iabs(m) <= iabs(l))) then
-            call cvecinit(nn, g)
-            call calg2(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, g(isp(iZoneOfSource)))
+            call initComplexVector(nn, g)
+            call computeG(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, g(isp(iZoneOfSource)))
             if (mod(l, 100) == 0) then
               if ((m == -2) .or. (m == -l)) then
                 call dclisb0(a, nn, 1, lda, g, eps, dr, z, ier)
@@ -406,7 +407,7 @@ program tish
     call computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
 
     do ir = 1, nReceiver
-      call matinit(3, 4, plm(1, 0, ir))
+      call matinit(3, 4, plm(:, :, ir))
     end do
 
     ! compute coefficient related to attenuation
@@ -437,21 +438,20 @@ program tish
       end if
 
       tmpr(:) = 0.d0
-      lsq = sqrt(dble(l) * dble(l+1))
 
       !***** Computing the trial function *****
       do ir = 1, nReceiver
-        call calbvec(l, theta(ir), phi(ir), plm(1, 0, ir), bvec(1, -2, ir))
+        call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
 
-      !computing the coefficient matrix elements
-      !--- Initializing the matrix elements
+      ! initializing the matrix elements
       call initComplexMatrix(lda, nn, a)
       call initComplexMatrix(lda, 3, ga2)
 
       ! assemble A matrix from parts that have already been computed
       call assembleA(nn, l, a0, a2, a)
 
+      ! TODO ???
       call computeA(1, omega, omegai, l, t(ins), h1(ins), h2(ins), h3(ins), &
         h4(ins), coef(iZoneOfSource), aa)
 
@@ -462,23 +462,28 @@ program tish
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
 
-        call cvecinit(nn, g)
+        call initComplexVector(nn, g)
 
-        call calg2(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, &
+        call computeG(l, m, qLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), ga, aa, ga2, gdr, &
           g(isp(iZoneOfSource)))
 
         if (mod(l, 100) == 0) then
           if (m == -2 .or. m == -l) then
+            ! in the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed
             call dclisb0(a, nn, 1, lda, g, eps, dr, z, ier)
           else
+            ! in consecutive m-loops, start from forward substitution (decomposition is skipped)
             call dcsbsub0(a, nn, 1, lda, g, eps, dr, z, ier)
           end if
 
           tmpr(:) = tmpr(:) + abs(g(:))
+
         else
           if (m == -2 .or. m == -l) then
+            ! in the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed
             call dclisb(a(1, kc), nn-kc+1, 1, lda, ns-kc+1, g(kc), eps, dr, z, ier)
           else
+            ! in consecutive m-loops, start from forward substitution (decomposition is skipped)
             call dcsbsub(a(1, kc), nn-kc+1, 1, lda, ns-kc+1, g(kc), eps, dr, z, ier)
           end if
         end if
@@ -490,7 +495,7 @@ program tish
         call calamp(g(nn), l, lsuf, maxamp, ismall, ratl)
 
         do ir = 1, nReceiver
-          call calu(g(nn), lsq, bvec(1, m, ir), u(1, ir))
+          call computeU(g(nn), l, trialFunctionValues(:, m, ir), u(:, ir))
         end do
       end do  ! m-loop
     end do  ! l-loop

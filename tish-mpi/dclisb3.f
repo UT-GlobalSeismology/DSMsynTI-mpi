@@ -1,4 +1,3 @@
-      SUBROUTINE DCLISB(A, N, NUD, N1, NP, B, EPS, DR, Z, IER)
 ************************************************************************
 *  SIMULTANEOUS LINEAR EQUATIONS WITH REAL SYMMETRIC POSITIVE DEFINITE *
 *      BAND MATRIX BY CHOLESKY METHOD.                                 *
@@ -15,6 +14,7 @@
 *    (9) IER : ERROR CODE.                                             *
 *  COPY RIGHT   T. OGUNI   JULY 30 1989   VERSION 1.0                  *
 ************************************************************************
+      SUBROUTINE DCLISB(A, N, NUD, N1, NP, B, EPS, DR, Z, IER)
         DOUBLE COMPLEX A(N1,N), B(N), DR(N), Z(N)
         REAL*8 EPS
         INTEGER N, NUD, N1, NP, IER

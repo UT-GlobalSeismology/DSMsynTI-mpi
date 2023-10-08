@@ -18,7 +18,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
   real(8), intent(in) :: con(nValue)  ! Values of a variable at each point (with 2 values at boundaries).
   real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
   real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4"
-  !::::::::::::::::::::::::::::::::::::::::::::::::(See eq. 19 of Kawai et al. 2006.)
+  !::::::::::::::::::::::::::::::::::::::::::::::: (See eq. 19 of Kawai et al. 2006.)
   real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals.
   integer :: iLayer, j, k, l, nn
   real(8) :: a(2,2), b(2,2), c(5), rh
@@ -313,9 +313,8 @@ subroutine computeAverage(nLayerInZoneI, mat1, mat2, average)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: mat1(4*nLayerInZoneI), mat2(4*nLayerInZoneI)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::Input tridiagonal matrices, stored for each (iLayer, k', k)-pair.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::: Input tridiagonal matrices, stored for each (iLayer, k', k)-pair.
   real(8), intent(out) :: average(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
@@ -339,7 +338,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
   real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Parts of H matrix stored for each (iLayer, k', k)-pair.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
   complex(8), intent(in) :: coef
   complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
@@ -419,7 +418,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, l, t, h1, h2, h3, h4, coef, a)
   real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Parts of H matrix stored for each (iLayer, k', k)-pair.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
   complex(8), intent(in) :: coef
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
@@ -451,7 +450,7 @@ subroutine overlapMatrixBlocks(nLayerInZoneI, aIn, aOut)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8), intent(out) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix.
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::Should be initialized with 0s beforehand.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
   integer :: j
 
   do j = 1, nLayerInZoneI
@@ -471,15 +470,71 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+! Computing the particular solution with free surface boundary
+! conditions and the excitation vector.
 !------------------------------------------------------------------------
+subroutine computeG(l, m, qLayerOfSource, r0, mt, mu0, coef, ga, a, ga2, dr, g2)
 !------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+  real(8), parameter :: eps = -1.d0
+
+  integer, intent(in) :: l  ! Angular order.
+  integer, intent(in) :: m  ! Azimuthal order.
+  real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone.
+  real(8), intent(in) :: r0, mu0, mt(3,3)
+  complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
+  complex(8), intent(in) :: ga(:), a(:), ga2(:,:)
+  complex(8), intent(out) :: dr(3), g2(:)
+  real(8) :: b, sgn
+  complex(8) :: dd, cg2(3), z(3)
+  integer :: i, itmp
+  real(8) :: ier
+
+  ! initialize
+  call initComplexVector(3, cg2)
+  dd = dcmplx(0.d0, 0.d0)
+
+  if (m >= 0) then
+    sgn = 1.d0
+  else
+    sgn = -1.d0
+  end if
+
+  if (abs(m) == 1) then
+    ! b1 in eq. (26) of Kawai et al. (2006)
+    b = sqrt((2 * l + 1) / (16.d0 * pi))
+    ! D3 of eq. (26) of Kawai et al. (2006)
+    dd = dcmplx(b) * dcmplx(sgn * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * coef)
+
+    !TODO ??
+    itmp = 4
+    do i = 2, 3
+      cg2(i) = -dd * (ga(itmp + 1) + ga(itmp + 2))
+      itmp = itmp + 2
+    end do
+
+  else if (abs(m) == 2) then
+    ! b2 in eq. (27) of Kawai et al. (2006)
+    b = sqrt((2 * l + 1) * (l - 1) * (l + 2) / (64.d0 * pi))
+    ! -1 * gk3 of eq. (27) of Kawai et al. (2006)
+    cg2(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgn * (mt(2, 2) - mt(3, 3)))
+  end if
+
+  !TODO ??
+  if ((m == -2) .or. (m == -l)) then
+    call dclisb0(ga2, 3, 1, 2, cg2, eps, dr, z, ier)
+  else
+    call dcsbsub0(ga2, 3, 1, 2, cg2, eps, dr, z, ier)
+  end if
+
+  cg2(3) = cg2(3) + dd
+
+  ! Computation of the excitation vector
+  itmp = int(qLayerOfSource)
+  g2(itmp + 1) = a(1) * cg2(1) + a(2) * cg2(3)
+  g2(itmp + 2) = a(3) * cg2(1) + a(4) * cg2(3)
+
+end subroutine
 
 
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-
-
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------

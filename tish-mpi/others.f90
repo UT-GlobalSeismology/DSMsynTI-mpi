@@ -22,7 +22,7 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   integer, intent(out) :: nZone  ! Number of zones.
   real(8), intent(out) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
   real(8), intent(out) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(out) :: qmuOfZone(:)  ! Qmu of each zone.
   integer, intent(out) :: nReceiver  ! Number of receivers.
   real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)
@@ -324,7 +324,7 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
   real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   real(8), intent(out) :: qLayerOfSource  ! A double-value index of source position in its zone.
-  !::::::::::::::::::::::::::::::::::::::::::(0 at bottom of zone, nlayer(iZone) at top of zone.)
+  !::::::::::::::::::::::::::::::::::::::::: (0 at bottom of zone, nlayer(iZone) at top of zone.)
   integer :: iLayer  ! Index of layer. (1 at rmin, nLayer+1 at rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (0 at rmin, nLayer at rmax.)
 
@@ -335,7 +335,7 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, isp,
   if (r0 == rmax) then
     xLayerOfSource = dble(nLayer) - 0.01d0
     r0 = gridRadii(nLayer) + (xLayerOfSource - dble(nLayer-1)) * (gridRadii(nLayer+1) - gridRadii(nLayer))
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Note that radii(nLayer+1) = rmax.
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Note that radii(nLayer+1) = rmax.
     !!!TODO (xLayerOfSource - dble(nLayer-1)) = 0.99d0 ?
 
   else
@@ -385,7 +385,7 @@ subroutine computeSourceGrid(isp, gridRadii, r0, iZoneOfSource, qLayerOfSource, 
   real(8), intent(in) :: r0  ! Input source radius.
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone.
-  !:::::::::::::::::::::::::::::::::::::::::(0 at bottom of zone, nlayer(iZone) at top of zone.)
+  !:::::::::::::::::::::::::::::::::::::::: (0 at bottom of zone, nlayer(iZone) at top of zone.)
   real(8), intent(out) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
   integer :: iLayer
 
@@ -412,12 +412,12 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
   integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
   real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(:)  ! Radii corresponding to each variable value.
   real(8), intent(out) :: rhoValues(:), ecLValues(:), ecNValues(:)  ! Values of rho, L, and N at each point
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::(with 2 values at boundaries).
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: (with 2 values at boundaries).
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: iZone, iLayer, iValue, iGrid
 
@@ -464,7 +464,7 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
   real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::Polynomial functions of rho, vsv, and vsh structure.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(in) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
   real(8), intent(out) :: rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0
   real(8) :: rhoTemp, vsvTemp, vshTemp
@@ -487,6 +487,25 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+! Initialize complex vector of size n with zeros.
+!------------------------------------------------------------------------
+subroutine initComplexVector(n, b)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: n
+  complex(8), intent(out) :: b(n)
+  integer :: i
+
+  ! Initialize vector 'b' with zeros
+  do i = 1, n
+    b(i) = dcmplx(0.0d0, 0.0d0)
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
 ! Initialize complex matrix of shape (n1, n2) with zeros.
 !------------------------------------------------------------------------
 subroutine initComplexMatrix(n1, n2, a)
@@ -497,7 +516,7 @@ subroutine initComplexMatrix(n1, n2, a)
   complex(8), intent(out) :: a(n1, n2)
   integer :: i, j
 
-  ! Initialize the matrix 'a' with zeros
+  ! Initialize matrix 'a' with zeros
   do j = 1, n2
     do i = 1, n1
       a(i, j) = dcmplx(0.d0, 0.d0)
@@ -573,3 +592,36 @@ end subroutine
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------
+! Accumulates the value of 'u' at a certain receiver for a certain (l, m)-pair (= for a certain trial function).
+! (See eq. 1 of Kawai et al. 2006.)
+! The trial function is specified by (k=k_max (at surface of planet), l, m, 3 (the T spherical harmonic)).
+! (See eqs. 12 & 13 of Kawai et al. 2006.)
+!------------------------------------------------------------------------
+subroutine computeU(c0, l, trialFunctionValues, u)
+!------------------------------------------------------------------------
+  implicit none
+
+  complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function (k=k_max, l, m, 3).
+  real(8), intent(in) :: l  ! Angular order.
+  complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
+  complex(8), intent(inout) :: u(3)
+  real(8) :: largeL
+
+  ! compute largeL (See the part after eq. 12 of Kawai et al. 2006.)
+  largeL = sqrt(dble(l * (l + 1)))
+
+  ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
+  ! The coefficient 1/largeL, which is not included in the trial function term, is multiplied here. (See eq. 12 of Kawai et al. 2006.)
+  u(1) = dcmplx(0.d0, 0.d0)
+  u(2) = u(2) + c0 * trialFunctionValues(2) / dcmplx(largeL, 0.d0)
+  u(3) = u(3) + c0 * trialFunctionValues(3) / dcmplx(largeL, 0.d0)
+
+end subroutine
