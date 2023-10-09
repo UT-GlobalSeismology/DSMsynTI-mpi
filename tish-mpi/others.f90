@@ -619,7 +619,7 @@ subroutine computeU(c0, l, trialFunctionValues, u)
   largeL = sqrt(dble(l * (l + 1)))
 
   ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
-  ! The coefficient 1/largeL, which is not included in the trial function term, is multiplied here. (See eq. 12 of Kawai et al. 2006.)
+  ! The coefficient 1/largeL is not included in the trial function term, so is multiplied here. (See eq. 12 of Kawai et al. 2006.)
   u(1) = dcmplx(0.d0, 0.d0)
   u(2) = u(2) + c0 * trialFunctionValues(2) / dcmplx(largeL, 0.d0)
   u(3) = u(3) + c0 * trialFunctionValues(3) / dcmplx(largeL, 0.d0)
