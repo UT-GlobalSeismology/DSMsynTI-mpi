@@ -439,7 +439,7 @@ program tish
 
       tmpr(:) = 0.d0
 
-      !***** Computing the trial function *****
+      ! compute trial functions
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
@@ -494,19 +494,22 @@ program tish
 
         call calamp(g(nn), l, lsuf, maxamp, ismall, ratl)
 
+        ! accumulate u
         do ir = 1, nReceiver
           call computeU(g(nn), l, trialFunctionValues(:, m, ir), u(:, ir))
         end do
+
       end do  ! m-loop
     end do  ! l-loop
 
-
-    ! ************************** Files Handling **************************
+    ! store results
     outputi(outputindex) = i
     do ir = 1, nReceiver
       outputu(:, ir, outputindex) = u(:, ir)
     end do
 
+    ! ************************** Files Handling **************************
+    ! Write to file when the output interval is reached, or when this is the last omega.
     if (outputindex >= outputinterval .or. i == imax) then
       write(*,*) "kakikomimasu"
       if (spcform == 0) then
