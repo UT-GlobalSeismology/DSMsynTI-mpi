@@ -59,7 +59,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
       do k = 1, 2  ! k2=i and k2=i+1
         c = 0.d0
         ! multiply X_k1^(dot1) and X_k2^(dot2)
-        call multiplyPolynomials(2, a(:, j), 2, b(:, k), 3, c)
+        call multiplyPolynomials(2, a(:, j), 2, b(:, k), 3, c(:))
         ! multiply by r^rpow
         if (rpow > 0) then
           do l = 3, 1, -1
@@ -69,7 +69,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
         end if
         ! integrate; the result is saved for each (iLayer, k1, k2)-pair
         nn = 4 * (iLayer - 1) + 2 * (j - 1) + k
-        call integrateProduct(1, 5, c, gridRadiiInZoneI(iLayer), gridRadiiInZoneI(iLayer + 1), nValue, valuedRadii, con, &
+        call integrateProduct(5, c, gridRadiiInZoneI(iLayer), gridRadiiInZoneI(iLayer + 1), nValue, valuedRadii(:), con(:), &
           work(nn))
       end do
     end do
@@ -88,7 +88,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
       end select
     end do
   else
-    mat = work
+    mat(:) = work(:)
   end if
 
 end subroutine
@@ -112,7 +112,7 @@ subroutine multiplyPolynomials(n, a, m, b, l, c)
   if (n + m - 1 /= l) stop "Invalid arguments.(multiplyPolynomials)"
 
   ! Initialize the polynomial c
-  c = 0.d0
+  c(:) = 0.d0
 
   ! Compute the product polynomial
   do i = 1, n
@@ -128,12 +128,11 @@ end subroutine
 ! Evaluating the integrated value of p(r)*con(r) from 'lowerX' to 'upperX'.
 ! Here, p(r) is an (n-1)-degree polynomial, and con(r) is the profile of a variable.
 !------------------------------------------------------------------------
-subroutine integrateProduct(snpIn, n, p, lowerRadius, upperRadius, nValue, valuedRadii, con, result)
+subroutine integrateProduct(n, p, lowerRadius, upperRadius, nValue, valuedRadii, con, result)
 !------------------------------------------------------------------------
   implicit none
 
   integer, parameter :: maxn = 5  ! Maximum number of polynomial degrees.
-  integer, intent(in) :: snpIn  !!!TODO ERASE
   integer, intent(in) :: n  ! Size of the array of p.
   real(8), intent(in) :: p(n)  ! Coefficients of the polynimial in ascending order (p(r) = p1 + p2 r + p3 r^2 + ...).
   real(8), intent(in) :: lowerRadius, upperRadius  ! Radius range to integrate.
@@ -165,9 +164,9 @@ subroutine integrateProduct(snpIn, n, p, lowerRadius, upperRadius, nValue, value
     q(2) = (con(iValue + 1) - con(iValue)) / (valuedRadii(iValue + 1) - valuedRadii(iValue))  ! slope
     q(1) = con(iValue) - q(2) * valuedRadii(iValue)  ! intercept
     ! compute p(r)*con(r)
-    call multiplyPolynomials(n, p, 2, q, n+1, pq)
+    call multiplyPolynomials(n, p(:), 2, q(:), n + 1, pq(:))
     ! evaluate integrated value within subrange [r1,r2]
-    call integratePolynomial(n+1, pq, r1, r2, dS)
+    call integratePolynomial(n + 1, pq(:), r1, r2, dS)
     result = result + dS
 
     if (r2 == upperRadius) exit
@@ -192,7 +191,7 @@ subroutine integratePolynomial(n, p, x1, x2, result)
   integer :: i, j
   real(8) :: a(maxn), b(maxn), dx, xx
 
-  ! Check the number of polynomial degrees
+  ! Check the number of polynomial degrees.
   if (n > maxn) stop 'Degree of polynomial is too large.(integratePolynomial)'
 
   ! Initialization: a=(1 x1 x1^2 ...), b=(1 x2 x2^2 ...)
@@ -206,7 +205,7 @@ subroutine integratePolynomial(n, p, x1, x2, result)
   end if
   dx = x2 - x1
 
-  ! Evaluate the integrated value
+  ! Evaluate the integrated value.
   result = 0.d0
   ! loop for each term of p(x)
   do i = 1, n
@@ -248,7 +247,7 @@ subroutine computeLumpedT(nLayerInZoneI, nValue, valuedRadii, rhoValues, gridRad
     upperRadius = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i + 1)) / 2.d0
     nn = 4 * (i - 1)
 
-    call integrateProduct(1, 3, c, lowerRadius, upperRadius, nValue, valuedRadii, rhoValues, tl(nn + 1))
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), rhoValues(:), tl(nn + 1))
 
     tl(nn + 2) = 0.d0
     tl(nn + 3) = 0.d0
@@ -256,7 +255,7 @@ subroutine computeLumpedT(nLayerInZoneI, nValue, valuedRadii, rhoValues, gridRad
     lowerRadius = upperRadius
     upperRadius = gridRadiiInZoneI(i + 1)
 
-    call integrateProduct(1, 3, c, lowerRadius, upperRadius, nValue, valuedRadii, rhoValues, tl(nn + 4))
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), rhoValues(:), tl(nn + 4))
   end do
 
 end subroutine
@@ -288,7 +287,7 @@ subroutine computeLumpedH(nLayerInZoneI, nValue, valuedRadii, muValues, gridRadi
     upperRadius = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i + 1)) / 2.d0
     nn = 4 * (i - 1)
 
-    call integrateProduct(1, 1, c, lowerRadius, upperRadius, nValue, valuedRadii, muValues, hl(nn + 1))
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), muValues(:), hl(nn + 1))
 
     hl(nn + 2) = 0.d0
     hl(nn + 3) = 0.d0
@@ -296,7 +295,7 @@ subroutine computeLumpedH(nLayerInZoneI, nValue, valuedRadii, muValues, gridRadi
     lowerRadius = upperRadius
     upperRadius = gridRadiiInZoneI(i + 1)
 
-    call integrateProduct(1, 1, c, lowerRadius, upperRadius, nValue, valuedRadii, muValues, hl(nn + 4))
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), muValues(:), hl(nn + 4))
   end do
 
 end subroutine
@@ -345,13 +344,13 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
   real(8) :: h
   integer :: i
 
-  ! introduce artificial damping into angular frequency (See section 5.1 of Geller & Ohminato 1994.)
+  ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
   omegaDamped2 = dcmplx(omega, -omegaI) ** 2
 
   do i = 1, 4 * nLayerInZoneI
-    ! compute I2 - I4 - I4' + I6 - 2*I7 (See eq. 19 of Kawai et al. 2006.)
+    ! I2 - I4 - I4' + I6 - 2*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2(i) + h3(i) - 2.d0 * h4(i)
-    ! compute (omega^2 T - (I2 - I4 - I4' + I6 - 2*I7)) (See eq. 2 of Kawai et al. 2006.)
+    ! omega^2 T - (I2 - I4 - I4' + I6 - 2*I7). (See eq. 2 of Kawai et al. 2006.)
     a0(i) = omegaDamped2 * dcmplx(t(i)) - coef * dcmplx(h)
   end do
 
@@ -375,7 +374,7 @@ subroutine computeA2(nLayerInZoneI, h4, coef, a2)
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
-    ! compute (- (I7)) (See eq. 2 & 19 of Kawai et al. 2006.)
+    ! -(I7). (See eq. 2 & 19 of Kawai et al. 2006.)
     a2(i) = - coef * dcmplx(h4(i))
   end do
 

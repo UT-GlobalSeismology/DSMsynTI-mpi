@@ -15,8 +15,8 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   real(8), intent(out) :: tlen  ! Time length.
   integer, intent(out) :: np  ! Number of points in frequency domain.
   real(8), intent(out) :: re  ! Desired relative error due to vertical gridding.
-  real(8), intent(out) :: ratc  ! Amplitude ratio for vertical grid cut-off.
-  real(8), intent(out) :: ratl  ! Amplitude ratio for angular order cut-off.
+  real(8), intent(out) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
+  real(8), intent(out) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
   real(8), intent(out) :: omegai  ! omegai
   integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
   integer, intent(out) :: nZone  ! Number of zones.
@@ -71,8 +71,7 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
 
   ! Source parameter
   read(11,*) r0, eqlat, eqlon
-  eqlattmp = eqlat
-  call translat(eqlattmp, eqlattmp)
+  call translat(eqlat, eqlattmp)
   read(11,*) mt(1,1), mt(1,2), mt(1,3), mt(2,2), mt(2,3), mt(3,3)
 
   ! Receivers
@@ -192,7 +191,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, lmin, tlen, kz)
+subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, lmin, tlen, kzAtZone)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -204,7 +203,7 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   real(8), intent(in) :: vsPolynomials(:,:)  ! Polynomial functions of vs structure.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
   real(8), intent(in) :: tlen  ! Time length.
-  real(8), intent(out) :: kz(:)  ! Computed value of vertical wavenumber k_z at each zone.
+  real(8), intent(out) :: kzAtZone(:)  ! Computed value of vertical wavenumber k_z at each zone.
   integer :: iZone
   real(8) :: v(4), vs1, vs2, vmin, omega, kx, kz2
 
@@ -223,9 +222,9 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
     kz2 = (omega ** 2) / (vmin ** 2) - (kx ** 2)
     ! compute k_z (When it is not real, it is set to 0.)
     if (kz2 > 0.d0) then
-      kz(iZone) = sqrt(kz2)
+      kzAtZone(iZone) = sqrt(kz2)
     else
-      kz(iZone) = 0.d0
+      kzAtZone(iZone) = 0.d0
     end if
   end do
 
@@ -252,11 +251,11 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
   integer :: iZone, iGrid, i, nTemp
   real(8) :: rh
 
-! initializing variables
-  gridRadii = 0.d0
-  nLayerInZone = 0
+  ! initializing variables
+  gridRadii(:) = 0.d0
+  nLayerInZone(:) = 0
 
-! computing the distribution of grid points
+  ! computing the distribution of grid points
   iGrid = 1
   gridRadii(1) = rmin
   do iZone = 1, nZone
@@ -280,7 +279,7 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
   end do
 
 ! recounting the total number of layers
-  nLayer = sum(nLayerInZone)
+  nLayer = sum(nLayerInZone(:))
 
   return
 end subroutine
@@ -422,10 +421,10 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
   integer :: iZone, iLayer, iValue, iGrid
 
   ! Initializing the data
-  valuedRadii = 0.d0
-  rhoValues = 0.d0
-  ecLValues = 0.d0
-  ecNValues = 0.d0
+  valuedRadii(:) = 0.d0
+  rhoValues(:) = 0.d0
+  ecLValues(:) = 0.d0
+  ecNValues(:) = 0.d0
   iValue = 0
   iGrid = 0
 
@@ -527,7 +526,9 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computes the lsuf parameter based on given input.
+! Computes the accuracy threshold of angular order that is sufficient to compute the slowest phase velocity.
+! (See eq. 29 of Kawai et al. 2006.)
+! This corresponds to l_d in Kawai et al. (2006).
 !------------------------------------------------------------------------
 subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
 !------------------------------------------------------------------------
@@ -537,14 +538,14 @@ subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone.
   real(8), intent(in) :: vsvPolynomials(4, nZone)  ! Polynomial functions of vsv structure.
-  integer, intent(out) :: lsuf  !!TODO probably The angular order that is sufficient to compute the slowest phase velocity.
+  integer, intent(out) :: lsuf  ! Accuracy threshold of angular order.
   real(8) :: vsAtSurface
 
-  ! Compute vs at planet surface
+  ! Compute Vs at planet surface.
   call valueAtRadius(vsvPolynomials(:, nZone), 1.d0, 1.d0, vsAtSurface)
 
-  ! Calculate lsuf (See eq. 29 of Kawai et al. 2006.)
-  ! The slowest velocity (vs at surface) and largest radius (planet radius) is used to gain larger bound of angular order.
+  ! Compute lsuf. (See eq. 29 of Kawai et al. 2006.)
+  !  The slowest velocity (vs at surface) and largest radius (planet radius) is used to gain larger bound of angular order.
   lsuf = int(omega * rmaxOfZone(nZone) / vsAtSurface - 0.5d0) + 1
 
 end subroutine
@@ -580,23 +581,78 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+! Evaluate the cut-off depth based on the relative amplitude at each depth.
+! (See the end of section 3.2 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
+subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
 !------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nGrid  ! Total number of grid points.
+  real(8), intent(in) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point.
+  real(8), intent(in) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
+  integer, intent(out) :: cutoffGrid  ! Index of grid at cut-off depth.
+  real(8) :: amplitudeThreshold
+  integer :: iGrid
+
+  ! Set the threshold amplitude as ratc * the maximum amplitude.
+  amplitudeThreshold = maxval(amplitudeAtGrid(:)) * ratc
+
+  ! If maxamp is zero, set cutoffGrid to 1 and return.
+  if (amplitudeThreshold == 0.d0) then
+    cutoffGrid = 1
+    return
+  endif
+
+  ! Identify the first grid with amplitude greater than threshold value.
+  do iGrid = 1, nGrid
+    if (amplitudeAtGrid(iGrid) > amplitudeThreshold) then
+      cutoffGrid = iGrid
+      exit
+    endif
+  end do
+
+end subroutine
 
 
 !------------------------------------------------------------------------
+! Checks whether the expansion coefficient amplitude has decayed enough to stop computing subsequent l's for this frequency.
+! When the amplitude ratio is smaller than the threshold and l has surpassed the accuracy threshold, a counter is incremented.
+! The maximum amplitude encountered so far is also recorded using this subroutine.
 !------------------------------------------------------------------------
+subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
 !------------------------------------------------------------------------
+  implicit none
 
+  complex(8), intent(in) :: c0  ! Expansion coefficient at topmost grid.
+  integer, intent(in) :: l  ! Angular order.
+  integer, intent(in) :: lsuf  ! Accuracy threshold of angular order.
+  real(8), intent(in) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
+  real(8), intent(inout) :: recordAmplitude  ! Maximum amplitude encountered, updated if the current amplitude is larger.
+  integer, intent(inout) :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
+  real(8) :: amp, ampratio
 
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
+  ! Calculate the amplitude of expansion coefficient.
+  amp = abs(c0)
 
+  ! Update maximum amplitude if current amplitude is greater.
+  if (amp > recordAmplitude) recordAmplitude = amp
 
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
+  ! Calculate the amplitude ratio.
+  ampratio = 0.d0
+  if (amp /= 0.d0 .and. recordAmplitude /= 0.d0) then
+    ampratio = amp / recordAmplitude
+  endif
+
+  ! Increment the counter if amplitude ratio is smaller than its threshold and l has surpassed the accuracy threshold.
+  !  Reset the counter otherwise.
+  if (ampratio < ratl .and. l > lsuf) then
+    decayCounter = decayCounter + 1
+  else
+    decayCounter = 0
+  endif
+
+end subroutine
 
 
 !------------------------------------------------------------------------
