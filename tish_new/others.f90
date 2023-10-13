@@ -20,14 +20,14 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   real(8), intent(out) :: omegai  ! omegai
   integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
   integer, intent(out) :: nZone  ! Number of zones.
-  real(8), intent(out) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
-  real(8), intent(out) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  real(8), intent(out) :: rminOfZone(*), rmaxOfZone(*)  ! Lower and upper radii of each zone.
+  real(8), intent(out) :: rhoPolynomials(4,*), vsvPolynomials(4,*), vshPolynomials(4,*)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
-  real(8), intent(out) :: qmuOfZone(:)  ! Qmu of each zone.
+  real(8), intent(out) :: qmuOfZone(*)  ! Qmu of each zone.
   integer, intent(out) :: nReceiver  ! Number of receivers.
   real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)
-  real(8), intent(out) :: theta(:), phi(:), lat(:), lon(:)
-  character(len=80), intent(out) :: output(:)
+  real(8), intent(out) :: theta(*), phi(*), lat(*), lon(*)
+  character(len=80), intent(out) :: output(*)
 
   integer :: i
   character(len=80) :: dummy
@@ -207,11 +207,11 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: imax  ! Index of maximum frequency.
   integer, intent(in) :: lmin  ! Smallest angular order l.
-  real(8), intent(in) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
-  real(8), intent(in) :: vsPolynomials(:,:)  ! Polynomial functions of vs structure.
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone.
+  real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
   real(8), intent(in) :: tlen  ! Time length.
-  real(8), intent(out) :: kzAtZone(:)  ! Computed value of vertical wavenumber k_z at each zone.
+  real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone.
   integer :: iZone
   real(8) :: v(4), vs1, vs2, vmin, omega, kx, kz2
 
@@ -249,19 +249,15 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: kzAtZone(:)  ! Vertical wavenumber k_z at each zone.
-  real(8), intent(in) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
+  real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone.
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone.
   real(8), intent(in) :: rmin  ! Minimum radius of region considered.
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
-  integer, intent(out) :: nLayerInZone(:)  ! Number of layers in each zone.
-  real(8), intent(out) :: gridRadii(:)  ! Radius at each grid point.
+  integer, intent(out) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point.
   integer :: iZone, iGrid, i, nTemp
   real(8) :: rh
-
-  ! Initialize variables.
-  gridRadii(:) = 0.d0
-  nLayerInZone(:) = 0
 
   ! Compute the distribution of grid points.
   iGrid = 1
@@ -303,9 +299,9 @@ subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oRowOfZone)
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
-  integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
-  integer, intent(out) :: oGridOfZone(:)  ! Index of the first grid point in each zone.
-  integer, intent(out) :: oRowOfZone(:)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
+  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
+  integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
   integer :: i
 
   oGridOfZone(1) = 1
@@ -326,9 +322,9 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, r0, 
   implicit none
 
   integer, intent(in) :: nLayer  ! Total number of layers.
-  real(8), intent(in) :: rmaxOfZone(:)  ! Upper radius of each zone.
+  real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone.
   real(8), intent(in) :: rmin, rmax  ! Minimum and maximum radii of region considered.
-  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
   real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
@@ -388,7 +384,7 @@ subroutine computeSourceGrid(gridRadii, r0, iLayerOfSource, gridRadiiForSource)
 !------------------------------------------------------------------------
   implicit none
 
-  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
   real(8), intent(in) :: r0  ! Input source radius.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(out) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
@@ -411,22 +407,18 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
 
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
-  integer, intent(in) :: nLayerInZone(:)  ! Number of layers in each zone.
-  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  real(8), intent(in) :: rhoPolynomials(4,nZone), vsvPolynomials(4,nZone), vshPolynomials(4,nZone)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
-  real(8), intent(in) :: gridRadii(:)  ! Radii of grid points.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
   integer, intent(out) :: nValue  ! Total number of values for each variable.
-  real(8), intent(out) :: valuedRadii(:)  ! Radii corresponding to each variable value.
-  real(8), intent(out) :: rhoValues(:), ecLValues(:), ecNValues(:)  ! Values of rho, L, and N at each point
+  real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value.
+  real(8), intent(out) :: rhoValues(*), ecLValues(*), ecNValues(*)  ! Values of rho, L, and N at each point
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: (with 2 values at boundaries).
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: iZone, iLayer, iValue, iGrid
 
   ! Initialize variables.
-  valuedRadii(:) = 0.d0
-  rhoValues(:) = 0.d0
-  ecLValues(:) = 0.d0
-  ecNValues(:) = 0.d0
   iValue = 0
   iGrid = 0
 
@@ -464,9 +456,9 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
 
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered.
-  real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
+  real(8), intent(in) :: rhoPolynomials(4,*), vsvPolynomials(4,*), vshPolynomials(4,*)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
-  real(8), intent(in) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
+  real(8), intent(in) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
   real(8), intent(out) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3), mu0
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: i
