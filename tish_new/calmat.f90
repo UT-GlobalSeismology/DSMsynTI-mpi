@@ -182,8 +182,8 @@ end subroutine
 subroutine integratePolynomial(n, p, x1, x2, result)
 !------------------------------------------------------------------------
   implicit none
-
   integer, parameter :: maxn = 6  ! Maximum number of polynomial degrees
+
   integer, intent(in) :: n  ! Size of the array of p.
   real(8), intent(in) :: p(n)  ! Coefficients of the polynimial in ascending order (p(r) = p1 + p2 r + p3 r^2 + ...).
   real(8), intent(in) :: x1, x2  ! X range to integrate.

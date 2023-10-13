@@ -590,7 +590,7 @@ subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
   integer :: iGrid
 
   ! Set the threshold amplitude as ratc * the maximum amplitude.
-  amplitudeThreshold = maxval(amplitudeAtGrid(:)) * ratc
+  amplitudeThreshold = maxval(amplitudeAtGrid(1:nGrid)) * ratc
 
   ! If maxamp is zero, set cutoffGrid to 1 and return.
   if (amplitudeThreshold == 0.d0) then

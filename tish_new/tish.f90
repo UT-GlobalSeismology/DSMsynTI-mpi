@@ -34,7 +34,7 @@ program tish
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
   real(8), parameter :: lmaxdivf = 2.d4
   real(8), parameter :: shallowdepth = 100.d0
-  integer, parameter :: spcFormat = 0  ! Format of output spc file (0:binary, 1:ascii).
+  integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
   integer, parameter :: ilog = 0
 
   !----------------------------<<variables>>----------------------------
@@ -204,11 +204,14 @@ program tish
     close(11)
   end if
 
+  write(*, *) 'Wrote file!'  !TODO erase
 
 
   ! ************************** Option for shallow events **************************
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
   if ((rmax - r0) < shallowdepth) then
+
+    write(*, *) 'Shallow event!'  !TODO erase
 
     ! ******************* Computing parameters *******************
     ! Set a large value so that we can compute using fine grids for this process.
@@ -391,12 +394,16 @@ program tish
     imaxFixed = int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf)
   end if  ! option for shallow events
 
+  write(*, *) 'Main process starts!'  !TODO erase
 
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+  write(*, *) 'kz(1):', kzAtZone(1)  !TODO erase
+  write(*, *) 'kz(1):', kzAtZone  !TODO erase
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
+  write(*, *) 'nGrid:', nGrid  !TODO erase
 
   ! Compute the first indices in each zone.
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
@@ -407,6 +414,7 @@ program tish
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
 
+  write(*, *) 'sourceGrid:', gridRadiiForSource  !TODO erase
 
   ! ******************* Computing the matrix elements *******************
   ! Compute variable values at grid points.
