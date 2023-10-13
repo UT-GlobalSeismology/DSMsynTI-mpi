@@ -47,6 +47,8 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   ! Close temporary file.
   close(11)
 
+  write(*, *) 'Wrote temp file!'  !TODO erase
+
   ! Re-open temporary file.
   open(unit=11, file=tmpfile, status='unknown')
 
@@ -69,10 +71,14 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
       vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
   end do
 
+  write(*, *) 'Done nzone!'  !TODO erase
+
   ! source parameter
   read(11,*) r0, lattmp, eqlon
   call translat(lattmp, eqlat)
   read(11,*) mt(1,1), mt(1,2), mt(1,3), mt(2,2), mt(2,3), mt(3,3)
+
+  write(*, *) 'Done source!'  !TODO erase
 
   ! receivers
   read(11,*) nReceiver

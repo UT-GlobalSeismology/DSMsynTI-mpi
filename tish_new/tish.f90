@@ -148,6 +148,8 @@ program tish
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
     r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 
+  write(*, *) 'Read input!'  !TODO erase
+
   ! Find the amount of memory that is written in 1 omega step.
   !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
   memoryPerOmega = 3 * 16 * nReceiver * 0.000001
