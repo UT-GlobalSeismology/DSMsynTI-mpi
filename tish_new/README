@@ -1,0 +1,18 @@
+-------- Documentation for tish-mpi --------
+
+This is a package for the SH wavefield computation
+in spherically symmetric, transversely isotropic (TI) media
+in the frequency domain.
+
+
+CONFIGURATION:
+	% make
+
+USAGE:
+	% tish < (parameter filename)
+
+
+By default, the output spc files will be written in binary format.
+To write them in ASCII format, set the parameter 'spcform' to 1
+in tish.f and mpi-tish.f before compiling.
+
