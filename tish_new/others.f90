@@ -47,14 +47,11 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   ! Close temporary file.
   close(11)
 
-  write(*, *) 'Wrote temp file!'  !TODO erase
-
   ! Re-open temporary file.
   open(unit=11, file=tmpfile, status='unknown')
 
   ! Read parameters.
   read(11,*) tlen, np
-  write(*, *) 'tlen: ', tlen  !TODO erase
   read(11,*) re      ! relative error (vertical grid)
   read(11,*) ratc    ! ampratio (vertical grid cut-off)
   read(11,*) ratl    ! ampratio (for l-cutoff)
@@ -64,23 +61,18 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
 
   ! earth structure
   read(11,*) nZone
-  write(*, *) 'nzone: ', nZone  !TODO erase
   if (nZone > maxNZone) stop 'nZone is too large. (pinput)'
   do i = 1, nZone
-    read(11,*) rminOfZone(i), rmaxOfZone(i)
-    read(11,*) rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i)
-    read(11,*) vsvPolynomials(1,i), vsvPolynomials(2,i), vsvPolynomials(3,i), vsvPolynomials(4,i)
-    read(11,*) vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
+    read(11,*) rminOfZone(i), rmaxOfZone(i), &
+      rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i), &
+      vsvPolynomials(1,i), vsvPolynomials(2,i), vsvPolynomials(3,i), vsvPolynomials(4,i), &
+      vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
   end do
-
-  write(*, *) 'Done nzone!'  !TODO erase
 
   ! source parameter
   read(11,*) r0, lattmp, eqlon
   call translat(lattmp, eqlat)
   read(11,*) mt(1,1), mt(1,2), mt(1,3), mt(2,2), mt(2,3), mt(3,3)
-
-  write(*, *) 'Done source!'  !TODO erase
 
   ! receivers
   read(11,*) nReceiver

@@ -148,8 +148,6 @@ program tish
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
     r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 
-  write(*, *) 'Read input!'  !TODO erase
-
   ! Find the amount of memory that is written in 1 omega step.
   !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
   memoryPerOmega = 3 * 16 * nReceiver * 0.000001
@@ -401,8 +399,7 @@ program tish
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-  write(*, *) 'kz(1):', kzAtZone(1)  !TODO erase
-  write(*, *) 'kz(1):', kzAtZone  !TODO erase
+  write(*, *) 'kz:', kzAtZone  !TODO erase
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
   write(*, *) 'nGrid:', nGrid  !TODO erase
@@ -425,6 +422,8 @@ program tish
   call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
     gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0)
 
+  write(*, *) 'mu0:', mu0  !TODO erase
+
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
     call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), rhoValues(:), 2, 0, 0, gridRadii(oGridOfZone(i):), &
@@ -445,6 +444,8 @@ program tish
     call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
   end do
 
+  write(*, *) 'Done nZone T & H'  !TODO erase
+
   ! Compute mass and rigitidy matrices near source.
   call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
   call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gridRadiiForSource, gh1, work)
@@ -458,6 +459,7 @@ program tish
   call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh4, work, gh4)
 
+  write(*, *) 'Done source T & H'  !TODO erase
 
   !******************** Computing the displacement *********************
   outputCounter = 1
