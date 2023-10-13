@@ -462,9 +462,7 @@ program tish
     call initComplexMatrix(lda, nGrid, a0(:,:))
     call initComplexMatrix(lda, nGrid, a2(:,:))
     ! Plm must be cleared for each omega.
-    do ir = 1, nReceiver
-      call matinit(3, 4, plm(:, :, ir))
-    end do
+    plm(:, :, :nReceiver) = 0.d0
 
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
