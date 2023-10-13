@@ -54,15 +54,17 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
 
   ! Read parameters.
   read(11,*) tlen, np
+  write(*, *) 'tlen: ', tlen  !TODO erase
   read(11,*) re      ! relative error (vertical grid)
   read(11,*) ratc    ! ampratio (vertical grid cut-off)
   read(11,*) ratl    ! ampratio (for l-cutoff)
   read(11,*) omegai  ! omegai
-  omegai = -dlog(omegai) / tlen
+  omegai = -log(omegai) / tlen
   read(11,*) imin, imax  ! index of minimum and maximum frequency
 
   ! earth structure
   read(11,*) nZone
+  write(*, *) 'nzone: ', nZone  !TODO erase
   if (nZone > maxNZone) stop 'nZone is too large. (pinput)'
   do i = 1, nZone
     read(11,*) rminOfZone(i), rmaxOfZone(i), &
