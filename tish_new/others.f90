@@ -67,10 +67,10 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   write(*, *) 'nzone: ', nZone  !TODO erase
   if (nZone > maxNZone) stop 'nZone is too large. (pinput)'
   do i = 1, nZone
-    read(11,*) rminOfZone(i), rmaxOfZone(i), &
-      rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i), &
-      vsvPolynomials(1,i), vsvPolynomials(2,i), vsvPolynomials(3,i), vsvPolynomials(4,i), &
-      vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
+    read(11,*) rminOfZone(i), rmaxOfZone(i)
+    read(11,*) rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i)
+    read(11,*) vsvPolynomials(1,i), vsvPolynomials(2,i), vsvPolynomials(3,i), vsvPolynomials(4,i)
+    read(11,*) vshPolynomials(1,i), vshPolynomials(2,i), vshPolynomials(3,i), vshPolynomials(4,i), qmuOfZone(i)
   end do
 
   write(*, *) 'Done nzone!'  !TODO erase
