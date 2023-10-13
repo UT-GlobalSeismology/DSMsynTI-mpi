@@ -469,10 +469,9 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the particular solution with free surface boundary
-! conditions and the excitation vector.
+! Computing the excitation vector g.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, qLayerOfSource, r0, mt, mu0, coef, ga, a, ga2, dr, g2)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaParts, aSource, dr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -480,59 +479,62 @@ subroutine computeG(l, m, qLayerOfSource, r0, mt, mu0, coef, ga, a, ga2, dr, g2)
 
   integer, intent(in) :: l  ! Angular order.
   integer, intent(in) :: m  ! Azimuthal order.
-  real(8), intent(in) :: qLayerOfSource  ! A double-value index of source position in its zone.
+  integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mu0, mt(3,3)
   complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
-  complex(8), intent(in) :: ga(:), a(:), ga2(:,:)
-  complex(8), intent(out) :: dr(3), g2(:)
-  real(8) :: b, sgn
-  complex(8) :: dd, cg2(3), z(3)
-  integer :: i, itmp
+  complex(8), intent(in) :: aSourceParts(:), aaParts(:), aSource(:,:)
+  complex(8), intent(out) :: dr(3)
+  complex(8), intent(out) :: g(:)  ! The vector -g
+  real(8) :: b, sgnM
+  complex(8) :: dd, gS_or_cS(3)
+  integer :: i
+  complex(8) :: z(3)
   real(8) :: ier
 
-  ! initialize
-  call initComplexVector(3, cg2)
+  ! Initialize.
+  call initComplexVector(3, gS_or_cS(:))
   dd = dcmplx(0.d0, 0.d0)
 
+  ! Record sign of m.
   if (m >= 0) then
-    sgn = 1.d0
+    sgnM = 1.d0
   else
-    sgn = -1.d0
+    sgnM = -1.d0
   end if
 
   if (abs(m) == 1) then
     ! b1 in eq. (26) of Kawai et al. (2006)
     b = sqrt((2 * l + 1) / (16.d0 * pi))
     ! D3 of eq. (26) of Kawai et al. (2006)
-    dd = dcmplx(b) * dcmplx(sgn * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * coef)
+    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * coef)
 
     !TODO ??
-    itmp = 4
     do i = 2, 3
-      cg2(i) = -dd * (ga(itmp + 1) + ga(itmp + 2))
-      itmp = itmp + 2
+      gS_or_cS(i) = -dd * (aSourceParts(i * 2 + 1) + aSourceParts(i * 2 + 2))  ! i=2 -> 5, 6 ; i=3 -> 7, 8
     end do
 
   else if (abs(m) == 2) then
     ! b2 in eq. (27) of Kawai et al. (2006)
     b = sqrt((2 * l + 1) * (l - 1) * (l + 2) / (64.d0 * pi))
     ! -1 * gk3 of eq. (27) of Kawai et al. (2006)
-    cg2(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgn * (mt(2, 2) - mt(3, 3)))
+    gS_or_cS(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgnM * (mt(2, 2) - mt(3, 3)))
   end if
 
-  !TODO ??
+  ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
   if ((m == -2) .or. (m == -l)) then
-    call dclisb0(ga2, 3, 1, 2, cg2, eps, dr, z, ier)
+    ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+    call dclisb0(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
   else
-    call dcsbsub0(ga2, 3, 1, 2, cg2, eps, dr, z, ier)
+    ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+    call dcsbsub0(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
   end if
 
-  cg2(3) = cg2(3) + dd
+  ! Add displacement to c.
+  gS_or_cS(3) = gS_or_cS(3) + dd
 
-  ! Computation of the excitation vector
-  itmp = int(qLayerOfSource)
-  g2(itmp + 1) = a(1) * cg2(1) + a(2) * cg2(3)
-  g2(itmp + 2) = a(3) * cg2(1) + a(4) * cg2(3)
+  ! Computate excitation vector g.
+  g(iLayerOfSource) = aaParts(1) * gS_or_cS(1) + aaParts(2) * gS_or_cS(3)
+  g(iLayerOfSource + 1) = aaParts(3) * gS_or_cS(1) + aaParts(4) * gS_or_cS(3)
 
 end subroutine
 
