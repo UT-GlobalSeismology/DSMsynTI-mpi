@@ -235,17 +235,17 @@ end subroutine
 !------------------------------------------------------------------------
 ! Deciding the distribution of grid points.
 !------------------------------------------------------------------------
-subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer, nLayerInZone, gridRadii)
+subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, nGrid, nLayerInZone, gridRadii)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: kz(:)  ! Vertical wavenumber k_z at each zone.
+  real(8), intent(in) :: kzAtZone(:)  ! Vertical wavenumber k_z at each zone.
   real(8), intent(in) :: rminOfZone(:), rmaxOfZone(:)  ! Lower and upper radii of each zone.
   real(8), intent(in) :: rmin  ! Minimum radius of region considered.
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
-  integer, intent(out) :: nLayer  ! Total number of layers (= number of grid points + 1).
+  integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
   integer, intent(out) :: nLayerInZone(:)  ! Number of layers in each zone.
   real(8), intent(out) :: gridRadii(:)  ! Radius at each grid point.
   integer :: iZone, iGrid, i, nTemp
@@ -262,7 +262,7 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
     ! zone thickness
     rh = rmaxOfZone(iZone) - rminOfZone(iZone)
     ! Decide the number of layers in this zone.
-    if (kz(iZone) == 0.d0) then
+    if (kzAtZone(iZone) == 0.d0) then
       ! We usually do not compute for the evanescent regime
       !  (unless they can be seen on the surface, which is the case of shallow sources).
       nTemp = 1
@@ -270,7 +270,7 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
       ! rh / dz = rh * (lambda_z / dz) / lambda_z = rh * sqrt(3.3 / re) * (k_z / 2 pi)
       !  (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
       !  The "/0.7 +1" is to increase the number of grids a bit.
-      nTemp = int(sqrt(3.3d0 / re) * rh * kz(iZone) / 2.d0 / pi / 7.d-1 + 1)
+      nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
     end if
     nLayerInZone(iZone) = min(nTemp, 5)
     ! Compute radius at each grid point.
@@ -280,8 +280,8 @@ subroutine computeGridRadii(nZone, kz, rminOfZone, rmaxOfZone, rmin, re, nLayer,
     end do
   end do
 
-  ! Recount the total number of layers.
-  nLayer = sum(nLayerInZone(:))
+  ! Register the total number of grid points.
+  nGrid = iGrid
 
   return
 end subroutine
@@ -459,7 +459,7 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
   real(8), intent(in) :: rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
   real(8), intent(in) :: gridRadiiForSource(:)  ! Radii to use for source-related computations.
-  real(8), intent(out) :: rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0
+  real(8), intent(out) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3), mu0
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: i
 
@@ -531,7 +531,7 @@ subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
   real(8), intent(in) :: omega  ! Angular frequency.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone.
-  real(8), intent(in) :: vsvPolynomials(4, nZone)  ! Polynomial functions of vsv structure.
+  real(8), intent(in) :: vsvPolynomials(4,nZone)  ! Polynomial functions of vsv structure.
   integer, intent(out) :: lsuf  ! Accuracy threshold of angular order.
   real(8) :: vsAtSurface
 

@@ -390,8 +390,8 @@ subroutine assembleA(nGrid, l, a0, a2, a)
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
   integer, intent(in) :: l  ! Angular order.
-  complex(8), intent(in) :: a0(:,:), a2(:,:)  ! Parts of the A matrix, in diagonal and subdiagonal component format.
-  complex(8), intent(out) :: a(:,:)  ! Assembled A matrix.
+  complex(8), intent(in) :: a0(2,nGrid), a2(2,nGrid)  ! Parts of the A matrix, in diagonal and subdiagonal component format.
+  complex(8), intent(out) :: a(2,nGrid)  ! Assembled A matrix.
   integer :: i, j
 
   do j = 1, nGrid
@@ -482,7 +482,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mu0, mt(3,3)
   complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
-  complex(8), intent(in) :: aSourceParts(:), aaParts(:), aSource(:,:)
+  complex(8), intent(in) :: aSourceParts(8), aaParts(4), aSource(2,3)
   complex(8), intent(out) :: dr(3)
   complex(8), intent(out) :: g(:)  ! The vector -g
   real(8) :: b, sgnM

@@ -28,7 +28,7 @@ program tish
 
   !----------------------------<<constants>>----------------------------
   real(8), parameter :: pi = 3.1415926535897932d0
-  integer, parameter :: maxNLayer = 88300  ! Maximum number of layers.
+  integer, parameter :: maxNGrid = 88300  ! Maximum number of grid points.
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
@@ -46,6 +46,7 @@ program tish
   real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function).
   real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function).
   real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
+  integer :: i
 
   ! Variables for the source
   real(8) :: r0, mt(3, 3), eqlat, eqlon, mu0
@@ -62,13 +63,15 @@ program tish
   real(8) :: omega  ! Angular frequency (real part).
   real(8) :: omegai  ! Imaginary part of angular frequency for artificial damping. (See section 5.1 of Geller & Ohminato 1994.)
   integer :: imin, imax  ! Index of minimum and maximum frequency.
+  integer :: iFreq, iCount
+  integer :: ltmp(2), imaxFixed
 
   ! Variables for grid spacing and cut-off
   real(8) :: kzAtZone(maxNZone)  ! Vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
   real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
   real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8) :: amplitudeAtGrid(maxNLayer + 1)  ! Estimate of the amplitude at each grid point, used for vertical grid cut-off.
+  real(8) :: amplitudeAtGrid(maxNGrid)  ! Estimate of the amplitude at each grid point, used for vertical grid cut-off.
   integer :: cutoffGrid  ! Index of grid at cut-off depth.
   integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
   real(8) :: recordAmplitude    ! Maximum amplitude encountered, used for angular order cut-off.
@@ -76,9 +79,8 @@ program tish
   integer :: llog
 
   ! Variables for the vertical grid
-  integer :: nLayer  ! Total number of layers.   !!!!!TODO switch to use nGrid?
   integer :: nGrid  ! Total number of grid points.
-  real(8) :: gridRadii(maxNLayer + 1)  ! Radii of each grid point.
+  real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point.
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
   integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
@@ -87,10 +89,10 @@ program tish
 
   ! Variables for the values
   integer :: nValue  ! Total number of values.
-  real(8) :: valuedRadii(maxNLayer + maxNZone)  ! Radii corresponding to each variable value.
-  real(8) :: rhoValues(maxNLayer + maxNZone)  ! Rho at each grid point (with 2 values at boundaries).
-  real(8) :: ecLValues(maxNLayer + maxNZone)  ! L at each grid point (with 2 values at boundaries).
-  real(8) :: ecNValues(maxNLayer + maxNZone)  ! N at each grid point (with 2 values at boundaries).
+  real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value.
+  real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries).
+  real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries).
+  real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries).
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
   complex(8) :: coef(maxNZone)
 
@@ -106,40 +108,38 @@ program tish
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
 
   ! Variables for the matrix elements
-  real(8) :: t(4 * maxNLayer)
-  real(8) :: h1(4 * maxNLayer), h2(4 * maxNLayer), h3(4 * maxNLayer), h4(4 * maxNLayer)
+  real(8) :: t(4 * maxNGrid - 4)
+  real(8) :: h1(4 * maxNGrid - 4), h2(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
-  complex(8) :: a0(2, maxNLayer + 1), a2(2, maxNLayer + 1)
-  complex(8) :: a(2, maxNLayer + 1)
+  complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
+  complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
-  complex(8) :: g_or_c(maxNLayer + 1)  ! This holds either the vector g or c, depending on where in the code it is (CAUTION!).
+  complex(8) :: g_or_c(maxNGrid)  ! This holds either the vector g or c, depending on where in the code it is (CAUTION!).
   complex(8) :: u(3, maxNReceiver)
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
 
   ! Other variables
-  integer :: i, j, ii
-  integer :: ltmp(2), iimax
-  real(8) :: work(4 * maxNLayer)  ! Working array for matrix computations.
-  complex(8) :: cwork(4 * maxNLayer)  ! Working array for matrix computations.
+  real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
+  complex(8) :: cwork(4 * maxNGrid - 4)  ! Working array for matrix computations.
   integer :: ier  ! Error code from subroutine solving linear equations.
-  complex(8) :: dr(maxNLayer + 1), z(maxNLayer + 1), gdr(3)  ! Working arrays used when solving linear equations.
+  complex(8) :: dr(maxNGrid), z(maxNGrid), gdr(3)  ! Working arrays used when solving linear equations.
 
   ! Constants
   integer :: lda = 2
   real(8) :: eps = -1.d0
 
   ! Efficiency improvement variables
-  integer :: outputmemory = 10  ! MB
-  integer :: outputinterval
-  real(8) :: memoryperomega ! MB
-  integer :: outputindex, mpii
+  !     When the values to be output use memory over outputMemory MB,
+  !     they are written in output files. The interval is outputInterval.
+  real(8) :: outputMemory = 10  ! Approximate amount of memory to write at a time. [MB]
+  real(8) :: memoryPerOmega  ! The amount of memory used for one omega step. [MB]
+  integer :: outputInterval  ! Interval of omega that data should be written out.
+  integer :: outputCounter  ! Counter to keep track of how many omegas have been computed after previous output.
+  integer :: iOut
   integer, allocatable :: outputi(:)
   complex(8), allocatable :: outputu(:,:,:)
-  !     When the values to be output use memory over outputmemory MB,
-  !     they are written in output files. The interval is outputinterval.
-  !     memoryperomega is the quantity of memory used for one omega step.
 
 
   ! ************************** Inputting parameters **************************
@@ -148,10 +148,14 @@ program tish
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
     r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 
-  memoryperomega = 3 * 16 * nReceiver * 0.000001
-  outputinterval = outputmemory / memoryperomega
-  allocate(outputi(outputinterval))
-  allocate(outputu(3, nReceiver, outputinterval))
+  ! Find the amount of memory that is written in 1 omega step.
+  !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
+  memoryPerOmega = 3 * 16 * nReceiver * 0.000001
+  ! Find how many omegas can be written within outputMemory.
+  outputInterval = int(outputMemory / memoryPerOmega)
+  ! Allocate arrays to store output.
+  allocate(outputi(outputInterval))
+  allocate(outputu(3, nReceiver, outputInterval))
 
   ! --- computing the required parameters ---
   rmin = rminOfZone(1)
@@ -167,6 +171,9 @@ program tish
   end if
 
   if (imin == 0) imin = 1
+  ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
+  imaxFixed = imax
+
 
   ! ************************** Files handling **************************
   if (spcFormat == 0) then
@@ -199,28 +206,28 @@ program tish
 
 
 
-  ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
-  iimax = imax
   ! ************************** Option for shallow events **************************
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
   if ((rmax - r0) < shallowdepth) then
+
     ! ******************* Computing parameters *******************
     ! Set a large value so that we can compute using fine grids for this process.
-    iimax = int(tlen * 2.d0)  !!!diff
+    imaxFixed = int(tlen * 2.d0)  !!!diff
 
     ! Design the number and position of grid points.
-    call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, iimax, 1, tlen, kzAtZone(:))
-    call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nLayer, nLayerInZone(:), gridRadii(:))
-    if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
+    call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+    call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
+    if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
 
     ! Compute the first indices in each zone.
     call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
 
     ! Compute the source position.
-    call computeSourcePosition(nLayer, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+    call computeSourcePosition(nGrid - 1, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
 
     ! Design grids for source computations.
     call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
+
 
     ! ******************* Computing the matrix elements *******************
     ! Compute variable values at grid points.
@@ -262,20 +269,19 @@ program tish
     call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
     call computeAverage(2, gh4, work, gh4)
 
-    nGrid = nLayer + 1
+
+    !******************** Computing the expansion coefficients *********************
     ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
     oRowOfSource = 4 * iLayerOfSource - 3
 
-    llog = 0
-
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
-    do ii = 1, 2  ! omega-loop
-      if (ii == 1) then  !!!diff
-        i = imin
+    do iCount = 1, 2  ! omega-loop
+      if (iCount == 1) then  !!!diff
+        iFreq = imin
       else
-        i = imax
+        iFreq = imax
       end if
-      omega = 2.d0 * pi * dble(i) / tlen
+      omega = 2.d0 * pi * dble(iFreq) / tlen
 
       ! Initialize matrices.
       call initComplexMatrix(lda, nGrid, a0(:,:))
@@ -288,13 +294,13 @@ program tish
       call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-      do j = 1, nZone
-        call computeA0(nLayerInZone(j), omega, omegai, t(oRowOfZone(j):), &
-          h1(oRowOfZone(j):), h2(oRowOfZone(j):), h3(oRowOfZone(j):), h4(oRowOfZone(j):), coef(j), cwork(oRowOfZone(j):))
-        call overlapMatrixBlocks(nLayerInZone(j), cwork(oRowOfZone(j):), a0(1, oGridOfZone(j):))
+      do i = 1, nZone
+        call computeA0(nLayerInZone(i), omega, omegai, t(oRowOfZone(i):), &
+          h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(1, oGridOfZone(i):))
 
-        call computeA2(nLayerInZone(j), h4(oRowOfZone(j):), coef(j), cwork(oRowOfZone(j):))
-        call overlapMatrixBlocks(nLayerInZone(j), cwork(oRowOfZone(j):), a2(1, oGridOfZone(j):))
+        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(1, oGridOfZone(i):))
       end do
 
       ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -303,15 +309,10 @@ program tish
       decayCounter = 0
       ! Clear amplitude record.
       recordAmplitude = -1.d0
-      !TODO
-      ltmp(ii) = maxL  !!!diff
 
       do l = 0, maxL  ! l-loop
         ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-        if (decayCounter > 20) then
-          if (ltmp(ii) > l) ltmp(ii) = l
-          exit
-        end if
+        if (decayCounter > 20) exit
 
         ! Clear the amplitude accumulated for all m's.
         amplitudeAtGrid(:) = 0.d0
@@ -381,23 +382,27 @@ program tish
         end if
 
       end do  ! l-loop
+
+      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+      ltmp(iCount) = min(l, maxL)
+
     end do  ! omega-loop
 
-    iimax = int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf)
+    imaxFixed = int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf)
   end if  ! option for shallow events
 
 
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
-  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, iimax, 1, tlen, kzAtZone(:))
-  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nLayer, nLayerInZone(:), gridRadii(:))
-  if (nLayer > maxNLayer) stop 'The number of grid points is too large.'
+  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
+  if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
 
   ! Compute the first indices in each zone.
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
 
   ! Compute the source position.
-  call computeSourcePosition(nLayer, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+  call computeSourcePosition(nGrid - 1, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -445,14 +450,12 @@ program tish
 
 
   !******************** Computing the displacement *********************
-  outputindex = 1
-  nGrid = nLayer + 1
+  outputCounter = 1
   ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
   oRowOfSource = 4 * iLayerOfSource - 3
 
-  llog = 0
-  do i = imin, imax  ! omega-loop
-    omega = 2.d0 * pi * dble(i) / tlen
+  do iFreq = imin, imax  ! omega-loop
+    omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
     call initComplexMatrix(3, nReceiver, u(:,:))
@@ -470,13 +473,13 @@ program tish
     call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-    do j = 1, nZone
-      call computeA0(nLayerInZone(j), omega, omegai, t(oRowOfZone(j):), &
-        h1(oRowOfZone(j):), h2(oRowOfZone(j):), h3(oRowOfZone(j):), h4(oRowOfZone(j):), coef(j), cwork(oRowOfZone(j):))
-      call overlapMatrixBlocks(nLayerInZone(j), cwork(oRowOfZone(j):), a0(:, oGridOfZone(j):))
+    do i = 1, nZone
+      call computeA0(nLayerInZone(i), omega, omegai, t(oRowOfZone(i):), &
+        h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
-      call computeA2(nLayerInZone(j), h4(oRowOfZone(j):), coef(j), cwork(oRowOfZone(j):))
-      call overlapMatrixBlocks(nLayerInZone(j), cwork(oRowOfZone(j):), a2(:, oGridOfZone(j):))
+      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -485,15 +488,10 @@ program tish
     decayCounter = 0
     ! Clear amplitude record.
     recordAmplitude = -1.d0
-    !TODO erase
-    llog = maxL
 
     do l = 0, maxL  ! l-loop
       ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-      if (decayCounter > 20) then
-        llog = min(llog, l)
-        cycle
-      end if
+      if (decayCounter > 20) exit
 
       ! Clear the amplitude accumulated for all m's.
       amplitudeAtGrid(:) = 0.d0
@@ -576,52 +574,59 @@ program tish
 
     end do  ! l-loop
 
+    ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+    llog = min(l, maxL)
+
     ! Store results.
-    outputi(outputindex) = i
+    outputi(outputCounter) = iFreq
     do ir = 1, nReceiver
-      outputu(:, ir, outputindex) = u(:, ir)
+      outputu(:, ir, outputCounter) = u(:, ir)
     end do
 
     ! ************************** Files Handling **************************
     ! Write to file when the output interval is reached, or when this is the last omega.
-    if (outputindex >= outputinterval .or. i == imax) then
+    if (outputCounter >= outputInterval .or. iFreq == imax) then
       write(*,*) "kakikomimasu"
       if (spcFormat == 0) then
         do ir = 1, nReceiver
           open(unit=10, file=output(ir), position='append', status='unknown', &
             form='unformatted', access='stream', convert='big_endian')
-          do mpii = 1, outputindex
-            write(10) outputi(mpii), dble(outputu(1, ir, mpii)), imag(outputu(1, ir, mpii))
-            write(10) dble(outputu(2, ir, mpii)), imag(outputu(2, ir, mpii))
-            write(10) dble(outputu(3, ir, mpii)), imag(outputu(3, ir, mpii))
+          do iOut = 1, outputCounter
+            write(10) outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut))
+            write(10) dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut))
+            write(10) dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut))
           end do
           close(10)
         end do
       else if (spcFormat == 1) then
         do ir = 1, nReceiver
           open(unit=10, file=output(ir), position='append', status='unknown')
-          do mpii = 1, outputindex
-            write(10,*) outputi(mpii), dble(outputu(1, ir, mpii)), imag(outputu(1, ir, mpii))
-            write(10,*) dble(outputu(2, ir, mpii)), imag(outputu(2, ir, mpii))
-            write(10,*) dble(outputu(3, ir, mpii)), imag(outputu(3, ir, mpii))
+          do iOut = 1, outputCounter
+            write(10,*) outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut))
+            write(10,*) dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut))
+            write(10,*) dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut))
           end do
           close(10)
         end do
       else
         write(*,*) "WARNING: set spcFormat 0 or 1"
       end if
-      outputindex = 0
+      outputCounter = 0
     end if
 
     if (ilog == 1) then
       open(unit=11, file='llog.log', position='append', status='old')
-      write(11,*) i, llog, nLayer
+      write(11,*) iFreq, llog, nGrid
       close(11)
     end if
 
-    outputindex = outputindex + 1
+    outputCounter = outputCounter + 1
 
   end do  ! omega-loop
+
+  ! Deallocate arrays.
+  deallocate(outputi)
+  deallocate(outputu)
 
   write(*,*) "Ivalice looks to the horizon"
 
