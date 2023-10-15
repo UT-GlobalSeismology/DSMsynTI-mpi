@@ -479,6 +479,8 @@ program tish
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
+    write(*, *) 'lsuf: ', lsuf  !TODO erase
+
     ! Compute coefficient related to attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
 
@@ -492,6 +494,8 @@ program tish
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
 
+    write(*, *) 'Done A parts'  !TODO erase
+
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
     cutoffGrid = 1
     ! Clear counter.
@@ -503,6 +507,8 @@ program tish
       ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
       if (decayCounter > 20) exit
 
+      write(*, *) 'l=', l  !TODO erase
+
       ! Clear the amplitude accumulated for all m's.
       amplitudeAtGrid(:) = 0.d0
 
@@ -510,6 +516,8 @@ program tish
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
+
+      write(*, *) 'Done trial funcs'  !TODO erase
 
       ! Initialize matrices.
       call initComplexMatrix(lda, nGrid, a(:,:))
@@ -526,8 +534,12 @@ program tish
       call computeA(2, omega, omegai, l, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
       call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
+      write(*, *) 'Done all A'  !TODO erase
+
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
+
+        write(*, *) 'm=', m  !TODO erase
 
         call initComplexVector(nGrid, g_or_c)
 
@@ -566,6 +578,8 @@ program tish
           end if
         end if
 
+        write(*, *) 'Done c'  !TODO erase
+
         ! Check whether the amplitude has decayed enough to stop the l-loops.
         !  This is checked for the topmost-grid expansion coefficent of each m individually.
         call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
@@ -574,6 +588,8 @@ program tish
         do ir = 1, nReceiver
           call computeU(g_or_c(nGrid), l, trialFunctionValues(:, m, ir), u(:, ir))
         end do
+
+        write(*, *) 'Done u'  !TODO erase
 
       end do  ! m-loop
 
