@@ -475,7 +475,6 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
-  real(8), parameter :: eps = -1.d0
 
   integer, intent(in) :: l  ! Angular order.
   integer, intent(in) :: m  ! Azimuthal order.
@@ -484,16 +483,18 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
   complex(8), intent(in) :: aSourceParts(8), aaParts(4), aSource(2,3)
   complex(8), intent(inout) :: dr(3)
-  complex(8), intent(out) :: g(:)  ! The vector -g
+  complex(8), intent(out) :: g(*)  ! The vector -g
   real(8) :: b, sgnM
   complex(8) :: dd, gS_or_cS(3)
   integer :: i
   complex(8) :: z(3)
+  real(8) :: eps
   real(8) :: ier
 
   ! Initialize.
   call initComplexVector(3, gS_or_cS(:))
   dd = dcmplx(0.d0, 0.d0)
+  eps = -1.d0
 
   ! Record sign of m.
   if (m >= 0) then
@@ -501,8 +502,6 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   else
     sgnM = -1.d0
   end if
-
-  write(*, *) ' in sub'  !TODO erase
 
   if (abs(m) == 1) then
     ! b1 in eq. (26) of Kawai et al. (2006)
@@ -522,8 +521,6 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
     gS_or_cS(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgnM * (mt(2, 2) - mt(3, 3)))
   end if
 
-  write(*, *) ' set g'  !TODO erase
-
   ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
   if ((m == -2) .or. (m == -l)) then
     ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
@@ -532,8 +529,6 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
     ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
     call dcsbsub0(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
   end if
-
-  write(*, *) ' set c'  !TODO erase
 
   ! Add displacement to c.
   gS_or_cS(3) = gS_or_cS(3) + dd
