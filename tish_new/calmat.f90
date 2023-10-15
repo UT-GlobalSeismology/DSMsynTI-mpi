@@ -483,7 +483,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   real(8), intent(in) :: r0, mu0, mt(3,3)
   complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
   complex(8), intent(in) :: aSourceParts(8), aaParts(4), aSource(2,3)
-  complex(8), intent(out) :: dr(3)
+  complex(8), intent(inout) :: dr(3)
   complex(8), intent(out) :: g(:)  ! The vector -g
   real(8) :: b, sgnM
   complex(8) :: dd, gS_or_cS(3)

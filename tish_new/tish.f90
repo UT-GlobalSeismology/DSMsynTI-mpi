@@ -510,7 +510,7 @@ program tish
       write(*, *) 'l=', l  !TODO erase
 
       ! Clear the amplitude accumulated for all m's.
-      amplitudeAtGrid(:) = 0.d0
+      amplitudeAtGrid(1:nGrid) = 0.d0
 
       ! Compute trial functions.
       do ir = 1, nReceiver
@@ -541,11 +541,13 @@ program tish
 
         write(*, *) 'm=', m  !TODO erase
 
-        call initComplexVector(nGrid, g_or_c)
+        call initComplexVector(nGrid, g_or_c(:))
 
         ! Computate excitation vector g.
         call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
+
+        write(*, *) 'Done g'  !TODO erase
 
         if (mod(l, 100) == 0) then
           ! Once in a while, compute for all grids to decide the cut-off depth.
@@ -561,7 +563,7 @@ program tish
 
           ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
           !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
-          amplitudeAtGrid(:) = amplitudeAtGrid(:) + abs(g_or_c(:))
+          amplitudeAtGrid(1:nGrid) = amplitudeAtGrid(1:nGrid) + abs(g_or_c(1:nGrid))
 
         else
           ! Otherwise, compute for just the grids above the cut-off depth.
