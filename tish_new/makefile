@@ -31,4 +31,4 @@ mpi-tish.o: mpi-tish.f90
 	$(FC2) $(FFLAGS) -c $< 
 
 clean:
-	rm -f $(OBJS1) $(OBJS2) $(OBJS77) $(PROGS) work
+	rm -f $(OBJS1) $(OBJS2) $(OBJS77) $(PROGS) *.mod

@@ -4,6 +4,12 @@
 */tish
 */mpi-tish
 */spcsac
+# output files
+*.spc
+*.txt
+*/work
 
 # object files
 *.o
+# module files
+*.mod
