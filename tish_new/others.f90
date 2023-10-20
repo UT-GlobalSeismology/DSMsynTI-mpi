@@ -268,7 +268,7 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
       !  The "/0.7 +1" is to increase the number of grids a bit.
       nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
     end if
-    nLayerInZone(iZone) = min(nTemp, 5)
+    nLayerInZone(iZone) = max(nTemp, 5)
     ! Compute radius at each grid point.
     do i = 1, nLayerInZone(iZone)
       iGrid = iGrid + 1
@@ -426,8 +426,8 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
       call valueAtRadius(vsvPolynomials(:, iZone), valuedRadii(iValue), rmax, vsvTemp)
       call valueAtRadius(vshPolynomials(:, iZone), valuedRadii(iValue), rmax, vshTemp)
       rhoValues(iValue) = rhoTemp
-      ecLValues(iValue) = rhoValues(iValue) * vsvTemp**2
-      ecNValues(iValue) = rhoValues(iValue) * vshTemp**2
+      ecLValues(iValue) = rhoTemp * vsvTemp * vsvTemp  !TODO vsvTemp**2.d0
+      ecNValues(iValue) = rhoTemp * vshTemp * vshTemp  !TODO vshTemp**2.d0
     end do
 
     iGrid = iGrid - 1
@@ -462,8 +462,8 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
     call valueAtRadius(vsvPolynomials(:, iZoneOfSource), gridRadiiForSource(i), rmax, vsvTemp)
     call valueAtRadius(vshPolynomials(:, iZoneOfSource), gridRadiiForSource(i), rmax, vshTemp)
     rhoValuesForSource(i) = rhoTemp
-    ecLValuesForSource(i) = rhoValuesForSource(i) * vsvTemp**2
-    ecNValuesForSource(i) = rhoValuesForSource(i) * vshTemp**2
+    ecLValuesForSource(i) = rhoTemp * vsvTemp * vsvTemp  !TODO vsvTemp**2.d0
+    ecNValuesForSource(i) = rhoTemp * vshTemp * vshTemp  !TODO vshTemp**2.d0
   end do
 
   mu0 = ecLValuesForSource(2)
@@ -652,7 +652,7 @@ subroutine computeU(c0, l, trialFunctionValues, u)
   implicit none
 
   complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function (k=k_max, l, m, 3).
-  real(8), intent(in) :: l  ! Angular order.
+  integer, intent(in) :: l  ! Angular order.
   complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
   complex(8), intent(inout) :: u(3)
   real(8) :: largeL

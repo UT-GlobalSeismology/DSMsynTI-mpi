@@ -397,24 +397,46 @@ program tish
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+  write(*, *) 'imaxFixed, tlen:', imaxFixed, tlen  !TODO erase
+  write(*, *) 'kzAtZone:', kzAtZone(1:nZone)  !TODO erase
+
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
+  write(*, *) 'nGrid:', nGrid  !TODO erase
+  write(*, *) 'nLayerInZone:', nLayerInZone(1:nZone)  !TODO erase
+  write(*, *) 'gridRadii(1), gridRadii(nGrid):', gridRadii(1), gridRadii(nGrid)  !TODO erase
 
   ! Compute the first indices in each zone.
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
+  write(*, *) 'oGridOfZone:', oGridOfZone(1:nZone)  !TODO erase
+  write(*, *) 'oRowOfZone:', oRowOfZone(1:nZone)  !TODO erase
 
   ! Compute the source position.
   call computeSourcePosition(nGrid - 1, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+  write(*, *) 'iZoneOfSource, iLayerOfSource:', iZoneOfSource, iLayerOfSource  !TODO erase
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
+  write(*, *) 'gridRadiiForSource:', gridRadiiForSource(1:3)  !TODO erase
 
   ! ******************* Computing the matrix elements *******************
   ! Compute variable values at grid points.
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
     gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
+  write(*, *) '--------'  !TODO erase
+  write(*, *) 'nValue:', nValue  !TODO erase
+  write(*, *) 'valuedRadii:', valuedRadii(1:3), valuedRadii(nValue-2:nValue)  !TODO erase
+  write(*, *) 'rhoValues:', rhoValues(1:3), rhoValues(nValue-2:nValue)  !TODO erase
+  write(*, *) 'ecLValues:', ecLValues(1:3), ecLValues(nValue-2:nValue)  !TODO erase
+  write(*, *) 'ecNValues:', ecNValues(1:3), ecNValues(nValue-2:nValue)  !TODO erase
+
   call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
     gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0)
+  write(*, *) 'gridRadiiForSource:', gridRadiiForSource  !TODO erase
+  write(*, *) 'rhoValuesForSource:', rhoValuesForSource  !TODO erase
+  write(*, *) 'ecLValuesForSource:', ecLValuesForSource  !TODO erase
+  write(*, *) 'ecNValuesForSource:', ecNValuesForSource  !TODO erase
+  write(*, *) 'mu0:', mu0  !TODO erase
 
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
@@ -435,6 +457,11 @@ program tish
     call computeLumpedH(nLayerInZone(i), nValue, valuedRadii(:), ecNValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
     call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
   end do
+  write(*, *) 't:', t(1:4), t((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
+  write(*, *) 'h1:', h1(1:4), h1((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
+  write(*, *) 'h2:', h2(1:4), h2((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
+  write(*, *) 'h3:', h3(1:4), h3((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
+  write(*, *) 'h4:', h4(1:4), h4((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
 
   ! Compute mass and rigitidy matrices near source.
   call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
@@ -448,6 +475,12 @@ program tish
   call computeAverage(2, gh3, work, gh3)
   call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
   call computeAverage(2, gh4, work, gh4)
+  write(*, *) 'gt:', gt  !TODO erase
+  write(*, *) 'gh1:', gh1  !TODO erase
+  write(*, *) 'gh2:', gh2  !TODO erase
+  write(*, *) 'gh3:', gh3  !TODO erase
+  write(*, *) 'gh4:', gh4  !TODO erase
+  write(*, *) '--------'  !TODO erase
 
   !******************** Computing the displacement *********************
   outputCounter = 1
@@ -456,6 +489,8 @@ program tish
 
   do iFreq = imin, imax  ! omega-loop
     omega = 2.d0 * pi * dble(iFreq) / tlen
+    write(*, *) '####iFreq, omega:', iFreq, omega  !TODO erase
+    if (iFreq==2) stop 'stopped'  !TODO erase
 
     ! Initialize matrices.
     call initComplexMatrix(3, nReceiver, u(:,:))
@@ -466,9 +501,11 @@ program tish
 
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
+    write(*, *) 'lsuf:', lsuf  !TODO erase
 
     ! Compute coefficient related to attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
+    write(*, *) 'coef:', coef(1:3), coef(nZone-2:nZone)  !TODO erase
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
@@ -479,6 +516,8 @@ program tish
       call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
+    write(*, *) 'a0:', a0(:,1), a0(:,nGrid)  !TODO erase
+    write(*, *) 'a2:', a2(:,1), a2(:,nGrid)  !TODO erase
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
     cutoffGrid = 1
@@ -490,6 +529,8 @@ program tish
     do l = 0, maxL  ! l-loop
       ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
       if (decayCounter > 20) exit
+      write(*, *) '####l:', l  !TODO erase
+      if (l==2) stop 'stopped'  !TODO erase
 
       ! Clear the amplitude accumulated for all m's.
       amplitudeAtGrid(1:nGrid) = 0.d0
@@ -498,6 +539,7 @@ program tish
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
+      write(*, *) 'trial:', trialFunctionValues(2:3,1:2,1)  !TODO erase
 
       ! Initialize matrices.
       call initComplexMatrix(lda, nGrid, a(:,:))
@@ -505,6 +547,7 @@ program tish
 
       ! Assemble A matrix from parts that have already been computed.
       call assembleA(nGrid, l, a0(:,:), a2(:,:), a(:,:))
+      write(*, *) 'a:', a(:,1), a(:,nGrid)  !TODO erase
 
       ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
       call computeA(1, omega, omegai, l, t(oRowOfSource:), &
@@ -522,6 +565,7 @@ program tish
         ! Computate excitation vector g.
         call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
+        write(*, *) 'g:', g_or_c(iLayerOfSource:iLayerOfSource+1)  !TODO erase
 
         if (mod(l, 100) == 0) then
           ! Once in a while, compute for all grids to decide the cut-off depth.
@@ -554,6 +598,8 @@ program tish
           end if
         end if
 
+        write(*, *) 'c:', g_or_c(iLayerOfSource:iLayerOfSource+1)  !TODO erase
+
         ! Check whether the amplitude has decayed enough to stop the l-loops.
         !  This is checked for the topmost-grid expansion coefficent of each m individually.
         call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
@@ -562,6 +608,7 @@ program tish
         do ir = 1, nReceiver
           call computeU(g_or_c(nGrid), l, trialFunctionValues(:, m, ir), u(:, ir))
         end do
+        write(*, *) 'u:', u(:,1)  !TODO erase
 
       end do  ! m-loop
 

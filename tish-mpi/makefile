@@ -2,8 +2,8 @@
 
 PROGS = mpi-tish tish
 FC = mpif90
-FC2 = ifort
-FFLAGS = -O -no-pie
+FC2 = gfortran
+FFLAGS = -O #-no-pie
 
 SRC = calmat.f trialf.f others.f dclisb.f dclisb3.f formpi.f mpi-tish.f
 SRC2 = calmat.f trialf.f others.f dclisb.f dclisb3.f tish.f
