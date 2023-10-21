@@ -439,11 +439,8 @@ c
           call cmatinit( 3,nr,u )
           if (i .ne. 0) then
             omega = 2.d0 * pi * dble(i) / tlen
-            write(*, *) '####i, omega:', i, omega  !TODO erase
-            if (i==2) stop 'stopped'  !TODO erase
 
             call callsuf( omega,nzone,vrmax,vsv,lsuf )
-            write(*, *) 'lsuf:', lsuf  !TODO erase
 
             do ir = 1,nr
               call matinit( 3,4,plm(1,0,ir) )
@@ -457,7 +454,6 @@ c  150	        continue
 c  160	      continue
 c	    endif
             call calcoef( nzone,omega,qmu,coef )
-            write(*, *) 'coef:', coef(1:3), coef(nzone-2:nzone)  !TODO erase
 c
             call cmatinit( lda,nn,a0 )
             call cmatinit( lda,nn,a2 )
@@ -474,8 +470,6 @@ c
               call overlap( nlayer(j),cwork(jsp(j)),
      &             a2( 1,isp(j) ) )
             enddo
-            write(*, *) 'a0:', a0(:,1), a0(:,nnlayer+1)  !TODO erase
-            write(*, *) 'a2:', a2(:,1), a2(:,nnlayer+1)  !TODO erase
 c
             kc = 1
             ismall = 0
@@ -486,8 +480,6 @@ c
                 if (llog .gt. l) llog = l
                 cycle
               endif
-              write(*, *) '####l:', l  !TODO erase
-              if (l==2) stop 'stopped'  !TODO erase
 c
               do jj = 1,maxnlay+1  ! initialize
                 tmpr(jj) = 0.d0
@@ -498,15 +490,12 @@ c ***** Computing the trial function *****
                 call calbvec( l,theta(ir),phi(ir),
      &               plm(1,0,ir),bvec(1,-2,ir) )
               enddo
-              write(*, *) 'trial:', bvec(2:3,1:2,1)  !TODO erase
 
 c computing the coefficient matrix elements
 c --- Initializing the matrix elements
               call cmatinit( lda,nn,a )
               call cmatinit( lda,3,ga2 )
               call cala( nn,l,lda,a0,a2,a )
-              write(*, *) 'a:', a(:,1), a(:,nnlayer+1)  !TODO erase
-
               call calga( 1,omega,omegai,l,
      &             t(ins),h1(ins),h2(ins),h3(ins),h4(ins),
      &             coef(spn),aa )
@@ -521,8 +510,6 @@ c
                   call cvecinit( nn,g )
                   call calg2( l,m,spo,r0,mt,mu0,coef(spn),
      &                 ga,aa,ga2,gdr,g( isp(spn) ) )
-                  write(*, *) 'g:', g(ns:ns+1)  !TODO erase
-
                   if (mod(l,100) .eq. 0) then
                     if ((m .eq. -2) .or. (m .eq. -l)) then
                       call dclisb0( a,nn,1,lda,g,eps,dr,z,ier)
@@ -542,8 +529,6 @@ c
                     endif
                   endif
 c
-                  write(*, *) 'g:', g(ns:ns+1)  !TODO erase
-
                   if (mod(l,100) .eq. 0) then
                     call calcutd(nzone,nlayer,tmpr,ratc,nn,ra,kc)
                   endif
@@ -552,8 +537,6 @@ c
                   do ir = 1,nr
                     call calu( g(nn),lsq,bvec(1,m,ir),u(1,ir) )
                   enddo
-                  write(*, *) 'u:', u(:,1)  !TODO erase
-
                 endif
               enddo  ! m-loop
             enddo  ! l-loop

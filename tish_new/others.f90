@@ -31,7 +31,6 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
 
   integer :: i
   character(len=80) :: dummy
-  real(8) :: lattmp
 
   ! Open temporary file.
   open(unit=11, file=tmpfile, status='unknown')
@@ -70,16 +69,14 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   end do
 
   ! source parameter
-  read(11,*) r0, lattmp, eqlon
-  call translat(lattmp, eqlat)
+  read(11,*) r0, eqlat, eqlon
   read(11,*) mt(1,1), mt(1,2), mt(1,3), mt(2,2), mt(2,3), mt(3,3)
 
   ! receivers
   read(11,*) nReceiver
   if (nReceiver > maxNReceiver) stop 'nReceiver is too large. (pinput)'
   do i = 1, nReceiver
-    read(11,*) lattmp, lon(i)
-    call translat(lattmp, lat(i))
+    read(11,*) lat(i), lon(i)
     call calthetaphi(eqlat, eqlon, lat(i), lon(i), theta(i), phi(i))
   end do
 
@@ -133,15 +130,16 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   real(8), intent(out) :: theta, phi  ! Resulting distance and azimuth.
   real(8) :: gcarc, azimuth
   real(8) :: cosAzimuth, sinAzimuth
+  real(8) :: tmp
 
-  ! Transform to spherical coordinates.
-  evColat = 90.d0 - iEvLat
-  stColat = 90.d0 - iStLat
+  ! Transform geographic latitudes [deg] to geocentric colatitudes [rad].
+  call translat(iEvLat, tmp)
+  evColat = (90.d0 - tmp)/ 180.d0 * pi
+  call translat(iStLat, tmp)
+  stColat = (90.d0 - tmp)/ 180.d0 * pi
 
-  ! degrees to radians
-  evColat = evColat / 180.d0 * pi
+  ! Transform longitudes from degrees to radians.
   evLon = iEvLon / 180.d0 * pi
-  stColat = stColat / 180.d0 * pi
   stLon = iStLon / 180.d0 * pi
 
   gcarc = acos(cos(evColat) * cos(stColat) + sin(evColat) * sin(stColat) * cos(evLon - stLon))
@@ -153,10 +151,8 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   if (sinAzimuth < 0.d0) azimuth = -1.d0 * azimuth
 
   ! radians to degrees
-  theta = gcarc * 180.d0 / pi
-  phi = azimuth * 180.d0 / pi
-
-  phi = 180.d0 - phi
+  theta = gcarc
+  phi = (180.d0 - azimuth*180.d0/pi)/180.d0*pi  !!TODO  pi - azimuth
   return
 end subroutine
 

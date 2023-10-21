@@ -161,10 +161,8 @@ program tish
   rmin = rminOfZone(1)
   rmax = rmaxOfZone(nZone)
 
-  do ir = 1, nReceiver
-    theta(ir) = theta(ir) / 180.0d0 * pi ! Convert theta from degrees to radians
-    phi(ir) = phi(ir) / 180.0d0 * pi     ! Convert phi from degrees to radians
-  end do
+  write(*, *) 'theta:', theta(1:nReceiver)  !TODO erase
+  write(*, *) 'phi:', phi(1:nReceiver)  !TODO erase
 
   if (r0 < rmin .or. r0 > rmax) then
     stop 'Location of the source is improper.'
@@ -489,8 +487,6 @@ program tish
 
   do iFreq = imin, imax  ! omega-loop
     omega = 2.d0 * pi * dble(iFreq) / tlen
-    write(*, *) '####iFreq, omega:', iFreq, omega  !TODO erase
-    if (iFreq==2) stop 'stopped'  !TODO erase
 
     ! Initialize matrices.
     call initComplexMatrix(3, nReceiver, u(:,:))
@@ -501,11 +497,9 @@ program tish
 
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
-    write(*, *) 'lsuf:', lsuf  !TODO erase
 
     ! Compute coefficient related to attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
-    write(*, *) 'coef:', coef(1:3), coef(nZone-2:nZone)  !TODO erase
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
@@ -516,8 +510,6 @@ program tish
       call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
-    write(*, *) 'a0:', a0(:,1), a0(:,nGrid)  !TODO erase
-    write(*, *) 'a2:', a2(:,1), a2(:,nGrid)  !TODO erase
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
     cutoffGrid = 1
@@ -529,8 +521,6 @@ program tish
     do l = 0, maxL  ! l-loop
       ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
       if (decayCounter > 20) exit
-      write(*, *) '####l:', l  !TODO erase
-      if (l==2) stop 'stopped'  !TODO erase
 
       ! Clear the amplitude accumulated for all m's.
       amplitudeAtGrid(1:nGrid) = 0.d0
@@ -539,7 +529,6 @@ program tish
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
-      write(*, *) 'trial:', trialFunctionValues(2:3,1:2,1)  !TODO erase
 
       ! Initialize matrices.
       call initComplexMatrix(lda, nGrid, a(:,:))
@@ -547,7 +536,6 @@ program tish
 
       ! Assemble A matrix from parts that have already been computed.
       call assembleA(nGrid, l, a0(:,:), a2(:,:), a(:,:))
-      write(*, *) 'a:', a(:,1), a(:,nGrid)  !TODO erase
 
       ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
       call computeA(1, omega, omegai, l, t(oRowOfSource:), &
@@ -565,10 +553,10 @@ program tish
         ! Computate excitation vector g.
         call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
-        write(*, *) 'g:', g_or_c(iLayerOfSource:iLayerOfSource+1)  !TODO erase
 
         if (mod(l, 100) == 0) then
           ! Once in a while, compute for all grids to decide the cut-off depth.
+          ! CAUTION: In this case, all values of g_or_c(:) are computed.
 
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           if (m == -2 .or. m == -l) then
@@ -585,6 +573,7 @@ program tish
 
         else
           ! Otherwise, compute for just the grids above the cut-off depth.
+          ! CAUTION: In this case, only g_or_c(nGrid) is computed. Other values of g_or_c(:nGrid-1) still hold values of g!!!
 
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           if (m == -2 .or. m == -l) then
@@ -598,8 +587,6 @@ program tish
           end if
         end if
 
-        write(*, *) 'c:', g_or_c(iLayerOfSource:iLayerOfSource+1)  !TODO erase
-
         ! Check whether the amplitude has decayed enough to stop the l-loops.
         !  This is checked for the topmost-grid expansion coefficent of each m individually.
         call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
@@ -608,7 +595,6 @@ program tish
         do ir = 1, nReceiver
           call computeU(g_or_c(nGrid), l, trialFunctionValues(:, m, ir), u(:, ir))
         end do
-        write(*, *) 'u:', u(:,1)  !TODO erase
 
       end do  ! m-loop
 
