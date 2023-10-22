@@ -173,13 +173,10 @@ c computing of the number and the location of grid points
           call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
      &        iimax,1,tlen,
      &        vmin,gridpar,dzpar )
-          write(*, *) 'iimax, tlen:', iimax, tlen  !TODO erase
           call calra ( maxnlay,maxnzone,
      &        nnlayer,
      &        gridpar,dzpar,nzone,vrmin,vrmax,
      &        rmin,rmax,nlayer,ra,re )
-          write(*, *) 'nnlayer:', nnlayer  !TODO erase
-          write(*, *) 'nlayer:', nlayer(1:nzone)  !TODO erase
 c --- checking the parameter
           if (nnlayer .gt. maxnlay)
      &        stop 'The number of grid points is too large.'
@@ -326,7 +323,6 @@ c
                 endif
               enddo  ! m-loop
             enddo  ! l-loop
-            write(*, *) 'ltmp:', ltmp(ii), ii  !TODO erase
           enddo  ! omega-loop
           iimax = dble(max(ltmp(1),ltmp(2))) * tlen / lmaxdivf
         endif  ! option for shallow events
@@ -335,14 +331,11 @@ c computing of the number and the location of grid points
         call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
      &         iimax,1,tlen,
      &         vmin,gridpar,dzpar )
-        write(*, *) 'iimax, tlen:', iimax, tlen  !TODO erase
 
         call calra ( maxnlay,maxnzone,
      &         nnlayer,
      &         gridpar,dzpar,nzone,vrmin,vrmax,
      &         rmin,rmax,nlayer,ra,re )
-        write(*, *) 'nnlayer:', nnlayer  !TODO erase
-        write(*, *) 'nlayer:', nlayer(1:nzone)  !TODO erase
 
 
 c --- checking the parameter
@@ -392,12 +385,6 @@ c computing the structure grid points
           call calt( nlayer(i), h4( jsp(i) ), work( jsp(i) ),
      &         h4( jsp(i) ) )
         enddo
-        write(*, *) 't:', t(1:4), t(4*nnlayer-3:4*nnlayer)  !TODO erase
-        write(*, *) 'h1:', h1(1:4), h1(4*nnlayer-3:4*nnlayer)  !TODO erase
-        write(*, *) 'h2:', h2(1:4), h2(4*nnlayer-3:4*nnlayer)  !TODO erase
-        write(*, *) 'h3:', h3(1:4), h3(4*nnlayer-3:4*nnlayer)  !TODO erase
-        write(*, *) 'h4:', h4(1:4), h4(4*nnlayer-3:4*nnlayer)  !TODO erase
-
         call calmatc( 2,3,gvra,grho,2,0,0,gra,gt, work )
         call calmatc( 2,3,gvra,gecL,2,1,1,gra,gh1,work )
         call calmatc( 2,3,gvra,gecL,1,1,0,gra,gh2,work )
@@ -409,13 +396,6 @@ c computing the structure grid points
         call calt( 2,gh3,work,gh3 )
         call calhl( 2,3,gvra,gecN,gra,work )
         call calt( 2,gh4,work,gh4 )
-        write(*, *) 'gt:', gt  !TODO erase
-        write(*, *) 'gh1:', gh1  !TODO erase
-        write(*, *) 'gh2:', gh2  !TODO erase
-        write(*, *) 'gh3:', gh3  !TODO erase
-        write(*, *) 'gh4:', gh4  !TODO erase
-        write(*, *) '--------'  !TODO erase
-
 c
 c ******************** Computing the displacement *********************
         outputindex = 1

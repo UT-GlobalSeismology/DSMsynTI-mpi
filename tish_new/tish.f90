@@ -95,7 +95,7 @@ program tish
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries).
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries).
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: coef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
@@ -218,18 +218,14 @@ program tish
 
     ! Design the number and position of grid points.
     call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-    write(*, *) 'imaxFixed, tlen:', imaxFixed, tlen  !TODO erase
     call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
     if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
-    write(*, *) 'nGrid:', nGrid  !TODO erase
-    write(*, *) 'nLayerInZone:', nLayerInZone(1:nZone)  !TODO erase
 
     ! Compute the first indices in each zone.
     call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
     ! Compute the source position.
     call computeSourcePosition(nGrid, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
-    write(*, *) 'iLayerOfSource:', iLayerOfSource  !TODO erase
 
     ! Design grids for source computations.
     call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -297,15 +293,15 @@ program tish
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
       ! Compute coefficient related to attenuation.
-      call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
+      call computeCoef(nZone, omega, qmuOfZone(:), qCoef(:))
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
         call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-          h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+          h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
         call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
-        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
         call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
       end do
 
@@ -336,10 +332,10 @@ program tish
         ! Compute UNASSEMBLED A matrix in layer with source.
         ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
         call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-          h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
+          h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
 
         ! Compute A matrix near source.
-        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
+        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))
         call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
         do m = -2, 2  ! m-loop
@@ -349,7 +345,7 @@ program tish
           g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
           ! Computate excitation vector g.
-          call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+          call computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
             gdr(:), g_or_c(:))
 
           if (mod(l, 100) == 0) then
@@ -400,7 +396,7 @@ program tish
 
       ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
       ltmp(iCount) = min(l, maxL)
-      write(*, *) 'ltmp:', ltmp(iCount), iCount  !TODO erase
+      write(*, *) ' ltmp:', iCount, ltmp(iCount)  !TODO erase
 
     end do  ! omega-loop
 
@@ -411,12 +407,9 @@ program tish
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-  write(*, *) 'imaxFixed, tlen:', imaxFixed, tlen  !TODO erase
 
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
-  write(*, *) 'nGrid:', nGrid  !TODO erase
-  write(*, *) 'nLayerInZone:', nLayerInZone(1:nZone)  !TODO erase
 
   ! Compute the first indices in each zone.
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
@@ -454,11 +447,6 @@ program tish
     call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
     call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
   end do
-  write(*, *) 't:', t(1:4), t((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
-  write(*, *) 'h1:', h1(1:4), h1((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
-  write(*, *) 'h2:', h2(1:4), h2((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
-  write(*, *) 'h3:', h3(1:4), h3((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
-  write(*, *) 'h4:', h4(1:4), h4((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
 
   ! Compute mass and rigitidy matrices near source.
   call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
@@ -472,12 +460,6 @@ program tish
   call computeAverage(2, gh3, work, gh3)
   call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
   call computeAverage(2, gh4, work, gh4)
-  write(*, *) 'gt:', gt  !TODO erase
-  write(*, *) 'gh1:', gh1  !TODO erase
-  write(*, *) 'gh2:', gh2  !TODO erase
-  write(*, *) 'gh3:', gh3  !TODO erase
-  write(*, *) 'gh4:', gh4  !TODO erase
-  write(*, *) '--------'  !TODO erase
 
   !******************** Computing the displacement *********************
   outputCounter = 1
@@ -498,15 +480,15 @@ program tish
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
     ! Compute coefficient related to attenuation.
-    call computeCoef(nZone, omega, qmuOfZone(:), coef(:))
+    call computeCoef(nZone, omega, qmuOfZone(:), qCoef(:))
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
       call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-        h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+        h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
-      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
+      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
 
@@ -542,10 +524,10 @@ program tish
       ! Compute UNASSEMBLED A matrix in layer with source.
       ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
       call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-        h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
+        h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
 
       ! Compute A matrix near source.
-      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
+      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))
       call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
       do m = -2, 2  ! m-loop
@@ -555,7 +537,7 @@ program tish
         g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
         ! Computate excitation vector g.
-        call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+        call computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
 
         if (mod(l, 100) == 0) then

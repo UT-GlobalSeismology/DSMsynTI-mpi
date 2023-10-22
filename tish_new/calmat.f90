@@ -300,7 +300,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
+subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, qCoef, a0)
 !------------------------------------------------------------------------
   implicit none
 
@@ -309,7 +309,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
   real(8) :: h
@@ -322,7 +322,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
     ! I2 - I4 - I4' + I6 - 2*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2(i) + h3(i) - 2.d0 * h4(i)
     ! omega^2 T - (I2 - I4 - I4' + I6 - 2*I7). (See eq. 2 of Kawai et al. 2006.)
-    a0(i) = omegaDamped2 * dcmplx(t(i)) - coef * dcmplx(h)
+    a0(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
   end do
 
 end subroutine
@@ -334,19 +334,19 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA2(nLayerInZoneI, h4, coef, a2)
+subroutine computeA2(nLayerInZoneI, h4, qCoef, a2)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
     ! -(I7). (See eq. 2 & 19 of Kawai et al. 2006.)
-    a2(i) = - coef * dcmplx(h4(i))
+    a2(i) = - qCoef * dcmplx(h4(i))
   end do
 
 end subroutine
@@ -383,7 +383,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, coef, a)
+subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, qCoef, a)
 !------------------------------------------------------------------------
   implicit none
 
@@ -393,7 +393,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, co
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
   real(8) :: h, largeL2m2
@@ -410,7 +410,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, co
     ! I2 - I4 - I4' + I6 + (L^2 - 2)*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2(i) + h3(i) + largeL2m2 * h4(i)
     ! omega^2 T - H. (See eq. 2 of Kawai et al. 2006.)
-    a(i) = omegaDamped2 * dcmplx(t(i)) - coef * dcmplx(h)
+    a(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
   end do
 
 end subroutine
@@ -450,7 +450,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the excitation vector g.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aaParts, aSourceParts, aSource, dr, g)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourceParts, aSource, dr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -459,7 +459,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aaParts, aSourcePar
   integer, intent(in) :: m  ! Azimuthal order.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mu0, mt(3,3)
-  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix.
   complex(8), intent(in) :: aSource(2,3)  ! Assembled A matrix.
   complex(8), intent(inout) :: dr(3)
@@ -486,7 +486,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aaParts, aSourcePar
     ! b1 in eq. (26) of Kawai et al. (2006).
     b = sqrt(dble(2 * l + 1) / (16.d0 * pi))
     ! D3 of eq. (26) of Kawai et al. (2006).
-    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * coef)
+    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * qCoef)
 
     !TODO ??
     do i = 2, 3
