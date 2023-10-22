@@ -34,7 +34,7 @@ c ----------------------------<<constants>>----------------------------
         parameter ( maxnzone = 15 )
         parameter ( maxnr = 1500 )
         parameter ( maxlmax = 80000 )
-        parameter ( ilog = 0 )
+        parameter ( ilog = 1 )
         parameter ( lmaxdivf = 2.d4)
         parameter ( shallowdepth = 100.d0 )
         parameter ( spcform = 1 )  ! 0:binary, 1:ascii
@@ -161,6 +161,7 @@ c ************************** Files Handling **************************
 
         if (ilog .eq. 1) then
           open(unit=11,file='llog.log',status='unknown')
+          write(11, *) 0
           close(11)
         endif
 

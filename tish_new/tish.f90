@@ -35,7 +35,7 @@ program tish
   real(8), parameter :: lmaxdivf = 2.d4
   real(8), parameter :: shallowdepth = 100.d0
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
-  integer, parameter :: ilog = 0
+  integer, parameter :: ilog = 1
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure
@@ -201,6 +201,7 @@ program tish
 
   if (ilog == 1) then
     open(unit = 11, file = 'llog.log', status = 'unknown')
+    write(11, *) 0
     close(11)
   end if
 
@@ -648,7 +649,7 @@ program tish
 
     if (ilog == 1) then
       open(unit=11, file='llog.log', position='append', status='old')
-      write(11,*) iFreq, llog, nGrid
+      write(11,*) iFreq, llog, nGrid-1
       close(11)
     end if
 
