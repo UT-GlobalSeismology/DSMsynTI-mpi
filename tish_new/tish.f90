@@ -61,7 +61,7 @@ program tish
   real(8) :: tlen  ! Time length.
   integer :: np  ! Number of points in frequency domain.
   real(8) :: omega  ! Angular frequency (real part).
-  real(8) :: omegai  ! Imaginary part of angular frequency for artificial damping. (See section 5.1 of Geller & Ohminato 1994.)
+  real(8) :: omegaI  ! Imaginary part of angular frequency for artificial damping. (See section 5.1 of Geller & Ohminato 1994.)
   integer :: imin, imax  ! Index of minimum and maximum frequency.
   integer :: iFreq, iCount
   integer :: ltmp(2), imaxFixed
@@ -90,6 +90,7 @@ program tish
   ! Variables for the values
   integer :: nValue  ! Total number of values.
   real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value.
+  integer :: oValueOfZone(maxNZone)  ! Index of the first value in each zone.
   real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries).
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries).
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries).
@@ -98,6 +99,7 @@ program tish
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
+  real(8) :: largeL2  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
   complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
@@ -144,7 +146,7 @@ program tish
 
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
-  call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, imin, imax, &
+  call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
     r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 
@@ -180,7 +182,7 @@ program tish
         form = 'unformatted', access = 'stream', convert = 'big_endian')
       write(11) tlen
       write(11) np, 1, 3
-      write(11) omegai, lat(ir), lon(ir)
+      write(11) omegaI, lat(ir), lon(ir)
       write(11) eqlat, eqlon, r0
       close(11)
     end do
@@ -189,7 +191,7 @@ program tish
       open(unit = 11, file = output(ir), status = 'unknown')
       write(11, *) tlen
       write(11, *) np, 1, 3
-      write(11, *) omegai, lat(ir), lon(ir)
+      write(11, *) omegaI, lat(ir), lon(ir)
       write(11, *) eqlat, eqlon, r0
       close(11)
     end do
@@ -201,8 +203,6 @@ program tish
     open(unit = 11, file = 'llog.log', status = 'unknown')
     close(11)
   end if
-
-  write(*, *) 'Wrote file!'  !TODO erase
 
 
   ! ************************** Option for shallow events **************************
@@ -217,14 +217,18 @@ program tish
 
     ! Design the number and position of grid points.
     call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+    write(*, *) 'imaxFixed, tlen:', imaxFixed, tlen  !TODO erase
     call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
     if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
+    write(*, *) 'nGrid:', nGrid  !TODO erase
+    write(*, *) 'nLayerInZone:', nLayerInZone(1:nZone)  !TODO erase
 
     ! Compute the first indices in each zone.
-    call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
+    call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
     ! Compute the source position.
-    call computeSourcePosition(nGrid - 1, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+    call computeSourcePosition(nGrid, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+    write(*, *) 'iLayerOfSource:', iLayerOfSource  !TODO erase
 
     ! Design grids for source computations.
     call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -239,35 +243,35 @@ program tish
 
     ! Compute mass and rigitidy matrices.
     do i = 1, nZone
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), rhoValues(:), 2, 0, 0, gridRadii(oGridOfZone(i):), &
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
         t(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 2, 1, 1, gridRadii(oGridOfZone(i):), &
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
         h1(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 1, 1, 0, gridRadii(oGridOfZone(i):), &
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
         h2(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 0, 0, 0, gridRadii(oGridOfZone(i):), &
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
         h3(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecNValues(:), 0, 0, 0, gridRadii(oGridOfZone(i):), &
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
         h4(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeLumpedT(nLayerInZone(i), nValue, valuedRadii(:), rhoValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+      call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
       call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
-      call computeLumpedH(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
       call computeAverage(nLayerInZone(i), h3(oRowOfZone(i):), work(oRowOfZone(i):), h3(oRowOfZone(i):))
-      call computeLumpedH(nLayerInZone(i), nValue, valuedRadii(:), ecNValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
       call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
     end do
 
     ! Compute mass and rigitidy matrices near source.
-    call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
-    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gridRadiiForSource, gh1, work)
-    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gridRadiiForSource, gh2, work)
-    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gridRadiiForSource, gh3, work)
-    call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gridRadiiForSource, gh4, work)
-    call computeLumpedT(2, 3, gridRadiiForSource, rhoValuesForSource, gridRadiiForSource, work)
+    call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
+    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gh1, work)
+    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gh2, work)
+    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gh3, work)
+    call computeIntermediateIntegral(2, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gh4, work)
+    call computeLumpedT(2, gridRadiiForSource, rhoValuesForSource, work)
+    call computeAverage(2, gt, work, gt)
+    call computeLumpedH(2, gridRadiiForSource, ecLValuesForSource, work)
     call computeAverage(2, gh3, work, gh3)
-    call computeLumpedH(2, 3, gridRadiiForSource, ecLValuesForSource, gridRadiiForSource, work)
-    call computeAverage(2, gh3, work, gh3)
-    call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
+    call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
     call computeAverage(2, gh4, work, gh4)
 
 
@@ -285,8 +289,8 @@ program tish
       omega = 2.d0 * pi * dble(iFreq) / tlen
 
       ! Initialize matrices.
-      call initComplexMatrix(lda, nGrid, a0(:,:))
-      call initComplexMatrix(lda, nGrid, a2(:,:))
+      a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+      a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
 
       ! Compute the angular order that is sufficient to compute the slowest phase velocity.
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
@@ -296,12 +300,12 @@ program tish
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
-        call computeA0(nLayerInZone(i), omega, omegai, t(oRowOfZone(i):), &
+        call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
           h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(1, oGridOfZone(i):))
+        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
         call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(1, oGridOfZone(i):))
+        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
       end do
 
       ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -315,38 +319,43 @@ program tish
         ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
         if (decayCounter > 20) exit
 
-        ! Clear the amplitude accumulated for all m's.
-        amplitudeAtGrid(:) = 0.d0
+        ! L^2. (See the part after eq. 12 of Kawai et al. 2006.)
+        ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
+        largeL2 = dble(l) * dble(l + 1)
 
         ! Initialize matrices.
-        call initComplexMatrix(lda, nGrid, a(:,:))
-        call initComplexMatrix(lda, 3, aSource(:,:))
+        a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+        aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
+        ! Clear the amplitude accumulated for all m's.
+        amplitudeAtGrid(:nGrid) = 0.d0
 
         ! Assemble A matrix from parts that have already been computed.
-        call assembleA(nGrid, l, a0(:,:), a2(:,:), a(:,:))
+        call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
 
         ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
-        call computeA(1, omega, omegai, l, t(oRowOfSource:), &
+        call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
           h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
 
         ! Compute A matrix near source.
-        call computeA(2, omega, omegai, l, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
+        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
         call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
         do m = -2, 2  ! m-loop
           if (m == 0 .or. abs(m) > abs(l)) cycle
 
-          call initComplexVector(nGrid, g_or_c)
+          ! Initialize vector.
+          g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
           ! Computate excitation vector g.
           call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
-            gdr, g_or_c(:))
+            gdr(:), g_or_c(:))
 
           if (mod(l, 100) == 0) then
             ! Once in a while, compute for all grids to decide the cut-off depth.
+            ! CAUTION: In this case, all values of g_or_c(:) are computed.
 
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            if ((m == -2) .or. (m == -l)) then
+            if (m == -2 .or. m == -l) then
               ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
               call dclisb0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
             else
@@ -354,13 +363,16 @@ program tish
               call dcsbsub0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
             end if
 
-            ! Accumulate the absolute values of expansion coefficent c for all m at each grid point.
+            ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
             !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
-            amplitudeAtGrid(:) = amplitudeAtGrid(:) + abs(g_or_c(:))
+            amplitudeAtGrid(1:nGrid) = amplitudeAtGrid(1:nGrid) + abs(g_or_c(1:nGrid))
 
           else
+            ! Otherwise, compute for just the grids above the cut-off depth.
+            ! CAUTION: In this case, only g_or_c(nGrid) is computed. Other values of g_or_c(:nGrid-1) still hold values of g!!!
+
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            if ((m == -2) .or. (m == -l)) then
+            if (m == -2 .or. m == -l) then
               ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
               call dclisb(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
                 g_or_c(cutoffGrid:), eps, dr, z, ier)
@@ -386,73 +398,58 @@ program tish
 
       ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
       ltmp(iCount) = min(l, maxL)
+      write(*, *) 'ltmp:', ltmp(iCount), iCount  !TODO erase
 
     end do  ! omega-loop
 
     imaxFixed = int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf)
   end if  ! option for shallow events
 
+
   ! ******************* Computing parameters *******************
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
   write(*, *) 'imaxFixed, tlen:', imaxFixed, tlen  !TODO erase
-  write(*, *) 'kzAtZone:', kzAtZone(1:nZone)  !TODO erase
 
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
   write(*, *) 'nGrid:', nGrid  !TODO erase
   write(*, *) 'nLayerInZone:', nLayerInZone(1:nZone)  !TODO erase
-  write(*, *) 'gridRadii(1), gridRadii(nGrid):', gridRadii(1), gridRadii(nGrid)  !TODO erase
 
   ! Compute the first indices in each zone.
-  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oRowOfZone(:))
-  write(*, *) 'oGridOfZone:', oGridOfZone(1:nZone)  !TODO erase
-  write(*, *) 'oRowOfZone:', oRowOfZone(1:nZone)  !TODO erase
+  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
   ! Compute the source position.
-  call computeSourcePosition(nGrid - 1, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
-  write(*, *) 'iZoneOfSource, iLayerOfSource:', iZoneOfSource, iLayerOfSource  !TODO erase
+  call computeSourcePosition(nGrid, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
-  write(*, *) 'gridRadiiForSource:', gridRadiiForSource(1:3)  !TODO erase
+
 
   ! ******************* Computing the matrix elements *******************
   ! Compute variable values at grid points.
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
     gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
-  write(*, *) '--------'  !TODO erase
-  write(*, *) 'nValue:', nValue  !TODO erase
-  write(*, *) 'valuedRadii:', valuedRadii(1:3), valuedRadii(nValue-2:nValue)  !TODO erase
-  write(*, *) 'rhoValues:', rhoValues(1:3), rhoValues(nValue-2:nValue)  !TODO erase
-  write(*, *) 'ecLValues:', ecLValues(1:3), ecLValues(nValue-2:nValue)  !TODO erase
-  write(*, *) 'ecNValues:', ecNValues(1:3), ecNValues(nValue-2:nValue)  !TODO erase
-
   call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
     gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0)
-  write(*, *) 'gridRadiiForSource:', gridRadiiForSource  !TODO erase
-  write(*, *) 'rhoValuesForSource:', rhoValuesForSource  !TODO erase
-  write(*, *) 'ecLValuesForSource:', ecLValuesForSource  !TODO erase
-  write(*, *) 'ecNValuesForSource:', ecNValuesForSource  !TODO erase
-  write(*, *) 'mu0:', mu0  !TODO erase
 
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), rhoValues(:), 2, 0, 0, gridRadii(oGridOfZone(i):), &
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
       t(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 2, 1, 1, gridRadii(oGridOfZone(i):), &
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
       h1(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 1, 1, 0, gridRadii(oGridOfZone(i):), &
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
       h2(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), 0, 0, 0, gridRadii(oGridOfZone(i):), &
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
       h3(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), nValue, valuedRadii(:), ecNValues(:), 0, 0, 0, gridRadii(oGridOfZone(i):), &
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
       h4(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeLumpedT(nLayerInZone(i), nValue, valuedRadii(:), rhoValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+    call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
     call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), nValue, valuedRadii(:), ecLValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
     call computeAverage(nLayerInZone(i), h3(oRowOfZone(i):), work(oRowOfZone(i):), h3(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), nValue, valuedRadii(:), ecNValues(:), gridRadii(oGridOfZone(i):), work(oRowOfZone(i):))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
     call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
   end do
   write(*, *) 't:', t(1:4), t((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
@@ -462,16 +459,16 @@ program tish
   write(*, *) 'h4:', h4(1:4), h4((nGrid-1)*4-3:(nGrid-1)*4)  !TODO erase
 
   ! Compute mass and rigitidy matrices near source.
-  call computeIntermediateIntegral(2, 3, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gridRadiiForSource, gt, work)
-  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gridRadiiForSource, gh1, work)
-  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gridRadiiForSource, gh2, work)
-  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gridRadiiForSource, gh3, work)
-  call computeIntermediateIntegral(2, 3, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gridRadiiForSource, gh4, work)
-  call computeLumpedT(2, 3, gridRadiiForSource, rhoValuesForSource, gridRadiiForSource, work)
+  call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
+  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gh1, work)
+  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gh2, work)
+  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gh3, work)
+  call computeIntermediateIntegral(2, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gh4, work)
+  call computeLumpedT(2, gridRadiiForSource, rhoValuesForSource, work)
   call computeAverage(2, gt, work, gt)
-  call computeLumpedH(2, 3, gridRadiiForSource, ecLValuesForSource, gridRadiiForSource, work)
+  call computeLumpedH(2, gridRadiiForSource, ecLValuesForSource, work)
   call computeAverage(2, gh3, work, gh3)
-  call computeLumpedH(2, 3, gridRadiiForSource, ecNValuesForSource, gridRadiiForSource, work)
+  call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
   call computeAverage(2, gh4, work, gh4)
   write(*, *) 'gt:', gt  !TODO erase
   write(*, *) 'gh1:', gh1  !TODO erase
@@ -489,9 +486,9 @@ program tish
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
-    call initComplexMatrix(3, nReceiver, u(:,:))
-    call initComplexMatrix(lda, nGrid, a0(:,:))
-    call initComplexMatrix(lda, nGrid, a2(:,:))
+    a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+    a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+    u(:, :nReceiver) = dcmplx(0.0d0, 0.0d0)
     ! Plm must be cleared for each omega.
     plm(:, :, :nReceiver) = 0.d0
 
@@ -503,7 +500,7 @@ program tish
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
-      call computeA0(nLayerInZone(i), omega, omegai, t(oRowOfZone(i):), &
+      call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
         h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
@@ -522,33 +519,37 @@ program tish
       ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
       if (decayCounter > 20) exit
 
+      ! L^2. (See the part after eq. 12 of Kawai et al. 2006.)
+      ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
+      largeL2 = dble(l) * dble(l + 1)
+
+      ! Initialize matrices.
+      a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+      aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
       ! Clear the amplitude accumulated for all m's.
-      amplitudeAtGrid(1:nGrid) = 0.d0
+      amplitudeAtGrid(:nGrid) = 0.d0
 
       ! Compute trial functions.
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
 
-      ! Initialize matrices.
-      call initComplexMatrix(lda, nGrid, a(:,:))
-      call initComplexMatrix(lda, 3, aSource(:,:))
-
       ! Assemble A matrix from parts that have already been computed.
-      call assembleA(nGrid, l, a0(:,:), a2(:,:), a(:,:))
+      call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
 
       ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
-      call computeA(1, omega, omegai, l, t(oRowOfSource:), &
+      call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
         h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
 
       ! Compute A matrix near source.
-      call computeA(2, omega, omegai, l, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
+      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coef(iZoneOfSource), aSourceParts(:))
       call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
 
-        call initComplexVector(nGrid, g_or_c(:))
+        ! Initialize vector.
+        g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
         ! Computate excitation vector g.
         call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
@@ -593,7 +594,7 @@ program tish
 
         ! Accumulate u.
         do ir = 1, nReceiver
-          call computeU(g_or_c(nGrid), l, trialFunctionValues(:, m, ir), u(:, ir))
+          call computeU(g_or_c(nGrid), largeL2, trialFunctionValues(:, m, ir), u(:, ir))
         end do
 
       end do  ! m-loop

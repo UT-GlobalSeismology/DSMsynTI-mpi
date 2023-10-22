@@ -5,37 +5,35 @@
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, rpow, dot1, dot2, gridRadiiInZoneI, mat, work)
+subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZoneI, rpow, dot1, dot2, mat, work)
 !------------------------------------------------------------------------
   implicit none
   integer, parameter :: maxrpow = 2  ! Maximum value of rpow to allow.
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  integer, intent(in) :: nValue  ! Total number of values for each variable.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: conInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
-  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: con(nValue)  ! Values of a variable at each point (with 2 values at boundaries).
-  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
   real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4"
   !::::::::::::::::::::::::::::::::::::::::::::::: (See eq. 19 of Kawai et al. 2006.)
   real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals.
-  integer :: iLayer, j, k, l, nn
+  integer :: iLayer, j1, j2, i, iRow
   real(8) :: a(2,2), b(2,2), c(5), rh
 
-  ! parameter check
+  ! Check input validity.
   if (rpow > maxrpow) stop "Invalid arguments.(computeIntermediateIntegral)"
 
-  ! computing matrix elements
+  ! Compute matrix elements.
   do iLayer = 1, nLayerInZoneI
     ! layer thickness
-    rh = gridRadiiInZoneI(iLayer + 1) - gridRadiiInZoneI(iLayer)
+    rh = valuedRadiiInZoneI(iLayer + 1) - valuedRadiiInZoneI(iLayer)
 
-    ! set X_k1^(dot1), for both k1=i and k1=i+1
+    ! Set X_k1^(dot1), for both k1=i and k1=i+1.
     select case(dot1)
      case (0)
-      a(:, 1) = [gridRadiiInZoneI(iLayer + 1) / rh, -1.d0 / rh]
-      a(:, 2) = [-gridRadiiInZoneI(iLayer) / rh, 1.d0 / rh]
+      a(:, 1) = [valuedRadiiInZoneI(iLayer + 1) / rh, -1.d0 / rh]
+      a(:, 2) = [-valuedRadiiInZoneI(iLayer) / rh, 1.d0 / rh]
      case (1)
       a(:, 1) = [-1.d0 / rh, 0.d0]
       a(:, 2) = [1.d0 / rh, 0.d0]
@@ -43,11 +41,11 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
       stop "Invalid arguments.(computeIntermediateIntegral)"
     end select
 
-    ! set X_k2^(dot2), for both k2=i and k2=i+1
+    ! Set X_k2^(dot2), for both k2=i and k2=i+1.
     select case(dot2)
      case (0)
-      b(:, 1) = [gridRadiiInZoneI(iLayer + 1) / rh, -1.d0 / rh]
-      b(:, 2) = [-gridRadiiInZoneI(iLayer) / rh, 1.d0 / rh]
+      b(:, 1) = [valuedRadiiInZoneI(iLayer + 1) / rh, -1.d0 / rh]
+      b(:, 2) = [-valuedRadiiInZoneI(iLayer) / rh, 1.d0 / rh]
      case (1)
       b(:, 1) = [-1.d0 / rh, 0.d0]
       b(:, 2) = [1.d0 / rh, 0.d0]
@@ -55,27 +53,27 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, nValue, valuedRadii, con, 
       stop "Invalid arguments.(computeIntermediateIntegral)"
     end select
 
-    do j = 1, 2  ! k1=i and k1=i+1
-      do k = 1, 2  ! k2=i and k2=i+1
-        c = 0.d0
-        ! multiply X_k1^(dot1) and X_k2^(dot2)
-        call multiplyPolynomials(2, a(:, j), 2, b(:, k), 3, c(:))
-        ! multiply by r^rpow
+    do j1 = 1, 2  ! k1=i and k1=i+1
+      do j2 = 1, 2  ! k2=i and k2=i+1
+        c(:) = 0.d0
+        ! Multiply X_k1^(dot1) and X_k2^(dot2).
+        call multiplyPolynomials(2, a(:, j1), 2, b(:, j2), 3, c(:))
+        ! Multiply by r^rpow.
         if (rpow > 0) then
-          do l = 3, 1, -1
-            c(l + rpow) = c(l)
-            c(l) = 0.d0
+          do i = 3, 1, -1
+            c(i + rpow) = c(i)
+            c(i) = 0.d0
           end do
         end if
-        ! integrate; the result is saved for each (iLayer, k1, k2)-pair
-        nn = 4 * (iLayer - 1) + 2 * (j - 1) + k
-        call integrateProduct(5, c, gridRadiiInZoneI(iLayer), gridRadiiInZoneI(iLayer + 1), nValue, valuedRadii(:), con(:), &
-          work(nn))
+        ! Integrate; the result is saved for each (iLayer, k1, k2)-pair.
+        iRow = 4 * (iLayer - 1) + 2 * (j1 - 1) + j2
+        call integrateProduct(5, c, valuedRadiiInZoneI(iLayer), valuedRadiiInZoneI(iLayer + 1), &
+          valuedRadiiInZoneI(iLayer:), conInZoneI(iLayer:), work(iRow))
       end do
     end do
   end do
 
-  ! replace "I_(k'k)^4" with "I_(k'k)^4 + I_(kk')^4" (See eq. 19 of Kawai et al. 2006.)
+  ! Replace "I_(k'k)^4" with "I_(k'k)^4 + I_(kk')^4". (See eq. 19 of Kawai et al. 2006.)
   if (dot1 /= dot2) then
     do iLayer = 1, 4 * nLayerInZoneI
       select case(mod(iLayer, 4))
@@ -95,28 +93,28 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the (l-1)-degree polynomial c(x) which is the product of
-! the (n-1)-degree polynomial a(x) and the (m-1)-degree polynomial b(x).
+! Computing the (nc-1)-degree polynomial c(x) which is the product of
+! the (na-1)-degree polynomial a(x) and the (nb-1)-degree polynomial b(x).
 !------------------------------------------------------------------------
-subroutine multiplyPolynomials(n, a, m, b, l, c)
+subroutine multiplyPolynomials(na, a, nb, b, nc, c)
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: n, m, l  ! Size of the arrays of a, b, and c.
-  real(8), intent(in) :: a(n), b(m)  ! Coefficients of polynimials a and b in ascending order (a(x) = a1 + a2 x + a3 x^2 + ...).
-  real(8), intent(out) :: c(l)  ! Coefficients of polynimial c in ascending order.
+  integer, intent(in) :: na, nb, nc  ! Size of the arrays of a, b, and c.
+  real(8), intent(in) :: a(na), b(nb)  ! Coefficients of polynimials a and b in ascending order (a(x) = a1 + a2 x + a3 x^2 + ...).
+  real(8), intent(out) :: c(nc)  ! Coefficients of polynimial c in ascending order.
 
   integer :: i, j
 
-  ! Check for invalid arguments
-  if (n + m - 1 /= l) stop "Invalid arguments.(multiplyPolynomials)"
+  ! Check input validity.
+  if (na + nb - 1 /= nc) stop "Invalid arguments.(multiplyPolynomials)"
 
-  ! Initialize the polynomial c
+  ! Initialize the polynomial c.
   c(:) = 0.d0
 
-  ! Compute the product polynomial
-  do i = 1, n
-    do j = 1, m
+  ! Compute the product polynomial.
+  do i = 1, na
+    do j = 1, nb
       c(i + j - 1) = c(i + j - 1) + a(i) * b(j)
     end do
   end do
@@ -125,53 +123,33 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Evaluating the integrated value of p(r)*con(r) from 'lowerX' to 'upperX'.
+! Evaluating the integrated value of p(r)*con(r) from 'lowerRadius' to 'upperRadius'.
 ! Here, p(r) is an (n-1)-degree polynomial, and con(r) is the profile of a variable.
+! The range [lowerRadius, upperRadius] must be within a certain layer [valuedRadii(1), valuedRadii(2)].
 !------------------------------------------------------------------------
-subroutine integrateProduct(n, p, lowerRadius, upperRadius, nValue, valuedRadii, con, result)
+subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, con, result)
 !------------------------------------------------------------------------
   implicit none
-
   integer, parameter :: maxn = 5  ! Maximum number of polynomial degrees.
+
   integer, intent(in) :: n  ! Size of the array of p.
   real(8), intent(in) :: p(n)  ! Coefficients of the polynimial in ascending order (p(r) = p1 + p2 r + p3 r^2 + ...).
   real(8), intent(in) :: lowerRadius, upperRadius  ! Radius range to integrate.
-  integer, intent(in) :: nValue  ! Total number of values for each variable.
-  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: con(nValue)  ! Values of a variable at each point (with 2 values at boundaries).
+  real(8), intent(in) :: valuedRadii(2)  ! Radii at both ends of an interval containing integration range.
+  real(8), intent(in) :: con(2)  ! Values of a variable at both ends of an interval containing integration range.
   real(8), intent(out) :: result
-  real(8) :: r1, r2, q(2), pq(maxn+1), dS
-  integer :: iValue
+  real(8) :: q(2), pq(maxn+1)
 
-  ! Check the number of polynomial degrees
+  ! Check input validity.
   if (n > maxn) stop 'Degree of polynomial is too large.(integrateProduct)'
 
-  ! Initialization
-  result = 0.d0
-  r1 = lowerRadius
-  iValue = 1
-
-  do
-    ! find the first value within range of integration
-    if (valuedRadii(iValue + 1) <= r1) then
-      iValue = iValue + 1
-      cycle
-    end if
-
-    r2 = min(upperRadius, valuedRadii(iValue + 1))
-
-    ! express con(r) as a polynomial (linear) function q1+q2*r
-    q(2) = (con(iValue + 1) - con(iValue)) / (valuedRadii(iValue + 1) - valuedRadii(iValue))  ! slope
-    q(1) = con(iValue) - q(2) * valuedRadii(iValue)  ! intercept
-    ! compute p(r)*con(r)
-    call multiplyPolynomials(n, p(:), 2, q(:), n + 1, pq(:))
-    ! evaluate integrated value within subrange [r1,r2]
-    call integratePolynomial(n + 1, pq(:), r1, r2, dS)
-    result = result + dS
-
-    if (r2 == upperRadius) exit
-    r1 = r2
-  end do
+  ! Express con(r) as a polynomial (linear) function q1+q2*r.
+  q(2) = (con(2) - con(1)) / (valuedRadii(2) - valuedRadii(1))  ! slope
+  q(1) = con(1) - q(2) * valuedRadii(1)  ! intercept
+  ! Compute p(r)*con(r).
+  call multiplyPolynomials(n, p(:), 2, q(:), n + 1, pq(:))
+  ! Evaluate integrated value within subrange [lowerRadius, upperRadius].
+  call integratePolynomial(n + 1, pq(:), lowerRadius, upperRadius, result)
 
 end subroutine
 
@@ -191,10 +169,10 @@ subroutine integratePolynomial(n, p, x1, x2, result)
   integer :: i, j
   real(8) :: a(maxn), b(maxn), dx, xx
 
-  ! Check the number of polynomial degrees.
+  ! Check input validity.
   if (n > maxn) stop 'Degree of polynomial is too large.(integratePolynomial)'
 
-  ! Initialization: a=(1 x1 x1^2 ...), b=(1 x2 x2^2 ...)
+  ! Initialize: a=(1 x1 x1^2 ...), b=(1 x2 x2^2 ...).
   a(1) = 1.d0
   b(1) = 1.d0
   if (n >= 2) then
@@ -207,8 +185,7 @@ subroutine integratePolynomial(n, p, x1, x2, result)
 
   ! Evaluate the integrated value.
   result = 0.d0
-  ! loop for each term of p(x)
-  do i = 1, n
+  do i = 1, n  ! Loop for each term of p(x).
     xx = 0.d0
     ! (x2^(i-1) + x1 x2^(i-2) + x1^2 x2^(i-3) + ... + x1^(i-1)) / i
     do j = 1, i
@@ -226,36 +203,33 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeLumpedT(nLayerInZoneI, nValue, valuedRadii, rhoValues, gridRadiiInZoneI, tl)
+subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, tl)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  integer, intent(in) :: nValue  ! Total number of values for each variable.
-  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: rhoValues(nValue)  ! Rho values at each point (with 2 values at boundaries).
-  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: rhoValuesInZoneI(nLayerInZoneI+1)  ! Rho values at each point (with 2 values at boundaries).
   real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   integer :: i, nn
   real(8) :: c(3), lowerRadius, upperRadius
 
-  ! Initialization
+  ! Initialize.
   c = [0.d0, 0.d0, 1.d0]
 
   do i = 1, nLayerInZoneI
-    lowerRadius = gridRadiiInZoneI(i)
-    upperRadius = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i + 1)) / 2.d0
     nn = 4 * (i - 1)
 
-    call integrateProduct(3, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), rhoValues(:), tl(nn + 1))
+    lowerRadius = valuedRadiiInZoneI(i)
+    upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 1))
 
     tl(nn + 2) = 0.d0
     tl(nn + 3) = 0.d0
 
     lowerRadius = upperRadius
-    upperRadius = gridRadiiInZoneI(i + 1)
-
-    call integrateProduct(3, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), rhoValues(:), tl(nn + 4))
+    upperRadius = valuedRadiiInZoneI(i + 1)
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 4))
   end do
 
 end subroutine
@@ -266,36 +240,33 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeLumpedH(nLayerInZoneI, nValue, valuedRadii, muValues, gridRadiiInZoneI, hl)
+subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, muValuesInZoneI, hl)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  integer, intent(in) :: nValue  ! Total number of values for each variable.
-  real(8), intent(in) :: valuedRadii(nValue)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: muValues(nValue)  ! Mu values at each point (with 2 values at boundaries).
-  real(8), intent(in) :: gridRadiiInZoneI(nLayerInZoneI+1)  ! Radii of grid points in zone of interest.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: muValuesInZoneI(nLayerInZoneI+1)  ! Mu values at each point (with 2 values at boundaries).
   real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   integer :: i, nn
   real(8) :: c(1), lowerRadius, upperRadius
 
-  ! Initialization
+  ! Initialize.
   c = [1.d0]
 
   do i = 1, nLayerInZoneI
-    lowerRadius = gridRadiiInZoneI(i)
-    upperRadius = (gridRadiiInZoneI(i) + gridRadiiInZoneI(i + 1)) / 2.d0
     nn = 4 * (i - 1)
 
-    call integrateProduct(1, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), muValues(:), hl(nn + 1))
+    lowerRadius = valuedRadiiInZoneI(i)
+    upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), muValuesInZoneI(i:), hl(nn + 1))
 
     hl(nn + 2) = 0.d0
     hl(nn + 3) = 0.d0
 
     lowerRadius = upperRadius
-    upperRadius = gridRadiiInZoneI(i + 1)
-
-    call integrateProduct(1, c(:), lowerRadius, upperRadius, nValue, valuedRadii(:), muValues(:), hl(nn + 4))
+    upperRadius = valuedRadiiInZoneI(i + 1)
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), muValuesInZoneI(i:), hl(nn + 4))
   end do
 
 end subroutine
@@ -384,20 +355,24 @@ end subroutine
 !------------------------------------------------------------------------
 ! Assembling the coefficient matrix 'A' in the solid part from several parts.
 !------------------------------------------------------------------------
-subroutine assembleA(nGrid, l, a0, a2, a)
+subroutine assembleA(nGrid, largeL2, a0, a2, a)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
-  integer, intent(in) :: l  ! Angular order.
+  real(8), intent(in) :: largeL2  ! L^2.
   complex(8), intent(in) :: a0(2,nGrid), a2(2,nGrid)  ! Parts of the A matrix, in diagonal and subdiagonal component format.
   complex(8), intent(out) :: a(2,nGrid)  ! Assembled A matrix.
-  integer :: i, j
+  integer :: iGrid
+  complex(8) :: largeL2c
 
-  do j = 1, nGrid
-    do i = 1, 2
-      a(i, j) = a0(i, j) + dcmplx(l * (l + 1)) * a2(i, j)
-    end do
+  ! This is changed to complex beforehand to reduce computation amount inside loop.
+  largeL2c = dcmplx(largeL2)
+
+  do iGrid = 1, nGrid
+    ! A = A0 + L^2 A2.
+    a(1, iGrid) = a0(1, iGrid) + largeL2c * a2(1, iGrid)
+    a(2, iGrid) = a0(2, iGrid) + largeL2c * a2(2, iGrid)
   end do
 
 end subroutine
@@ -408,12 +383,12 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA(nLayerInZoneI, omega, omegaI, l, t, h1, h2, h3, h4, coef, a)
+subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, coef, a)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  integer, intent(in) :: l  ! Angular order.
+  real(8), intent(in) :: largeL2  ! Angular order.
   real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
@@ -421,16 +396,20 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, l, t, h1, h2, h3, h4, coef, a)
   complex(8), intent(in) :: coef
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
-  real(8) :: h
+  real(8) :: h, largeL2m2
   integer :: i
 
-  ! introduce artificial damping into angular frequency (See section 5.1 of Geller & Ohminato 1994.)
+  ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
   omegaDamped2 = dcmplx(omega, -omegaI) ** 2
 
+  ! L^2 - 2
+  ! This is computed beforehand to reduce computation amount inside loop.
+  largeL2m2 = largeL2 - 2.d0
+
   do i = 1, 4 * nLayerInZoneI
-    ! compute I2 - I4 - I4' + I6 + (L^2 - 2)*I7 (See eq. 19 of Kawai et al. 2006.)
-    h = h1(i) - h2(i) + h3(i) + dble(l * (l + 1) - 2) * h4(i)
-    ! compute (omega^2 T - H) (See eq. 2 of Kawai et al. 2006.)
+    ! I2 - I4 - I4' + I6 + (L^2 - 2)*I7. (See eq. 19 of Kawai et al. 2006.)
+    h = h1(i) - h2(i) + h3(i) + largeL2m2 * h4(i)
+    ! omega^2 T - H. (See eq. 2 of Kawai et al. 2006.)
     a(i) = omegaDamped2 * dcmplx(t(i)) - coef * dcmplx(h)
   end do
 
@@ -492,7 +471,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   real(8) :: ier
 
   ! Initialize.
-  call initComplexVector(3, gS_or_cS(:))
+  gS_or_cS(:) = dcmplx(0.d0, 0.d0)
   dd = dcmplx(0.d0, 0.d0)
   eps = -1.d0
 
@@ -504,9 +483,9 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   end if
 
   if (abs(m) == 1) then
-    ! b1 in eq. (26) of Kawai et al. (2006)
-    b = sqrt((2 * l + 1) / (16.d0 * pi))
-    ! D3 of eq. (26) of Kawai et al. (2006)
+    ! b1 in eq. (26) of Kawai et al. (2006).
+    b = sqrt(dble(2 * l + 1) / (16.d0 * pi))
+    ! D3 of eq. (26) of Kawai et al. (2006).
     dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * coef)
 
     !TODO ??
@@ -515,9 +494,10 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
     end do
 
   else if (abs(m) == 2) then
-    ! b2 in eq. (27) of Kawai et al. (2006)
-    b = sqrt((2 * l + 1) * (l - 1) * (l + 2) / (64.d0 * pi))
-    ! -1 * gk3 of eq. (27) of Kawai et al. (2006)
+    ! b2 in eq. (27) of Kawai et al. (2006).
+    ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
+    b = sqrt(dble(2 * l + 1) * dble(l - 1) * dble(l + 2) / (64.d0 * pi))
+    ! -1 * gk3 of eq. (27) of Kawai et al. (2006).
     gS_or_cS(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgnM * (mt(2, 2) - mt(3, 3)))
   end if
 

@@ -172,10 +172,13 @@ c computing of the number and the location of grid points
           call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
      &        iimax,1,tlen,
      &        vmin,gridpar,dzpar )
+          write(*, *) 'iimax, tlen:', iimax, tlen  !TODO erase
           call calra ( maxnlay,maxnzone,
      &        nnlayer,
      &        gridpar,dzpar,nzone,vrmin,vrmax,
      &        rmin,rmax,nlayer,ra,re )
+          write(*, *) 'nnlayer:', nnlayer  !TODO erase
+          write(*, *) 'nlayer:', nlayer(1:nzone)  !TODO erase
 c --- checking the parameter
           if (nnlayer .gt. maxnlay)
      &        stop 'The number of grid points is too large.'
@@ -303,6 +306,7 @@ c
                     do jj = 1,nn  ! sum up c of the same l
                       tmpr(jj) = tmpr(jj) + cdabs(g(jj))
                     enddo
+
                   else
                     if ((m .eq. -2) .or. (m .eq. -l)) then
                       call dclisb( a(1,kc),nn-kc+1,1,lda,ns-kc+1
@@ -321,6 +325,7 @@ c
                 endif
               enddo  ! m-loop
             enddo  ! l-loop
+            write(*, *) 'ltmp:', ltmp(ii), ii  !TODO erase
           enddo  ! omega-loop
           iimax = dble(max(ltmp(1),ltmp(2))) * tlen / lmaxdivf
         endif  ! option for shallow events
@@ -330,7 +335,6 @@ c computing of the number and the location of grid points
      &         iimax,1,tlen,
      &         vmin,gridpar,dzpar )
         write(*, *) 'iimax, tlen:', iimax, tlen  !TODO erase
-        write(*, *) 'dzpar:', dzpar(1:nzone)  !TODO erase
 
         call calra ( maxnlay,maxnzone,
      &         nnlayer,
@@ -338,7 +342,6 @@ c computing of the number and the location of grid points
      &         rmin,rmax,nlayer,ra,re )
         write(*, *) 'nnlayer:', nnlayer  !TODO erase
         write(*, *) 'nlayer:', nlayer(1:nzone)  !TODO erase
-        write(*, *) 'ra(1), ra(nnlayer+1):', ra(1), ra(nnlayer+1)  !TODO erase
 
 
 c --- checking the parameter
@@ -346,38 +349,23 @@ c --- checking the parameter
      &      stop 'The number of grid points is too large.'
 c computing the stack points
         call calsp( ndc,nlayer,isp,jsp )
-        write(*, *) 'isp:', isp(1:nzone)  !TODO erase
-        write(*, *) 'jsp:', jsp(1:nzone)  !TODO erase
 
 c computing the source location
         call calspo( ndc,vrmax,nnlayer,r0,rmin,rmax,ra,
      &         isp,spo,spn )
-        write(*, *) 'spo,spn:', spo,spn  !TODO erase
 
 c computing grids for source computations
         call calgra( isp,ra,r0,spn,spo,gra )
-        write(*, *) 'gra:', gra(1:3)  !TODO erase
 
 c ******************* Computing the matrix elements *******************
 c computing the structure grid points
         call calstg( nzone,rrho,vsv,vsh,
      &         nnlayer,nlayer,ra,rmax,
      &         vnp,vra,rho,ecL,ecN)
-        write(*, *) '----------'  !TODO erase
-        write(*, *) 'vnp:', vnp  !TODO erase
-        write(*, *) 'vra:', vra(1:3), vra(vnp-2:vnp)  !TODO erase
-        write(*, *) 'rho:', rho(1:3), rho(vnp-2:vnp)  !TODO erase
-        write(*, *) 'ecL:', ecL(1:3), ecL(vnp-2:vnp)  !TODO erase
-        write(*, *) 'ecN:', ecN(1:3), ecN(vnp-2:vnp)  !TODO erase
 
 
         call calgstg( spn,rrho,vsv,vsh,
      &         gra,gvra,rmax,grho,gecL,gecN,r0,mu0 )
-        write(*, *) 'gvra:', gvra  !TODO erase
-        write(*, *) 'grho:', grho  !TODO erase
-        write(*, *) 'gecL:', gecL  !TODO erase
-        write(*, *) 'gecN:', gecN  !TODO erase
-        write(*, *) 'mu0:', mu0  !TODO erase
 
         do i=1,ndc+1
           call calmatc( nlayer(i),vnp,vra,rho,2,0,0,

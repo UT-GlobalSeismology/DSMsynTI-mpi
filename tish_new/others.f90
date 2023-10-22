@@ -4,7 +4,7 @@
 ! The input is temporarily written in a work file, excluding the comments.
 ! Then, that temporary file is read in.
 !------------------------------------------------------------------------
-subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, imin, imax, &
+subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
   nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
   r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
 !------------------------------------------------------------------------
@@ -17,7 +17,7 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   real(8), intent(out) :: re  ! Desired relative error due to vertical gridding.
   real(8), intent(out) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8), intent(out) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8), intent(out) :: omegai  ! omegai
+  real(8), intent(out) :: omegaI  ! Imaginary part of angular frequency for artificial damping.
   integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
   integer, intent(out) :: nZone  ! Number of zones.
   real(8), intent(out) :: rminOfZone(*), rmaxOfZone(*)  ! Lower and upper radii of each zone.
@@ -54,8 +54,8 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegai, i
   read(11,*) re      ! relative error (vertical grid)
   read(11,*) ratc    ! ampratio (vertical grid cut-off)
   read(11,*) ratl    ! ampratio (for l-cutoff)
-  read(11,*) omegai  ! omegai
-  omegai = -log(omegai) / tlen
+  read(11,*) omegaI  ! omegai
+  omegaI = -log(omegaI) / tlen
   read(11,*) imin, imax  ! index of minimum and maximum frequency
 
   ! earth structure
@@ -282,21 +282,24 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the indices of the first grid point and the first (iLayer, k', k)-pair in each zone.
 !------------------------------------------------------------------------
-subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oRowOfZone)
+subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oValueOfZone, oRowOfZone)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
+  integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
   integer :: i
 
   oGridOfZone(1) = 1
+  oValueOfZone(1) = 1
   oRowOfZone(1) = 1
   do i = 1, nZone - 1
-    oGridOfZone(i+1) = oGridOfZone(i) + nLayerInZone(i)
-    oRowOfZone(i+1) = oRowOfZone(i) + 4 * nLayerInZone(i)
+    oGridOfZone(i + 1) = oGridOfZone(i) + nLayerInZone(i)
+    oValueOfZone(i + 1) = oValueOfZone(i) + nLayerInZone(i) + 1
+    oRowOfZone(i + 1) = oRowOfZone(i) + 4 * nLayerInZone(i)
   end do
 
 end subroutine
@@ -305,29 +308,28 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the source position.
 !------------------------------------------------------------------------
-subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, r0, iZoneOfSource, iLayerOfSource)
+subroutine computeSourcePosition(nGrid, rmaxOfZone, rmin, rmax, gridRadii, r0, iZoneOfSource, iLayerOfSource)
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: nLayer  ! Total number of layers.
+  integer, intent(in) :: nGrid  ! Total number of grid points.
   real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone.
   real(8), intent(in) :: rmin, rmax  ! Minimum and maximum radii of region considered.
   real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
   real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
-  integer :: iLayer  ! Index of layer. (1 at rmin, nLayer+1 at rmax.)
-  real(8) :: xLayerOfSource  ! A double-value index of source position. (0 at rmin, nLayer at rmax.)
+  integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
+  real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
 
   ! Check input parameter.
-  if (r0 < rmin .or. rmax < r0) stop 'The source location is improper.(calspo)'
+  if (r0 < rmin .or. rmax < r0) stop 'The source position is improper.'
 
   ! Compute a double-value index of source position.
   if (r0 == rmax) then
-    xLayerOfSource = dble(nLayer) - 0.01d0
-    r0 = gridRadii(nLayer) + (xLayerOfSource - dble(nLayer-1)) * (gridRadii(nLayer+1) - gridRadii(nLayer))
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Note that radii(nLayer+1) = rmax.
-    !!!TODO (xLayerOfSource - dble(nLayer-1)) = 0.99d0 ?
+    ! Fix source position when it is at planet surface.
+    xLayerOfSource = dble(nGrid) - 0.01d0
+    r0 = gridRadii(nGrid) - 0.01d0 * (gridRadii(nGrid) - gridRadii(nGrid-1))
 
   else
     ! Find the layer that the source is in. (Note that the index of the lowermost layer is 1, not 0.)
@@ -338,29 +340,27 @@ subroutine computeSourcePosition(nLayer, rmaxOfZone, rmin, rmax, gridRadii, r0, 
     end do
 
     ! Compute the double-value index of source position.
-    xLayerOfSource = dble(iLayer - 1) + (r0 - gridRadii(iLayer)) / (gridRadii(iLayer + 1) - gridRadii(iLayer))
+    xLayerOfSource = dble(iLayer) + (r0 - gridRadii(iLayer)) / (gridRadii(iLayer + 1) - gridRadii(iLayer))
 
     ! Fix source position when it is too close to a grid point.
-    if ((xLayerOfSource - dble(iLayer-1)) < 0.01d0) then
-      xLayerOfSource = dble(iLayer-1) + 0.01d0
-      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))
-      !!!TODO (xLayerOfSource - dble(iLayer-1)) = 0.01d0 ?
-    elseif ((xLayerOfSource - dble(iLayer-1)) > 0.99d0) then
-      xLayerOfSource = dble(iLayer-1) + 0.99d0
-      r0 = gridRadii(iLayer) + (xLayerOfSource - dble(iLayer-1)) * (gridRadii(iLayer+1) - gridRadii(iLayer))
-      !!!TODO (xLayerOfSource - dble(iLayer-1)) = 0.99d0 ?
+    if ((xLayerOfSource - dble(iLayer)) < 0.01d0) then
+      xLayerOfSource = dble(iLayer) + 0.01d0
+      r0 = gridRadii(iLayer) + 0.01d0 * (gridRadii(iLayer + 1) - gridRadii(iLayer))
+    elseif ((xLayerOfSource - dble(iLayer)) > 0.99d0) then
+      xLayerOfSource = dble(iLayer) + 0.99d0
+      r0 = gridRadii(iLayer) + 0.99d0 * (gridRadii(iLayer + 1) - gridRadii(iLayer))
     end if
   end if
 
   ! Find the zone that the source is in.
   iZoneOfSource = 1
   do
-    if (r0 <= rmaxOfZone(iZoneOfSource)) exit
+    if (r0 < rmaxOfZone(iZoneOfSource)) exit
     iZoneOfSource = iZoneOfSource + 1
   end do
 
   ! Find the layer that the source is in.
-  iLayerOfSource = int(xLayerOfSource) + 1  ! Note that int(x) rounds down the value x.
+  iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
 
 end subroutine
 
@@ -463,46 +463,6 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
   end do
 
   mu0 = ecLValuesForSource(2)
-
-end subroutine
-
-
-!------------------------------------------------------------------------
-! Initialize complex vector of size n with zeros.
-!------------------------------------------------------------------------
-subroutine initComplexVector(n, b)
-!------------------------------------------------------------------------
-  implicit none
-
-  integer, intent(in) :: n
-  complex(8), intent(out) :: b(n)
-  integer :: i
-
-  ! Initialize vector 'b' with zeros.
-  do i = 1, n
-    b(i) = dcmplx(0.0d0, 0.0d0)
-  end do
-
-end subroutine
-
-
-!------------------------------------------------------------------------
-! Initialize complex matrix of shape (n1, n2) with zeros.
-!------------------------------------------------------------------------
-subroutine initComplexMatrix(n1, n2, a)
-!------------------------------------------------------------------------
-  implicit none
-
-  integer, intent(in) :: n1, n2
-  complex(8), intent(out) :: a(n1, n2)
-  integer :: i, j
-
-  ! Initialize matrix 'a' with zeros.
-  do j = 1, n2
-    do i = 1, n1
-      a(i, j) = dcmplx(0.d0, 0.d0)
-    end do
-  end do
 
 end subroutine
 
@@ -628,7 +588,7 @@ subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
 
   ! Increment the counter if amplitude ratio is smaller than its threshold and l has surpassed the accuracy threshold.
   !  Reset the counter otherwise.
-  if (ampratio < ratl .and. l > lsuf) then
+  if (l > lsuf .and. ampratio < ratl) then
     decayCounter = decayCounter + 1
   else
     decayCounter = 0
@@ -643,23 +603,23 @@ end subroutine
 ! The trial function is specified by (k=k_max (at surface of planet), l, m, 3 (the T spherical harmonic)).
 ! (See eqs. 12 & 13 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeU(c0, l, trialFunctionValues, u)
+subroutine computeU(c0, largeL2, trialFunctionValues, u)
 !------------------------------------------------------------------------
   implicit none
 
   complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function (k=k_max, l, m, 3).
-  integer, intent(in) :: l  ! Angular order.
+  real(8), intent(in) :: largeL2  ! Angular order.
   complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
   complex(8), intent(inout) :: u(3)
-  real(8) :: largeL
+  complex(8) :: largeLc
 
-  ! Compute largeL. (See the part after eq. 12 of Kawai et al. 2006.)
-  largeL = sqrt(dble(l * (l + 1)))
+  ! Compute L.
+  largeLc = dcmplx(sqrt(largeL2))
 
   ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
   ! The coefficient 1/largeL is not included in the trial function term, so is multiplied here. (See eq. 12 of Kawai et al. 2006.)
   u(1) = dcmplx(0.d0, 0.d0)
-  u(2) = u(2) + c0 * trialFunctionValues(2) / dcmplx(largeL, 0.d0)
-  u(3) = u(3) + c0 * trialFunctionValues(3) / dcmplx(largeL, 0.d0)
+  u(2) = u(2) + c0 * trialFunctionValues(2) / largeLc
+  u(3) = u(3) + c0 * trialFunctionValues(3) / largeLc
 
 end subroutine

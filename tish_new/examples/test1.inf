@@ -50,7 +50,7 @@ c                      ---   Vsh     (km/s) ---      - Qmu -
                        3.2000   0.0000   0.0000   0.0000  600.0
 c 
 c parameter for the source
-   5771.1   -22.49 -68.09 r0(km), lat, lon (deg)
+   6275.0   -22.49 -68.09 r0(km), lat, lon (deg)
    0.0 1.0 0.0 0.0 0.0 0.0   mt (Mrr, Mrt, Mrp, Mtt, Mtp, Mpp) (1.e25 dyne cm)
 c parameter for the station
    2   nr
