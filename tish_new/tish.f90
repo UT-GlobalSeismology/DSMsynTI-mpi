@@ -95,7 +95,7 @@ program tish
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries).
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries).
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: coef(maxNZone)
+  complex(8) :: coef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
@@ -328,12 +328,13 @@ program tish
         a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
         aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
         ! Clear the amplitude accumulated for all m's.
-        amplitudeAtGrid(:nGrid) = 0.d0
+        if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
         ! Assemble A matrix from parts that have already been computed.
         call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
 
-        ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
+        ! Compute UNASSEMBLED A matrix in layer with source.
+        ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
         call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
           h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
 
@@ -348,7 +349,7 @@ program tish
           g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
           ! Computate excitation vector g.
-          call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
+          call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
             gdr(:), g_or_c(:))
 
           if (mod(l, 100) == 0) then
@@ -358,10 +359,10 @@ program tish
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
             if (m == -2 .or. m == -l) then
               ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-              call dclisb0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
+              call solveWholeCFromStart(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
             else
               ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-              call dcsbsub0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
+              call solveWholeCFromMiddle(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
             end if
 
             ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
@@ -375,11 +376,11 @@ program tish
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
             if (m == -2 .or. m == -l) then
               ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-              call dclisb(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
+              call solveC0FromStart(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
                 g_or_c(cutoffGrid:), eps, dr, z, ier)
             else
               ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-              call dcsbsub(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
+              call solveC0FromMiddle(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
                 g_or_c(cutoffGrid:), eps, dr, z, ier)
             end if
           end if
@@ -528,7 +529,7 @@ program tish
       a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
       aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
       ! Clear the amplitude accumulated for all m's.
-      amplitudeAtGrid(:nGrid) = 0.d0
+      if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
       ! Compute trial functions.
       do ir = 1, nReceiver
@@ -538,7 +539,8 @@ program tish
       ! Assemble A matrix from parts that have already been computed.
       call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
 
-      ! Compute A matrix in layer near source.   TODO: Can't part of a(:,:) be used?
+      ! Compute UNASSEMBLED A matrix in layer with source.
+      ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
       call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
         h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coef(iZoneOfSource), aaParts(:))
 
@@ -553,7 +555,7 @@ program tish
         g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
         ! Computate excitation vector g.
-        call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aSourceParts(:), aaParts(:), aSource(:,:), &
+        call computeG(l, m, iLayerOfSource, r0, mt, mu0, coef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
 
         if (mod(l, 100) == 0) then
@@ -563,10 +565,10 @@ program tish
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           if (m == -2 .or. m == -l) then
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-            call dclisb0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
+            call solveWholeCFromStart(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
           else
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-            call dcsbsub0(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
+            call solveWholeCFromMiddle(a(:,:), nGrid, 1, lda, g_or_c(:), eps, dr, z, ier)
           end if
 
           ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
@@ -580,11 +582,11 @@ program tish
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           if (m == -2 .or. m == -l) then
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-            call dclisb(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
+            call solveC0FromStart(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
               g_or_c(cutoffGrid:), eps, dr, z, ier)
           else
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-            call dcsbsub(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
+            call solveC0FromMiddle(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, lda, iLayerOfSource - cutoffGrid + 1, &
               g_or_c(cutoffGrid:), eps, dr, z, ier)
           end if
         end if

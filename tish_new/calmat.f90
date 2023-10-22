@@ -309,7 +309,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, coef, a0)
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef
+  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
   real(8) :: h
@@ -340,7 +340,7 @@ subroutine computeA2(nLayerInZoneI, h4, coef, a2)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef
+  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   integer :: i
 
@@ -360,7 +360,7 @@ subroutine assembleA(nGrid, largeL2, a0, a2, a)
   implicit none
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
-  real(8), intent(in) :: largeL2  ! L^2.
+  real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: a0(2,nGrid), a2(2,nGrid)  ! Parts of the A matrix, in diagonal and subdiagonal component format.
   complex(8), intent(out) :: a(2,nGrid)  ! Assembled A matrix.
   integer :: iGrid
@@ -388,12 +388,12 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, co
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: largeL2  ! Angular order.
+  real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
-  complex(8), intent(in) :: coef
+  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
   real(8) :: h, largeL2m2
@@ -450,7 +450,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the excitation vector g.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaParts, aSource, dr, g)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aaParts, aSourceParts, aSource, dr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -459,16 +459,16 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   integer, intent(in) :: m  ! Azimuthal order.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mu0, mt(3,3)
-  complex(8), intent(in) :: coef  !!TODO probably Coefficient derived from attenuation for each zone.
-  complex(8), intent(in) :: aSourceParts(8), aaParts(4), aSource(2,3)
+  complex(8), intent(in) :: coef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix.
+  complex(8), intent(in) :: aSource(2,3)  ! Assembled A matrix.
   complex(8), intent(inout) :: dr(3)
-  complex(8), intent(out) :: g(*)  ! The vector -g
+  complex(8), intent(out) :: g(*)  ! The vector -g.
   real(8) :: b, sgnM
   complex(8) :: dd, gS_or_cS(3)
   integer :: i
   complex(8) :: z(3)
-  real(8) :: eps
-  real(8) :: ier
+  real(8) :: eps, ier
 
   ! Initialize.
   gS_or_cS(:) = dcmplx(0.d0, 0.d0)
@@ -504,10 +504,10 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, coef, aSourceParts, aaPar
   ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
   if ((m == -2) .or. (m == -l)) then
     ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-    call dclisb0(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
+    call solveWholeCFromStart(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
   else
     ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-    call dcsbsub0(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
+    call solveWholeCFromMiddle(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
   end if
 
   ! Add displacement to c.

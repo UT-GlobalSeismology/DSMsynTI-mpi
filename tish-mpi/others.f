@@ -617,7 +617,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         implicit none
         integer nzone,nn,spn,kc,nnl(*)
 c	complex*16 tmpc(*)
-        complex*8 tmpr(*)
+        real*8 tmpr(*)
         real*8 rat,ra(*)
         integer nc
 c

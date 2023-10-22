@@ -134,9 +134,9 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
 
   ! Transform geographic latitudes [deg] to geocentric colatitudes [rad].
   call translat(iEvLat, tmp)
-  evColat = (90.d0 - tmp)/ 180.d0 * pi
+  evColat = (90.d0 - tmp) / 180.d0 * pi
   call translat(iStLat, tmp)
-  stColat = (90.d0 - tmp)/ 180.d0 * pi
+  stColat = (90.d0 - tmp) / 180.d0 * pi
 
   ! Transform longitudes from degrees to radians.
   evLon = iEvLon / 180.d0 * pi
@@ -422,8 +422,8 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
       call valueAtRadius(vsvPolynomials(:, iZone), valuedRadii(iValue), rmax, vsvTemp)
       call valueAtRadius(vshPolynomials(:, iZone), valuedRadii(iValue), rmax, vshTemp)
       rhoValues(iValue) = rhoTemp
-      ecLValues(iValue) = rhoTemp * vsvTemp * vsvTemp  !TODO vsvTemp**2.d0
-      ecNValues(iValue) = rhoTemp * vshTemp * vshTemp  !TODO vshTemp**2.d0
+      ecLValues(iValue) = rhoTemp * vsvTemp * vsvTemp
+      ecNValues(iValue) = rhoTemp * vshTemp * vshTemp
     end do
 
     iGrid = iGrid - 1
@@ -458,8 +458,8 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
     call valueAtRadius(vsvPolynomials(:, iZoneOfSource), gridRadiiForSource(i), rmax, vsvTemp)
     call valueAtRadius(vshPolynomials(:, iZoneOfSource), gridRadiiForSource(i), rmax, vshTemp)
     rhoValuesForSource(i) = rhoTemp
-    ecLValuesForSource(i) = rhoTemp * vsvTemp * vsvTemp  !TODO vsvTemp**2.d0
-    ecNValuesForSource(i) = rhoTemp * vshTemp * vshTemp  !TODO vshTemp**2.d0
+    ecLValuesForSource(i) = rhoTemp * vsvTemp * vsvTemp
+    ecNValuesForSource(i) = rhoTemp * vshTemp * vshTemp
   end do
 
   mu0 = ecLValuesForSource(2)
@@ -494,7 +494,7 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computes the coefficient based on the given input.   !!TODO probably coefficient of attenuation
+! Computes the coefficient to multiply to elastic moduli for attenuation.
 !------------------------------------------------------------------------
 subroutine computeCoef(nZone, omega, qmuOfZone, coef)
 !------------------------------------------------------------------------
@@ -504,7 +504,7 @@ subroutine computeCoef(nZone, omega, qmuOfZone, coef)
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: omega  ! Angular frequency.
   real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
-  complex(8), intent(out) :: coef(nZone)  !!TODO probably Coefficient derived from attenuation for each zone.
+  complex(8), intent(out) :: coef(nZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
   real(8) :: aa, bb
   integer :: iZone
 
@@ -516,7 +516,7 @@ subroutine computeCoef(nZone, omega, qmuOfZone, coef)
       aa = 1.d0 + log(omega / (2.d0 * pi)) / (pi * qmuOfZone(iZone))
     end if
     bb = 1.d0 / (2.d0 * qmuOfZone(iZone))
-    coef(iZone) = dcmplx(aa, bb) * dcmplx(aa, bb)
+    coef(iZone) = dcmplx(aa, bb) ** 2
   end do
 
 end subroutine
@@ -608,7 +608,7 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
   implicit none
 
   complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function (k=k_max, l, m, 3).
-  real(8), intent(in) :: largeL2  ! Angular order.
+  real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
   complex(8), intent(inout) :: u(3)
   complex(8) :: largeLc
