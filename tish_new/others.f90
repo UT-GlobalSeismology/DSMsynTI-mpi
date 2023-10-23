@@ -38,7 +38,7 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, i
   ! Write to the temporary file.
   do
     read(5,'(a80)') dummy
-    if (dummy(1:1) == 'c') cycle
+    if (dummy(1:1) == 'c' .or. dummy(1:1) == '!') cycle
     if (dummy(1:3) == 'end') exit
     write(11,'(a80)') dummy
   end do

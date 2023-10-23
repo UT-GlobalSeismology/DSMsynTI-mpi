@@ -24,6 +24,7 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 program tish
+  use FileIO
   implicit none
 
   !----------------------------<<constants>>----------------------------
@@ -166,9 +167,7 @@ program tish
   write(*, *) 'theta:', theta(1:nReceiver)  !TODO erase
   write(*, *) 'phi:', phi(1:nReceiver)  !TODO erase
 
-  if (r0 < rmin .or. r0 > rmax) then
-    stop 'Location of the source is improper.'
-  end if
+  if (r0 < rmin .or. r0 > rmax) stop 'Location of the source is improper.'
 
   if (imin == 0) imin = 1
   ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
@@ -176,32 +175,18 @@ program tish
 
 
   ! ************************** Files handling **************************
-  if (spcFormat == 0) then
-    do ir = 1, nReceiver
-      open(unit = 11, file = output(ir), status = 'unknown', &
-        form = 'unformatted', access = 'stream', convert = 'big_endian')
-      write(11) tlen
-      write(11) np, 1, 3
-      write(11) omegaI, lat(ir), lon(ir)
-      write(11) eqlat, eqlon, r0
-      close(11)
-    end do
-  else if (spcFormat == 1) then
-    do ir = 1, nReceiver
-      open(unit = 11, file = output(ir), status = 'unknown')
-      write(11, *) tlen
-      write(11, *) np, 1, 3
-      write(11, *) omegaI, lat(ir), lon(ir)
-      write(11, *) eqlat, eqlon, r0
-      close(11)
-    end do
-  else
-    write(*, *) 'WARNING:(tish.f)  set spcFormat 0 or 1'
-  end if
+  do ir = 1, nReceiver
+    call openSPCFile(output(ir), 11, spcFormat, 0)
+    call writeSPCFile(11, spcFormat, tlen)
+    call writeSPCFile(11, spcFormat, np, 1, 3)
+    call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
+    call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
+    call closeSPCFile(11)
+  end do
 
   if (ilog == 1) then
     open(unit = 11, file = 'llog.log', status = 'unknown')
-    write(11, *) 0
+    write(11, *) 'iFreq, llog, nGrid-1'
     close(11)
   end if
 
@@ -604,30 +589,17 @@ program tish
     ! Write to file when the output interval is reached, or when this is the last omega.
     if (outputCounter >= outputInterval .or. iFreq == imax) then
       write(*,*) "kakikomimasu"
-      if (spcFormat == 0) then
-        do ir = 1, nReceiver
-          open(unit=10, file=output(ir), position='append', status='unknown', &
-            form='unformatted', access='stream', convert='big_endian')
-          do iOut = 1, outputCounter
-            write(10) outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut))
-            write(10) dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut))
-            write(10) dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut))
-          end do
-          close(10)
+
+      do ir = 1, nReceiver
+        call openSPCFile(output(ir), 11, spcFormat, 1)
+        do iOut = 1, outputCounter
+          call writeSPCFile(11, spcFormat, outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut)))
+          call writeSPCFile(11, spcFormat, dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut)))
+          call writeSPCFile(11, spcFormat, dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut)))
         end do
-      else if (spcFormat == 1) then
-        do ir = 1, nReceiver
-          open(unit=10, file=output(ir), position='append', status='unknown')
-          do iOut = 1, outputCounter
-            write(10,*) outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut))
-            write(10,*) dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut))
-            write(10,*) dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut))
-          end do
-          close(10)
-        end do
-      else
-        write(*,*) "WARNING: set spcFormat 0 or 1"
-      end if
+        call closeSPCFile(11)
+      end do
+
       outputCounter = 0
     end if
 
