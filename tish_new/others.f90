@@ -6,28 +6,29 @@
 !------------------------------------------------------------------------
 subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
   nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
-  r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
+  r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
 !------------------------------------------------------------------------
   implicit none
   character(len=80), parameter :: tmpfile = 'workSH.txt'
 
   integer, intent(in) :: maxNZone, maxNReceiver  ! Maximum number of zones and receivers.
-  real(8), intent(out) :: tlen  ! Time length.
+  real(8), intent(out) :: tlen  ! Time length [s].
   integer, intent(out) :: np  ! Number of points in frequency domain.
   real(8), intent(out) :: re  ! Desired relative error due to vertical gridding.
   real(8), intent(out) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8), intent(out) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8), intent(out) :: omegaI  ! Imaginary part of angular frequency for artificial damping.
+  real(8), intent(out) :: omegaI  ! Imaginary part of angular frequency for artificial damping [1/s].
   integer, intent(out) :: imin, imax  ! Index of minimum and maximum frequency.
   integer, intent(out) :: nZone  ! Number of zones.
-  real(8), intent(out) :: rminOfZone(*), rmaxOfZone(*)  ! Lower and upper radii of each zone.
+  real(8), intent(out) :: rminOfZone(*), rmaxOfZone(*)  ! Lower and upper radii of each zone [km].
   real(8), intent(out) :: rhoPolynomials(4,*), vsvPolynomials(4,*), vshPolynomials(4,*)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vsv, and vsh [km/s] structure.
   real(8), intent(out) :: qmuOfZone(*)  ! Qmu of each zone.
+  real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
   integer, intent(out) :: nReceiver  ! Number of receivers.
-  real(8), intent(out) :: r0, eqlat, eqlon, mt(3,3)
-  real(8), intent(out) :: theta(*), phi(*), lat(*), lon(*)
-  character(len=80), intent(out) :: output(*)
+  real(8), intent(out) :: lat(*), lon(*)  ! Coordinates [deg] of receivers.
+  real(8), intent(out) :: theta(*), phi(*)  ! Distance and azimuth [rad] of arc.
+  character(len=80), intent(out) :: output(*)  ! Output file names.
 
   integer :: i
   character(len=80) :: dummy
@@ -54,8 +55,8 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, i
   read(11,*) re      ! relative error (vertical grid)
   read(11,*) ratc    ! ampratio (vertical grid cut-off)
   read(11,*) ratl    ! ampratio (for l-cutoff)
-  read(11,*) omegaI  ! omegai
-  omegaI = -log(omegaI) / tlen
+  read(11,*) omegaI  ! adamp (for artificial damping)
+  omegaI = -log(omegaI) / tlen  ! omegai [1/s]
   read(11,*) imin, imax  ! index of minimum and maximum frequency
 
   ! earth structure
@@ -100,8 +101,8 @@ subroutine translat(geodetic, geocentric)
   real(8), parameter :: flattening = 1.d0 / 298.25d0
   real(8), parameter :: pi = 3.1415926535897932d0
 
-  real(8), intent(in) :: geodetic  ! Input geodetic latitude.
-  real(8), intent(out) :: geocentric  ! Output geocentric latitude.
+  real(8), intent(in) :: geodetic  ! Input geodetic latitude [deg].
+  real(8), intent(out) :: geocentric  ! Output geocentric latitude [deg].
   real(8) :: latitude  ! Latitude variable for use in computation.
 
   if (geodetic < -90.d0 .or. 90.d0 < geodetic) stop 'Latitude is out of range. (pinput)'
@@ -125,9 +126,9 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
-  real(8), intent(in) :: iEvLat, iEvLon, iStLat, iStLon  ! Input latitudes and longitudes of source and receiver (in degrees).
-  real(8) :: evColat, evLon, stColat, stLon  ! Colatitudes and longitudes of source and receiver (in radians).
-  real(8), intent(out) :: theta, phi  ! Resulting distance and azimuth.
+  real(8), intent(in) :: iEvLat, iEvLon, iStLat, iStLon  ! Input latitudes and longitudes of source and receiver [deg].
+  real(8), intent(out) :: theta, phi  ! Resulting distance and azimuth [rad].
+  real(8) :: evColat, evLon, stColat, stLon  ! Colatitudes and longitudes of source and receiver [rad].
   real(8) :: gcarc, azimuth
   real(8) :: cosAzimuth, sinAzimuth
   real(8) :: tmp
@@ -152,21 +153,21 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
 
   ! radians to degrees
   theta = gcarc
-  phi = (180.d0 - azimuth*180.d0/pi)/180.d0*pi  !!TODO  pi - azimuth
+  phi = pi - azimuth
   return
 end subroutine
 
 
 !------------------------------------------------------------------------
-! Function to compute a + bx + cx^2 + dx^3, where x = r/R
+! Function to compute a + bx + cx^2 + dx^3, where x = r/R.
 !------------------------------------------------------------------------
 subroutine valueAtRadius(coefficients, radius, rmax, result)
 !------------------------------------------------------------------------
   implicit none
 
   real(8), intent(in) :: coefficients(4)  ! Coefficients of cubic function. [a, b, c, d] in a + bx + cx^2 + dx^3.
-  real(8), intent(in) :: radius  ! r : The radius to compute the value at.
-  real(8), intent(in) :: rmax  ! R: Maximum radius of region considered.
+  real(8), intent(in) :: radius  ! r : The radius to compute the value at [km].
+  real(8), intent(in) :: rmax  ! R: Maximum radius of region considered [km].
   real(8), intent(out) :: result
   integer :: j
   real(8) :: x_n  ! Power of x = r/R.
@@ -195,28 +196,28 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: imax  ! Index of maximum frequency.
   integer, intent(in) :: lmin  ! Smallest angular order l.
-  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone.
-  real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure.
-  real(8), intent(in) :: rmax  ! Maximum radius of region considered.
-  real(8), intent(in) :: tlen  ! Time length.
-  real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone.
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
+  real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
+  real(8), intent(in) :: tlen  ! Time length [s].
+  real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone [1/km].
   integer :: iZone
   real(8) :: v(4), vs1, vs2, vmin, omega, kx, kz2
 
   do iZone = 1, nZone
     v(:) = vsPolynomials(:, iZone)
-    ! Compute Vs at bottom (vs1) and top (vs2) of zone.
+    ! Compute Vs [km/s] at bottom (vs1) and top (vs2) of zone.
     call valueAtRadius(v, rminOfZone(iZone), rmax, vs1)
     call valueAtRadius(v, rmaxOfZone(iZone), rmax, vs2)
-    ! Get smaller Vs value. (This is to get larger k_z value.)
+    ! Get smaller Vs value [km/s]. (This is to get larger k_z value.)
     vmin = min(vs1, vs2)
-    ! largest omega (This is to get larger k_z value.)
+    ! largest omega [1/s] (This is to get larger k_z value.)
     omega = 2.d0 * pi * dble(imax) / tlen
-    ! smallest k_x (See eq. 30 of Kawai et al. 2006.) (This is to get larger k_z value.)
+    ! smallest k_x [1/km] (See eq. 30 of Kawai et al. 2006.) (This is to get larger k_z value.)
     kx = (dble(lmin) + 0.5d0) / rmaxOfZone(iZone)
-    ! k_z^2 (See eq. 32 of Kawai et al. 2006.)
+    ! k_z^2 [1/km^2] (See eq. 32 of Kawai et al. 2006.)
     kz2 = (omega ** 2) / (vmin ** 2) - (kx ** 2)
-    ! k_z (When it is not real, it is set to 0.)
+    ! k_z [1/km] (When it is not real, it is set to 0.)
     if (kz2 > 0.d0) then
       kzAtZone(iZone) = sqrt(kz2)
     else
@@ -237,13 +238,13 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone.
-  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone.
-  real(8), intent(in) :: rmin  ! Minimum radius of region considered.
+  real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone [1/km].
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
+  real(8), intent(in) :: rmin  ! Minimum radius of region considered [km].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
   integer, intent(out) :: nLayerInZone(nZone)  ! Number of layers in each zone.
-  real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point.
+  real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point [km].
   integer :: iZone, iGrid, i, nTemp
   real(8) :: rh
 
@@ -251,7 +252,7 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
   iGrid = 1
   gridRadii(1) = rmin
   do iZone = 1, nZone
-    ! zone thickness
+    ! zone thickness [km]
     rh = rmaxOfZone(iZone) - rminOfZone(iZone)
     ! Decide the number of layers in this zone.
     if (kzAtZone(iZone) == 0.d0) then
@@ -265,7 +266,7 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
       nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
     end if
     nLayerInZone(iZone) = max(nTemp, 5)
-    ! Compute radius at each grid point.
+    ! Compute radius at each grid point [km].
     do i = 1, nLayerInZone(iZone)
       iGrid = iGrid + 1
       gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
@@ -308,25 +309,21 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the source position.
 !------------------------------------------------------------------------
-subroutine computeSourcePosition(nGrid, rmaxOfZone, rmin, rmax, gridRadii, r0, iZoneOfSource, iLayerOfSource)
+subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
-  real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone.
-  real(8), intent(in) :: rmin, rmax  ! Minimum and maximum radii of region considered.
-  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
-  real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine.
+  real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone [km].
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
+  real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine [km].
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
   integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
 
-  ! Check input parameter.
-  if (r0 < rmin .or. rmax < r0) stop 'The source position is improper.'
-
   ! Compute a double-value index of source position.
-  if (r0 == rmax) then
+  if (r0 >= gridRadii(nGrid)) then
     ! Fix source position when it is at planet surface.
     xLayerOfSource = dble(nGrid) - 0.01d0
     r0 = gridRadii(nGrid) - 0.01d0 * (gridRadii(nGrid) - gridRadii(nGrid-1))
@@ -372,10 +369,10 @@ subroutine computeSourceGrid(gridRadii, r0, iLayerOfSource, gridRadiiForSource)
 !------------------------------------------------------------------------
   implicit none
 
-  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
-  real(8), intent(in) :: r0  ! Input source radius.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
+  real(8), intent(in) :: r0  ! Input source radius [km].
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
-  real(8), intent(out) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
+  real(8), intent(out) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
 
   ! Assign grid radii.
   gridRadiiForSource(1) = gridRadii(iLayerOfSource)  ! radius of bottom of layer
@@ -394,15 +391,15 @@ subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, v
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: rmax  ! Maximum radius of region considered.
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   real(8), intent(in) :: rhoPolynomials(4,nZone), vsvPolynomials(4,nZone), vshPolynomials(4,nZone)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
-  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vsv, and vsh [km/s] structure.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
   integer, intent(out) :: nValue  ! Total number of values for each variable.
-  real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value.
-  real(8), intent(out) :: rhoValues(*), ecLValues(*), ecNValues(*)  ! Values of rho, L, and N at each point
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: (with 2 values at boundaries).
+  real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value [km].
+  real(8), intent(out) :: rhoValues(*), ecLValues(*), ecNValues(*)  ! Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa]
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: iZone, iLayer, iValue, iGrid
 
@@ -438,20 +435,22 @@ end subroutine
 ! Computing variable values near the source.
 !------------------------------------------------------------------------
 subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, gridRadiiForSource, &
-  rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, mu0)
+  rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
-  real(8), intent(in) :: rmax  ! Maximum radius of region considered.
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
   real(8), intent(in) :: rhoPolynomials(4,*), vsvPolynomials(4,*), vshPolynomials(4,*)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho, vsv, and vsh structure.
-  real(8), intent(in) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
-  real(8), intent(out) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3), mu0
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vsv, and vsh [km/s] structure.
+  real(8), intent(in) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
+  real(8), intent(out) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::  Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa] at each point.
+  real(8), intent(out) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
   real(8) :: rhoTemp, vsvTemp, vshTemp
   integer :: i
 
-  ! Compute the structure grid points.
+  ! Compute variable values at grid points.
   do i = 1, 3
     ! Evaluate the density and elastic constants at this point.
     call valueAtRadius(rhoPolynomials(:, iZoneOfSource), gridRadiiForSource(i), rmax, rhoTemp)
@@ -462,7 +461,8 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
     ecNValuesForSource(i) = rhoTemp * vshTemp * vshTemp
   end do
 
-  mu0 = ecLValuesForSource(2)
+  ! Record the value of L at source position.
+  ecL0 = ecLValuesForSource(2)
 
 end subroutine
 
@@ -478,12 +478,12 @@ subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
 
   real(8), intent(in) :: omega  ! Angular frequency.
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone.
-  real(8), intent(in) :: vsvPolynomials(4,nZone)  ! Polynomial functions of vsv structure.
+  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone [km].
+  real(8), intent(in) :: vsvPolynomials(4,nZone)  ! Polynomial functions of vsv structure [km/s].
   integer, intent(out) :: lsuf  ! Accuracy threshold of angular order.
   real(8) :: vsAtSurface
 
-  ! Compute Vs at planet surface.
+  ! Compute Vs at planet surface [km/s].
   call valueAtRadius(vsvPolynomials(:, nZone), 1.d0, 1.d0, vsAtSurface)
 
   ! Compute lsuf. (See eq. 29 of Kawai et al. 2006.)
@@ -493,7 +493,7 @@ subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
 end subroutine
 
 
-!------------------------------------------------------------------------
+!------------------------------------------------------------------------  !!TODO understand
 ! Computes the coefficient to multiply to elastic moduli for attenuation.
 !------------------------------------------------------------------------
 subroutine computeCoef(nZone, omega, qmuOfZone, qCoef)
@@ -502,7 +502,7 @@ subroutine computeCoef(nZone, omega, qmuOfZone, qCoef)
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: nZone  ! Number of zones.
-  real(8), intent(in) :: omega  ! Angular frequency.
+  real(8), intent(in) :: omega  ! Angular frequency [1/s].
   real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
   complex(8), intent(out) :: qCoef(nZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
   real(8) :: aa, bb
@@ -531,7 +531,7 @@ subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
   implicit none
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
-  real(8), intent(in) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point.
+  real(8), intent(in) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point [km].
   real(8), intent(in) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   integer, intent(out) :: cutoffGrid  ! Index of grid at cut-off depth.
   real(8) :: amplitudeThreshold
@@ -566,11 +566,11 @@ subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
 !------------------------------------------------------------------------
   implicit none
 
-  complex(8), intent(in) :: c0  ! Expansion coefficient at topmost grid.
+  complex(8), intent(in) :: c0  ! Expansion coefficient at topmost grid [km].
   integer, intent(in) :: l  ! Angular order.
   integer, intent(in) :: lsuf  ! Accuracy threshold of angular order.
   real(8), intent(in) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8), intent(inout) :: recordAmplitude  ! Maximum amplitude encountered, updated if the current amplitude is larger.
+  real(8), intent(inout) :: recordAmplitude  ! Maximum amplitude encountered, updated if the current amplitude is larger [km].
   integer, intent(inout) :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   real(8) :: amp, ampratio
 
@@ -607,10 +607,10 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
 !------------------------------------------------------------------------
   implicit none
 
-  complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function (k=k_max, l, m, 3).
+  complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
-  complex(8), intent(inout) :: u(3)
+  complex(8), intent(inout) :: u(3)  ! Displacement [km].
   complex(8) :: largeLc
 
   ! Compute L.

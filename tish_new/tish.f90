@@ -33,68 +33,70 @@ program tish
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
-  real(8), parameter :: lmaxdivf = 2.d4
-  real(8), parameter :: shallowdepth = 100.d0
+  real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
+  real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
   integer, parameter :: ilog = 1
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
-  real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled.
-  real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone.
-  real(8) :: rhoPolynomials(4, maxNZone)  ! Rho of each zone (coefficients of cubic function).
-  real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function).
-  real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function).
+  real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled [km].
+  real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone [km].
+  real(8) :: rhoPolynomials(4, maxNZone)  ! Rho of each zone (coefficients of cubic function) [g/cm^3].
+  real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function) [km/s].
+  real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function) [km/s].
   real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
   integer :: i
 
   ! Variables for the source
-  real(8) :: r0, mt(3, 3), eqlat, eqlon, mu0
+  real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
+  real(8) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
 
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
-  real(8) :: theta(maxNReceiver), phi(maxNReceiver)
-  real(8) :: lat(maxNReceiver), lon(maxNReceiver)
+  real(8) :: lat(maxNReceiver), lon(maxNReceiver)  ! Coordinates [deg] of receivers.
+  real(8) :: theta(maxNReceiver), phi(maxNReceiver)  ! Distance and azimuth [rad] of arc.
   integer :: ir
 
   ! Variables for the periodic range
-  real(8) :: tlen  ! Time length.
+  real(8) :: tlen  ! Time length [s].
   integer :: np  ! Number of points in frequency domain.
-  real(8) :: omega  ! Angular frequency (real part).
-  real(8) :: omegaI  ! Imaginary part of angular frequency for artificial damping. (See section 5.1 of Geller & Ohminato 1994.)
+  real(8) :: omega  ! Angular frequency (real part) [1/s].
+  real(8) :: omegaI  ! Imaginary part of angular frequency for artificial damping [1/s].
+  !:::::::::::::::::::::::::::::::::::::::: (See section 5.1 of Geller & Ohminato 1994.)
   integer :: imin, imax  ! Index of minimum and maximum frequency.
   integer :: iFreq, iCount
   integer :: ltmp(2), imaxFixed
 
   ! Variables for grid spacing and cut-off
-  real(8) :: kzAtZone(maxNZone)  ! Vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
+  real(8) :: kzAtZone(maxNZone)  ! Vertical wavenumber k_z at each zone [1/km]. (See section 3.2 of Kawai et al. 2006.)
   real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
   real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8) :: amplitudeAtGrid(maxNGrid)  ! Estimate of the amplitude at each grid point, used for vertical grid cut-off.
+  real(8) :: amplitudeAtGrid(maxNGrid)  ! Estimate of the amplitude at each grid point [km], used for vertical grid cut-off.
   integer :: cutoffGrid  ! Index of grid at cut-off depth.
   integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
-  real(8) :: recordAmplitude    ! Maximum amplitude encountered, used for angular order cut-off.
+  real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
   integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   integer :: llog
 
   ! Variables for the vertical grid
   integer :: nGrid  ! Total number of grid points.
-  real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point.
+  real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
   integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
-  real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations.
+  real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer :: iZoneOfSource  ! Which zone the source is in.
   integer :: iLayerOfSource  ! Index of layer that the source is in.
 
   ! Variables for the values
   integer :: nValue  ! Total number of values.
-  real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value.
+  real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value [km].
   integer :: oValueOfZone(maxNZone)  ! Index of the first value in each zone.
-  real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries).
-  real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries).
-  real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries).
+  real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries) [g/cm^3].
+  real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
   complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
 
@@ -117,8 +119,8 @@ program tish
   complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
-  complex(8) :: g_or_c(maxNGrid)  ! This holds either the vector g or c, depending on where in the code it is (CAUTION!).
-  complex(8) :: u(3, maxNReceiver)
+  complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
+  complex(8) :: u(3, maxNReceiver)  ! Displacement [km].
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -149,7 +151,12 @@ program tish
   ! --- read parameters ---
   call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
     nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
-    r0, eqlat, eqlon, mt, nReceiver, theta, phi, lat, lon, output)
+    r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
+
+  ! --- computing the required parameters ---
+  rmin = rminOfZone(1)
+  rmax = rmaxOfZone(nZone)
+  if (r0 < rmin .or. r0 > rmax) stop 'The source position is improper.'
 
   ! Find the amount of memory that is written in 1 omega step.
   !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
@@ -159,15 +166,6 @@ program tish
   ! Allocate arrays to store output.
   allocate(outputi(outputInterval))
   allocate(outputu(3, nReceiver, outputInterval))
-
-  ! --- computing the required parameters ---
-  rmin = rminOfZone(1)
-  rmax = rmaxOfZone(nZone)
-
-  write(*, *) 'theta:', theta(1:nReceiver)  !TODO erase
-  write(*, *) 'phi:', phi(1:nReceiver)  !TODO erase
-
-  if (r0 < rmin .or. r0 > rmax) stop 'Location of the source is improper.'
 
   if (imin == 0) imin = 1
   ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
@@ -199,7 +197,7 @@ program tish
 
     ! ******************* Computing parameters *******************
     ! Set a large value so that we can compute using fine grids for this process.
-    imaxFixed = int(tlen * 2.d0)  !!!diff
+    imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
     ! Design the number and position of grid points.
     call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
@@ -210,7 +208,7 @@ program tish
     call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
     ! Compute the source position.
-    call computeSourcePosition(nGrid, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+    call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
 
     ! Design grids for source computations.
     call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -221,7 +219,7 @@ program tish
     call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
       gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
     call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
-      gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0)
+      gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), ecL0)
 
     ! Compute mass and rigitidy matrices.
     do i = 1, nZone
@@ -263,7 +261,7 @@ program tish
 
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
     do iCount = 1, 2  ! omega-loop
-      if (iCount == 1) then  !!!diff
+      if (iCount == 1) then  !!! difference from main section
         iFreq = imin
       else
         iFreq = imax
@@ -330,7 +328,7 @@ program tish
           g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
           ! Computate excitation vector g.
-          call computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+          call computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
             gdr(:), g_or_c(:))
 
           if (mod(l, 100) == 0) then
@@ -379,13 +377,12 @@ program tish
 
       end do  ! l-loop
 
-      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
       ltmp(iCount) = min(l, maxL)
-      write(*, *) ' ltmp:', iCount, ltmp(iCount)  !TODO erase
 
     end do  ! omega-loop
 
-    imaxFixed = int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf)
+    imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
   end if  ! option for shallow events
 
 
@@ -400,7 +397,7 @@ program tish
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
   ! Compute the source position.
-  call computeSourcePosition(nGrid, rmaxOfZone(:), rmin, rmax, gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -411,7 +408,7 @@ program tish
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
     gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
   call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
-    gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), mu0)
+    gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), ecL0)
 
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
@@ -447,7 +444,7 @@ program tish
   call computeAverage(2, gh4, work, gh4)
 
   !******************** Computing the displacement *********************
-  outputCounter = 1
+  outputCounter = 1  !!! difference from shallow-source section
   ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
   oRowOfSource = 4 * iLayerOfSource - 3
 
@@ -458,7 +455,7 @@ program tish
     a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
     a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
     u(:, :nReceiver) = dcmplx(0.0d0, 0.0d0)
-    ! Plm must be cleared for each omega.
+    ! Plm must be cleared for each omega.  !!! difference from shallow-source section
     plm(:, :, :nReceiver) = 0.d0
 
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
@@ -498,7 +495,7 @@ program tish
       ! Clear the amplitude accumulated for all m's.
       if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
-      ! Compute trial functions.
+      ! Compute trial functions.  !!! difference from shallow-source section
       do ir = 1, nReceiver
         call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
       end do
@@ -522,7 +519,7 @@ program tish
         g_or_c(:nGrid) = dcmplx(0.d0, 0.d0)
 
         ! Computate excitation vector g.
-        call computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+        call computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
           gdr(:), g_or_c(:))
 
         if (mod(l, 100) == 0) then
@@ -562,7 +559,7 @@ program tish
         !  This is checked for the topmost-grid expansion coefficent of each m individually.
         call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
 
-        ! Accumulate u.
+        ! Accumulate u.  !!! difference from shallow-source section
         do ir = 1, nReceiver
           call computeU(g_or_c(nGrid), largeL2, trialFunctionValues(:, m, ir), u(:, ir))
         end do
@@ -579,7 +576,7 @@ program tish
     ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
     llog = min(l, maxL)
 
-    ! Store results.
+    ! Store results.  !!! difference from shallow-source section
     outputi(outputCounter) = iFreq
     do ir = 1, nReceiver
       outputu(:, ir, outputCounter) = u(:, ir)
@@ -621,5 +618,3 @@ program tish
 
   stop
 end program tish
-
-

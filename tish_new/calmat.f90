@@ -11,13 +11,13 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
   integer, parameter :: maxrpow = 2  ! Maximum value of rpow to allow.
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
   real(8), intent(in) :: conInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
   real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4"
   !::::::::::::::::::::::::::::::::::::::::::::::: (See eq. 19 of Kawai et al. 2006.)
-  real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals.
+  real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals. I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
   integer :: iLayer, j1, j2, i, iRow
   real(8) :: a(2,2), b(2,2), c(5), rh
 
@@ -26,7 +26,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
 
   ! Compute matrix elements.
   do iLayer = 1, nLayerInZoneI
-    ! layer thickness
+    ! layer thickness [km]
     rh = valuedRadiiInZoneI(iLayer + 1) - valuedRadiiInZoneI(iLayer)
 
     ! Set X_k1^(dot1), for both k1=i and k1=i+1.
@@ -134,8 +134,8 @@ subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, con, re
 
   integer, intent(in) :: n  ! Size of the array of p.
   real(8), intent(in) :: p(n)  ! Coefficients of the polynimial in ascending order (p(r) = p1 + p2 r + p3 r^2 + ...).
-  real(8), intent(in) :: lowerRadius, upperRadius  ! Radius range to integrate.
-  real(8), intent(in) :: valuedRadii(2)  ! Radii at both ends of an interval containing integration range.
+  real(8), intent(in) :: lowerRadius, upperRadius  ! Radius range to integrate [km].
+  real(8), intent(in) :: valuedRadii(2)  ! Radii at both ends of an interval containing integration range [km].
   real(8), intent(in) :: con(2)  ! Values of a variable at both ends of an interval containing integration range.
   real(8), intent(out) :: result
   real(8) :: q(2), pq(maxn+1)
@@ -199,7 +199,9 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the lumped mass matrix for a certain zone in the solid part. (See eq. 15 of Cummins et al. 1994.)
+! Computing the lumped mass matrix for a certain zone in the solid part. (See eqs. 15-17 of Cummins et al. 1994.)
+!  T_kk^lumped = m_k r_k^2.
+!  T_k'k^lumped = 0 when k' /= k.
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -208,18 +210,19 @@ subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, t
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: rhoValuesInZoneI(nLayerInZoneI+1)  ! Rho values at each point (with 2 values at boundaries).
-  real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
+  real(8), intent(in) :: rhoValuesInZoneI(nLayerInZoneI+1)  ! Rho values at each point (with 2 values at boundaries) [g/cm^3].
+  real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg].
   integer :: i, nn
   real(8) :: c(3), lowerRadius, upperRadius
 
-  ! Initialize.
+  ! Initialize. This is c(r) = r^2.
   c = [0.d0, 0.d0, 1.d0]
 
   do i = 1, nLayerInZoneI
     nn = 4 * (i - 1)
 
+    ! Right side of m_k r_k^2 for k=i. Integrate rho*r^2.
     lowerRadius = valuedRadiiInZoneI(i)
     upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
     call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 1))
@@ -227,6 +230,7 @@ subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, t
     tl(nn + 2) = 0.d0
     tl(nn + 3) = 0.d0
 
+    ! Left side of m_k r_k^2 for k=i+1. Integrate rho*r^2.
     lowerRadius = upperRadius
     upperRadius = valuedRadiiInZoneI(i + 1)
     call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 4))
@@ -236,7 +240,9 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the lumped rigidity matrix for a certain zone in the solid part. (See eq. 15 of Cummins et al. 1994.)
+! Computing the lumped rigidity matrix for a certain zone in the solid part. (See eqs. 15-17 of Cummins et al. 1994.)
+!  H_kk^lumped = s_k.
+!  H_k'k^lumped = 0 when k' /= k.
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -245,18 +251,19 @@ subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, muValuesInZoneI, hl
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value.
-  real(8), intent(in) :: muValuesInZoneI(nLayerInZoneI+1)  ! Mu values at each point (with 2 values at boundaries).
-  real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
+  real(8), intent(in) :: muValuesInZoneI(nLayerInZoneI+1)  ! Mu values at each point (with 2 values at boundaries) [GPa].
+  real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   integer :: i, nn
   real(8) :: c(1), lowerRadius, upperRadius
 
-  ! Initialize.
+  ! Initialize. This is c(r) = 1 (constant).
   c = [1.d0]
 
   do i = 1, nLayerInZoneI
     nn = 4 * (i - 1)
 
+    ! Right side of s_k for k=i. Integrate mu (ecL or ecM).
     lowerRadius = valuedRadiiInZoneI(i)
     upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
     call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), muValuesInZoneI(i:), hl(nn + 1))
@@ -264,6 +271,7 @@ subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, muValuesInZoneI, hl
     hl(nn + 2) = 0.d0
     hl(nn + 3) = 0.d0
 
+    ! Left side of s_k for k=i+1. Integrate mu (ecL or ecM).
     lowerRadius = upperRadius
     upperRadius = valuedRadiiInZoneI(i + 1)
     call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), muValuesInZoneI(i:), hl(nn + 4))
@@ -305,13 +313,14 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, qCoef, a0)
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
-  real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
+  real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
+  complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
+  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
   real(8) :: h
   integer :: i
 
@@ -339,9 +348,10 @@ subroutine computeA2(nLayerInZoneI, h4, qCoef, a2)
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
@@ -361,8 +371,9 @@ subroutine assembleA(nGrid, largeL2, a0, a2, a)
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
-  complex(8), intent(in) :: a0(2,nGrid), a2(2,nGrid)  ! Parts of the A matrix, in diagonal and subdiagonal component format.
-  complex(8), intent(out) :: a(2,nGrid)  ! Assembled A matrix.
+  complex(8), intent(in) :: a0(2,nGrid), a2(2,nGrid)  ! Parts of the A matrix, in diagonal and subdiagonal component format
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
+  complex(8), intent(out) :: a(2,nGrid)  ! Assembled A matrix [10^12 kg/s^2].
   integer :: iGrid
   complex(8) :: largeL2c
 
@@ -389,13 +400,14 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, qC
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
-  real(8), intent(in) :: omega, omegaI  ! Angular frequency (real and imaginary parts). Imaginary part is for artificial damping.
-  real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
+  real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping. (omega - i omega_I)^2.
+  complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
+  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
   real(8) :: h, largeL2m2
   integer :: i
 
@@ -426,9 +438,9 @@ subroutine overlapMatrixBlocks(nLayerInZoneI, aIn, aOut)
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-  complex(8), intent(out) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix.
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
+  complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  complex(8), intent(out) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
   integer :: j
 
   do j = 1, nLayerInZoneI
@@ -450,7 +462,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the excitation vector g.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourceParts, aSource, dr, g)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, dr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -458,12 +470,13 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourcePa
   integer, intent(in) :: l  ! Angular order.
   integer, intent(in) :: m  ! Azimuthal order.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
-  real(8), intent(in) :: r0, mu0, mt(3,3)
+  real(8), intent(in) :: r0, mt(3,3)  ! Depth [km] and moment tensor [10^25 dyn cm] of source.
+  real(8), intent(in) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix.
-  complex(8), intent(in) :: aSource(2,3)  ! Assembled A matrix.
-  complex(8), intent(inout) :: dr(3)
-  complex(8), intent(out) :: g(*)  ! The vector -g.
+  complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix [10^12 kg/s^2].
+  complex(8), intent(in) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
+  complex(8), intent(inout) :: dr(3)  ! Working array.
+  complex(8), intent(out) :: g(*)  ! The vector -g [10^15 N].
   real(8) :: b, sgnM
   complex(8) :: dd, gS_or_cS(3)
   integer :: i
@@ -485,8 +498,8 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourcePa
   if (abs(m) == 1) then
     ! b1 in eq. (26) of Kawai et al. (2006).
     b = sqrt(dble(2 * l + 1) / (16.d0 * pi))
-    ! D3 of eq. (26) of Kawai et al. (2006).
-    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * mu0) * qCoef)
+    ! D3 [km] of eq. (26) of Kawai et al. (2006).
+    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * ecL0) * qCoef)
 
     !TODO ??
     do i = 2, 3
@@ -497,7 +510,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourcePa
     ! b2 in eq. (27) of Kawai et al. (2006).
     ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
     b = sqrt(dble(2 * l + 1) * dble(l - 1) * dble(l + 2) / (64.d0 * pi))
-    ! -1 * gk3 of eq. (27) of Kawai et al. (2006).
+    ! -1 * gk3 [10^15 N] of eq. (27) of Kawai et al. (2006).
     gS_or_cS(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgnM * (mt(2, 2) - mt(3, 3)))
   end if
 
@@ -513,7 +526,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, mu0, qCoef, aaParts, aSourcePa
   ! Add displacement to c.
   gS_or_cS(3) = gS_or_cS(3) + dd
 
-  ! Computate excitation vector g.
+  ! Compute excitation vector g.
   g(iLayerOfSource) = aaParts(1) * gS_or_cS(1) + aaParts(2) * gS_or_cS(3)
   g(iLayerOfSource + 1) = aaParts(3) * gS_or_cS(1) + aaParts(4) * gS_or_cS(3)
 
