@@ -27,7 +27,7 @@ contains
     else if (spcFormat == 1 .and. append == 1) then
       open(unit=unitNum, file=fileName, position='append', status='unknown')
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (openSPCFile)"
     end if
   end subroutine
 
@@ -42,7 +42,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
     end if
   end subroutine
 
@@ -57,7 +57,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1, dble2
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
     end if
   end subroutine
 
@@ -72,7 +72,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1, dble2, dble3
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
     end if
   end subroutine
 
@@ -87,7 +87,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) int1, int2, int3
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
     end if
   end subroutine
 
@@ -103,7 +103,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) int1, dble1, dble2
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1"
+      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
     end if
   end subroutine
 

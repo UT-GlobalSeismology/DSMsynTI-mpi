@@ -22,7 +22,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
   real(8) :: a(2,2), b(2,2), c(5), rh
 
   ! Check input validity.
-  if (rpow > maxrpow) stop "Invalid arguments.(computeIntermediateIntegral)"
+  if (rpow > maxrpow) stop "Invalid arguments. (computeIntermediateIntegral)"
 
   ! Compute matrix elements.
   do iLayer = 1, nLayerInZoneI
@@ -38,7 +38,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
       a(:, 1) = [-1.d0 / rh, 0.d0]
       a(:, 2) = [1.d0 / rh, 0.d0]
      case default
-      stop "Invalid arguments.(computeIntermediateIntegral)"
+      stop "Invalid arguments. (computeIntermediateIntegral)"
     end select
 
     ! Set X_k2^(dot2), for both k2=i and k2=i+1.
@@ -50,7 +50,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
       b(:, 1) = [-1.d0 / rh, 0.d0]
       b(:, 2) = [1.d0 / rh, 0.d0]
      case default
-      stop "Invalid arguments.(computeIntermediateIntegral)"
+      stop "Invalid arguments. (computeIntermediateIntegral)"
     end select
 
     do j1 = 1, 2  ! k1=i and k1=i+1
@@ -107,7 +107,7 @@ subroutine multiplyPolynomials(na, a, nb, b, nc, c)
   integer :: i, j
 
   ! Check input validity.
-  if (na + nb - 1 /= nc) stop "Invalid arguments.(multiplyPolynomials)"
+  if (na + nb - 1 /= nc) stop "Invalid arguments. (multiplyPolynomials)"
 
   ! Initialize the polynomial c.
   c(:) = 0.d0
@@ -141,7 +141,7 @@ subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, con, re
   real(8) :: q(2), pq(maxn+1)
 
   ! Check input validity.
-  if (n > maxn) stop 'Degree of polynomial is too large.(integrateProduct)'
+  if (n > maxn) stop 'Degree of polynomial is too large. (integrateProduct)'
 
   ! Express con(r) as a polynomial (linear) function q1+q2*r.
   q(2) = (con(2) - con(1)) / (valuedRadii(2) - valuedRadii(1))  ! slope
@@ -170,7 +170,7 @@ subroutine integratePolynomial(n, p, x1, x2, result)
   real(8) :: a(maxn), b(maxn), dx, xx
 
   ! Check input validity.
-  if (n > maxn) stop 'Degree of polynomial is too large.(integratePolynomial)'
+  if (n > maxn) stop 'Degree of polynomial is too large. (integratePolynomial)'
 
   ! Initialize: a=(1 x1 x1^2 ...), b=(1 x2 x2^2 ...).
   a(1) = 1.d0

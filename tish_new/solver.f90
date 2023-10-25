@@ -192,8 +192,8 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
   ! Check input validity.
   if ((n <= 0) .or. (nud <= 0 ) .or. (n1 < m)) then
     ier = 2
-    write(*,*) '(subr. lisb) invalid argument. ', n, nud, n1
-    return
+    write(*,*) ' n, nud, n1: ', n, nud, n1
+    stop 'Invalid argument. (solver)'
   endif
   if (eps <= 0.0) eps = eps1
 
@@ -201,7 +201,7 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
   j = 1
   if (abs(a(m,1)) <= eps) then
     ier = 1
-    write(*,*) '(subr. lisb) singular at step # ', j
+    write(*,*) '(solver) Singular at step # ', j
     return
   endif
   dr(1) = dcmplx(1.0d0) / a(m,1)
@@ -211,7 +211,7 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
   j = 2
   if (abs(s) <= eps) then
     ier = 1
-    write(*,*) '(subr. lisb) singular at step # ', j
+    write(*,*) '(solver) Singular at step # ', j
     return
   endif
   dr(2) = dcmplx(1.0d0) / s
@@ -224,7 +224,7 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
 
       if (abs(s) <= eps) then
         ier = 1
-        write(*,*) ' (subr. lisb) singular at step # ', j
+        write(*,*) '(solver) Singular at step # ', j
         return
       end if
 
@@ -259,7 +259,7 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
 
       if (abs(t) <= eps) then
         ier = 1
-        write(*,*) ' (subr. lisb) singular at step # ', j
+        write(*,*) '(solver) Singular at step # ', j
         return
       end if
 

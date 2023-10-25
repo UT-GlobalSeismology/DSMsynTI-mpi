@@ -61,7 +61,7 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, i
 
   ! earth structure
   read(11,*) nZone
-  if (nZone > maxNZone) stop 'nZone is too large. (pinput)'
+  if (nZone > maxNZone) stop 'nZone is too large. (readInput)'
   do i = 1, nZone
     read(11,*) rminOfZone(i), rmaxOfZone(i), &
       rhoPolynomials(1,i), rhoPolynomials(2,i), rhoPolynomials(3,i), rhoPolynomials(4,i)
@@ -75,10 +75,10 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, i
 
   ! receivers
   read(11,*) nReceiver
-  if (nReceiver > maxNReceiver) stop 'nReceiver is too large. (pinput)'
+  if (nReceiver > maxNReceiver) stop 'nReceiver is too large. (readInput)'
   do i = 1, nReceiver
     read(11,*) lat(i), lon(i)
-    call calthetaphi(eqlat, eqlon, lat(i), lon(i), theta(i), phi(i))
+    call computeThetaPhi(eqlat, eqlon, lat(i), lon(i), theta(i), phi(i))
   end do
 
   do i = 1, nReceiver
@@ -95,7 +95,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Converts geodetic latitude to geocentric latitude.
 !------------------------------------------------------------------------
-subroutine translat(geodetic, geocentric)
+subroutine transformLatitude(geodetic, geocentric)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: flattening = 1.d0 / 298.25d0
@@ -105,7 +105,7 @@ subroutine translat(geodetic, geocentric)
   real(8), intent(out) :: geocentric  ! Output geocentric latitude [deg].
   real(8) :: latitude  ! Latitude variable for use in computation.
 
-  if (geodetic < -90.d0 .or. 90.d0 < geodetic) stop 'Latitude is out of range. (pinput)'
+  if (geodetic < -90.d0 .or. 90.d0 < geodetic) stop 'Latitude is out of range. (transformLatitude)'
 
   ! degrees to radians
   latitude = geodetic / 180.d0 * pi
@@ -121,7 +121,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computes distance and azimuth from source to receiver.
 !------------------------------------------------------------------------
-subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
+subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -134,9 +134,9 @@ subroutine calthetaphi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   real(8) :: tmp
 
   ! Transform geographic latitudes [deg] to geocentric colatitudes [rad].
-  call translat(iEvLat, tmp)
+  call transformLatitude(iEvLat, tmp)
   evColat = (90.d0 - tmp) / 180.d0 * pi
-  call translat(iStLat, tmp)
+  call transformLatitude(iStLat, tmp)
   stColat = (90.d0 - tmp) / 180.d0 * pi
 
   ! Transform longitudes from degrees to radians.

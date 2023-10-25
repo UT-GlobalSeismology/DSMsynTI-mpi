@@ -84,7 +84,7 @@ subroutine computePlm(l, m, x, plm)
 
   ! Check input validity
   if (m < 0 .or. m > l .or. abs(x) > 1.d0) then
-    stop "bad arguments in calplm"
+    stop "Invalid arguments. (computePlm)"
   endif
 
   if (m == l) then
