@@ -5,7 +5,7 @@ FC1 = mpif90
 FC2 = gfortran
 FFLAGS = -O #-no-pie
 
-SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 fileio.f90 formpi.f90 mpi-tish.f90
+SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 fileio.f90 mpi-tish.f90
 SRC2 = calmat.f90 solver.f90 trialf.f90 others.f90 fileio.f90 tish.f90
 OBJS1 = $(SRC1:.f90=.o)
 OBJS2 = $(SRC2:.f90=.o)

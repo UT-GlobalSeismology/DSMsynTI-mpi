@@ -331,36 +331,27 @@ c computing of the number and the location of grid points
         call calgrid( nzone,vrmin,vrmax,vsv,rmin,rmax,
      &         iimax,1,tlen,
      &         vmin,gridpar,dzpar )
-
         call calra ( maxnlay,maxnzone,
      &         nnlayer,
      &         gridpar,dzpar,nzone,vrmin,vrmax,
      &         rmin,rmax,nlayer,ra,re )
-
-
 c --- checking the parameter
         if (nnlayer .gt. maxnlay)
      &      stop 'The number of grid points is too large.'
 c computing the stack points
         call calsp( ndc,nlayer,isp,jsp )
-
 c computing the source location
         call calspo( ndc,vrmax,nnlayer,r0,rmin,rmax,ra,
      &         isp,spo,spn )
-
 c computing grids for source computations
         call calgra( isp,ra,r0,spn,spo,gra )
-
 c ******************* Computing the matrix elements *******************
 c computing the structure grid points
         call calstg( nzone,rrho,vsv,vsh,
      &         nnlayer,nlayer,ra,rmax,
      &         vnp,vra,rho,ecL,ecN)
-
-
         call calgstg( spn,rrho,vsv,vsh,
      &         gra,gvra,rmax,grho,gecL,gecN,r0,mu0 )
-
         do i=1,ndc+1
           call calmatc( nlayer(i),vnp,vra,rho,2,0,0,
      &         ra( isp(i) ),t( jsp(i) ),work( jsp(i) ) )
@@ -459,7 +450,6 @@ c ***** Computing the trial function *****
                 call calbvec( l,theta(ir),phi(ir),
      &               plm(1,0,ir),bvec(1,-2,ir) )
               enddo
-
 c computing the coefficient matrix elements
 c --- Initializing the matrix elements
               call cmatinit( lda,nn,a )

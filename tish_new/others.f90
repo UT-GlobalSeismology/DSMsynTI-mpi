@@ -316,7 +316,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource
   integer, intent(in) :: nGrid  ! Total number of grid points.
   real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone [km].
   real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
-  real(8), intent(inout) :: r0  ! Source radius. Its value may be fixed in this subroutine [km].
+  real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
   integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
@@ -623,3 +623,43 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
   u(3) = u(3) + c0 * trialFunctionValues(3) / largeLc
 
 end subroutine
+
+
+
+
+! This routine returns the imin(i) and imax(i) (i=1,...,n)
+! Separates istart--iend into n parts
+! Each part contains imin(i) -- imax(i) i= 1, ..., n
+
+! Assume that the cpu time t for i th omega is a * i
+! Then we divide a* 0.5 * i **2 into n parts.
+
+! Returns imin, imax which satisfy the above assumption
+subroutine triangleSplit(istart, iend, n, imin, imax)
+  implicit none
+
+  integer, intent(in) :: istart, iend
+  integer, intent(in) :: n   ! The number of processors
+  integer, intent(out) :: imin(n), imax(n)
+  integer :: inum
+  integer :: i
+  integer :: x(0:n)
+  integer :: s    ! 0.5 *  iend **2 / n
+
+  inum = iend - istart + 1
+  s = iend**2 / n
+
+  x(0) = istart
+  do i = 1, n
+    x(i) = s + x(i-1)**2
+    x(i) = int(sqrt(dble(x(i))))
+  enddo
+
+  do i = 1, n
+    imin(i) = x(i-1)
+    imax(i) = x(i) - 1
+  enddo
+
+  imax(n) = iend
+
+end subroutine triangleSplit

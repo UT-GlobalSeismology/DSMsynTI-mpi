@@ -17,18 +17,42 @@ contains
     integer, intent(in) :: append  ! Whether to append to existing file (0:create, 1:append).
 
     if (spcFormat == 0 .and. append == 0) then
-      open(unit=unitNum, file=fileName, status='unknown', &
+      open(unit=unitNum, file=trim(fileName), status='unknown', &
         form='unformatted', access='stream', convert='big_endian')
     else if (spcFormat == 0 .and. append == 1) then
-      open(unit=unitNum, file=fileName, position='append', status='unknown', &
+      open(unit=unitNum, file=trim(fileName), position='append', status='unknown', &
         form='unformatted', access='stream', convert='big_endian')
     else if (spcFormat == 1 .and. append == 0) then
-      open(unit=unitNum, file=fileName, status='unknown')
+      open(unit=unitNum, file=trim(fileName), status='unknown')
     else if (spcFormat == 1 .and. append == 1) then
-      open(unit=unitNum, file=fileName, position='append', status='unknown')
+      open(unit=unitNum, file=trim(fileName), position='append', status='unknown')
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (openSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
+  end subroutine
+
+  subroutine openSPCFileMPI(fileName, unitNum, spcFormat)
+    implicit none
+    character(len=80), intent(in) :: fileName  ! Name of output spc file.
+    integer, intent(in) :: unitNum  ! Unit number of output spc file.
+    integer, intent(in) :: spcFormat  ! Format of output spc file (0:binary, 1:ascii).
+    integer :: ierr
+
+    do
+      if (spcFormat == 0) then
+        open(unit=unitNum, file=trim(fileName), position='append', status='unknown', &
+          form='unformatted', access='stream', convert='big_endian', share='denyrw', iostat=ierr)
+      else if (spcFormat == 1) then
+        open(unit=unitNum, file=trim(fileName), position='append', status='unknown', share='denyrw', iostat=ierr)
+      else
+        stop 'spcFormat must be 0 or 1. (openSPCFile)'
+      end if
+
+      if (ierr == 0) exit
+
+      call system("sleep 100")
+    end do
+
   end subroutine
 
   subroutine write1dble(unitNum, spcFormat, dble1)
@@ -42,7 +66,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
   end subroutine
 
@@ -57,7 +81,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1, dble2
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
   end subroutine
 
@@ -72,7 +96,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) dble1, dble2, dble3
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
   end subroutine
 
@@ -87,7 +111,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) int1, int2, int3
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
   end subroutine
 
@@ -103,7 +127,7 @@ contains
     else if (spcFormat == 1) then
       write(unitNum,*) int1, dble1, dble2
     else
-      write(*,*) "WARNING: spcFormat must be 0 or 1. (writeSPCFile)"
+      stop 'spcFormat must be 0 or 1. (openSPCFile)'
     end if
   end subroutine
 

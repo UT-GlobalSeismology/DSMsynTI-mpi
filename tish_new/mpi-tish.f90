@@ -147,11 +147,54 @@ program tish
   complex(8), allocatable :: outputu(:,:,:)
 
 
+  ! Variables for MPI   !!!diff from non-mpi
+  include 'mpif.h'
+  integer :: mpii
+  integer :: petot, my_rank, ierr
+  integer :: unitNum, mpios
+  integer, allocatable, dimension (:) :: mpimin, mpimax
+
+
+  ! ************************** MPI **************************   !!!diff from non-mpi
+  call MPI_INIT(ierr)
+  call MPI_COMM_SIZE(MPI_COMM_WORLD, petot, ierr)
+  call MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)
+  allocate(mpimin(petot), mpimax(petot))
+  unitNum = 10 + my_rank
+
+
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
-  call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
-    nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
-    r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
+  if (my_rank == 0) then
+    call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
+      nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
+      r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
+  end if
+  call MPI_BCAST(re, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)   !!!diff from non-mpi
+  call MPI_BCAST(ratc, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(ratl, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(tlen, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(np, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(omegaI, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(imin, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(imax, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(nZone, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(rminOfZone, maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(rmaxOfZone, maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(rhoPolynomials, 4 * maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(vsvPolynomials, 4 * maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(vshPolynomials, 4 * maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(qmuOfZone, maxNZone, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(r0, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(eqlat, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(eqlon, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(mt, 9, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(nReceiver, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(lat, maxNReceiver, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(lon, maxNReceiver, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(theta, maxNReceiver, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(phi, maxNReceiver, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+  call MPI_BCAST(output, 80 * maxNReceiver, MPI_CHARACTER, 0, MPI_COMM_WORLD, ierr)
 
   ! --- computing the required parameters ---
   rmin = rminOfZone(1)
@@ -173,19 +216,21 @@ program tish
 
 
   ! ************************** Files handling **************************
-  do ir = 1, nReceiver
-    call openSPCFile(output(ir), 11, spcFormat, 0)
-    call writeSPCFile(11, spcFormat, tlen)
-    call writeSPCFile(11, spcFormat, np, 1, 3)
-    call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
-    call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
-    call closeSPCFile(11)
-  end do
+  if (my_rank == 0) then
+    do ir = 1, nReceiver
+      call openSPCFile(output(ir), 11, spcFormat, 0)
+      call writeSPCFile(11, spcFormat, tlen)
+      call writeSPCFile(11, spcFormat, np, 1, 3)
+      call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
+      call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
+      call closeSPCFile(11)
+    end do
 
-  if (ilog == 1) then
-    open(unit = 11, file = 'llog.log', status = 'unknown')
-    write(11, *) 'iFreq, llog, nGrid-1'
-    close(11)
+    if (ilog == 1) then
+      open(unit = 11, file = 'llog.log', status = 'unknown')
+      write(11, *) 'iFreq, llog, nGrid-1'
+      close(11)
+    end if
   end if
 
 
@@ -448,7 +493,10 @@ program tish
   ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
   oRowOfSource = 4 * iLayerOfSource - 3
 
-  do iFreq = imin, imax  ! omega-loop
+  call trianglesplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
+
+
+  do iFreq = mpimin(my_rank + 1), mpimax(my_rank + 1)  ! omega-loop   !!!diff from non-mpi
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
@@ -584,18 +632,18 @@ program tish
 
 
     ! ************************** Files Handling **************************
-    ! Write to file when the output interval is reached, or when this is the last omega.
-    if (outputCounter >= outputInterval .or. iFreq == imax) then
-      write(*,*) "kakikomimasu"
+    ! Write to file when the output interval is reached, or when this is the last omega.   !!!diff from non-mpi
+    if (outputCounter >= outputInterval .or. iFreq == mpimax(my_rank + 1)) then
+!      write(*,*) "kakikomimasu"
 
       do ir = 1, nReceiver
-        call openSPCFile(output(ir), 11, spcFormat, 1)
+        call openSPCFileMPI(output(ir), unitNum, spcFormat)
         do iOut = 1, outputCounter
-          call writeSPCFile(11, spcFormat, outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut)))
-          call writeSPCFile(11, spcFormat, dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut)))
-          call writeSPCFile(11, spcFormat, dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut)))
+          call writeSPCFile(unitNum, spcFormat, outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut)))
+          call writeSPCFile(unitNum, spcFormat, dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut)))
+          call writeSPCFile(unitNum, spcFormat, dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut)))
         end do
-        call closeSPCFile(11)
+        call closeSPCFile(unitNum)
       end do
 
       outputCounter = 0
@@ -614,8 +662,11 @@ program tish
   ! Deallocate arrays.
   deallocate(outputi)
   deallocate(outputu)
+  deallocate(mpimin)
+  deallocate(mpimax)
 
-  write(*,*) "Ivalice looks to the horizon"
+  write(*,*) my_rank, "Ivalice looks to the horizon"
+  call MPI_FINALIZE(ierr)
 
   stop
 end program tish

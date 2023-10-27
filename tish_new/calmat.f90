@@ -15,7 +15,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, conInZ
   real(8), intent(in) :: conInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
-  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4"
+  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4".
   !::::::::::::::::::::::::::::::::::::::::::::::: (See eq. 19 of Kawai et al. 2006.)
   real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals. I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
   integer :: iLayer, j1, j2, i, iRow
