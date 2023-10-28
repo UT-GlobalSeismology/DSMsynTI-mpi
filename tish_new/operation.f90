@@ -4,7 +4,7 @@
 subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
-  iZoneOfSource, iLayerOfSource, gridRadiiForSource, &
+  iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
   nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
   t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 !------------------------------------------------------------------------
@@ -29,6 +29,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
+  integer, intent(out) :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the source layer.
   real(8), intent(out) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(maxNGrid+nZone-1)  ! Radii corresponding to each variable value [km].
@@ -53,7 +54,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
 
   ! Compute the source position.
-  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))

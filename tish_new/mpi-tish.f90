@@ -108,14 +108,12 @@ program tish
   complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1:3), m (-2:2), iReceiver.
 
-  ! Variables for the stack points
-  integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
-  integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
-
   ! Variables for the matrix elements
   real(8) :: t(4 * maxNGrid - 4)
   real(8) :: h1(4 * maxNGrid - 4), h2(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
+  integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
+  integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
   complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
@@ -149,9 +147,8 @@ program tish
 
   ! Variables for MPI   !!!diff from non-mpi
   include 'mpif.h'
-  integer :: mpii
   integer :: petot, my_rank, ierr
-  integer :: unitNum, mpios
+  integer :: unitNum
   integer, allocatable, dimension (:) :: mpimin, mpimax
 
 
@@ -243,67 +240,17 @@ program tish
     ! Set a large value so that we can compute using fine grids for this process.
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
-    ! ******************* Computing parameters *******************
-    ! Design the number and position of grid points.
-    call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-    call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
-    if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
-
-    ! Compute the first indices in each zone.
-    call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
-
-    ! Compute the source position.
-    call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
-
-    ! Design grids for source computations.
-    call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
-
 
     ! ******************* Computing the matrix elements *******************
-    ! Compute variable values at grid points.
-    call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
-      gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
-    call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
-      gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), ecL0)
-
-    ! Compute mass and rigitidy matrices.
-    do i = 1, nZone
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
-        t(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
-        h1(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
-        h2(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
-        h3(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
-        h4(oRowOfZone(i):), work(oRowOfZone(i):))
-      call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
-      call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
-      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
-      call computeAverage(nLayerInZone(i), h3(oRowOfZone(i):), work(oRowOfZone(i):), h3(oRowOfZone(i):))
-      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
-      call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
-    end do
-
-    ! Compute mass and rigitidy matrices near source.
-    call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
-    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gh1, work)
-    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gh2, work)
-    call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gh3, work)
-    call computeIntermediateIntegral(2, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gh4, work)
-    call computeLumpedT(2, gridRadiiForSource, rhoValuesForSource, work)
-    call computeAverage(2, gt, work, gt)
-    call computeLumpedH(2, gridRadiiForSource, ecLValuesForSource, work)
-    call computeAverage(2, gh3, work, gh3)
-    call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
-    call computeAverage(2, gh4, work, gh4)
+    call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
+      nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
+      kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
+      iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
+      nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
+      t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
     !******************** Computing the expansion coefficients *********************
-    ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
-    oRowOfSource = 4 * iLayerOfSource - 3
-
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
     do iCount = 1, 2  ! omega-loop
       if (iCount == 1) then  !!! difference from main section
@@ -431,67 +378,17 @@ program tish
   end if  ! option for shallow events
 
 
-  ! ******************* Computing parameters *******************
-  ! Design the number and position of grid points.
-  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
-  if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
-
-  ! Compute the first indices in each zone.
-  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
-
-  ! Compute the source position.
-  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
-
-  ! Design grids for source computations.
-  call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
-
-
   ! ******************* Computing the matrix elements *******************
-  ! Compute variable values at grid points.
-  call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
-    gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))
-  call computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), &
-    gridRadiiForSource(:), rhoValuesForSource(:), ecLValuesForSource(:), ecNValuesForSource(:), ecL0)
-
-  ! Compute mass and rigitidy matrices.
-  do i = 1, nZone
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
-      t(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
-      h1(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
-      h2(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
-      h3(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
-      h4(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), h3(oRowOfZone(i):), work(oRowOfZone(i):), h3(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
-  end do
-
-  ! Compute mass and rigitidy matrices near source.
-  call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gh1, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gh2, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gh3, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gh4, work)
-  call computeLumpedT(2, gridRadiiForSource, rhoValuesForSource, work)
-  call computeAverage(2, gt, work, gt)
-  call computeLumpedH(2, gridRadiiForSource, ecLValuesForSource, work)
-  call computeAverage(2, gh3, work, gh3)
-  call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
-  call computeAverage(2, gh4, work, gh4)
+  call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
+    nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
+    kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
+    iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
+    nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
+    t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
   !******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
-  ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
-  oRowOfSource = 4 * iLayerOfSource - 3
 
   call trianglesplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
 
@@ -634,7 +531,6 @@ program tish
     ! ************************** Files Handling **************************
     ! Write to file when the output interval is reached, or when this is the last omega.   !!!diff from non-mpi
     if (outputCounter >= outputInterval .or. iFreq == mpimax(my_rank + 1)) then
-!      write(*,*) "kakikomimasu"
 
       do ir = 1, nReceiver
         call openSPCFileMPI(output(ir), unitNum, spcFormat)
