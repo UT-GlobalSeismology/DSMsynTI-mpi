@@ -462,7 +462,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the excitation vector g.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, dr, g)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, gdr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -474,14 +474,13 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceP
   real(8), intent(in) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix [10^12 kg/s^2].
-  complex(8), intent(in) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
-  complex(8), intent(inout) :: dr(3)  ! Working array.
+  complex(8), intent(inout) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
+  complex(8), intent(inout) :: gdr(3)  ! Working array.
   complex(8), intent(out) :: g(*)  ! The vector -g [10^15 N].
-  real(8) :: b, sgnM
+  real(8) :: b, sgnM, eps
   complex(8) :: dd, gS_or_cS(3)
-  integer :: i
+  integer :: i, ier
   complex(8) :: z(3)
-  real(8) :: eps, ier
 
   ! Initialize.
   gS_or_cS(:) = dcmplx(0.d0, 0.d0)
@@ -517,10 +516,10 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceP
   ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
   if ((m == -2) .or. (m == -l)) then
     ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-    call solveWholeCFromStart(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
+    call solveWholeCFromStart(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, gdr, z, ier)
   else
     ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-    call solveWholeCFromMiddle(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, dr, z, ier)
+    call solveWholeCFromMiddle(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, gdr, z, ier)
   end if
 
   ! Add displacement to c.
@@ -531,5 +530,3 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceP
   g(iLayerOfSource + 1) = aaParts(3) * gS_or_cS(1) + aaParts(4) * gS_or_cS(3)
 
 end subroutine
-
-

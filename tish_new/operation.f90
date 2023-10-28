@@ -101,3 +101,72 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   call computeAverage(2, gh4, work, gh4)
 
 end subroutine
+
+
+!------------------------------------------------------------------------
+! Form and solve the linear equation Ac=-g.
+!------------------------------------------------------------------------
+subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, &
+  nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: l  ! Angular order.
+  integer, intent(in) :: m  ! Azimuthal order.
+  integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
+  integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
+  real(8), intent(in) :: r0, mt(3,3)  ! Depth [km] and moment tensor [10^25 dyn cm] of source.
+  real(8), intent(in) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
+  complex(8), intent(in) :: qCoef(*)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix [10^12 kg/s^2].
+  complex(8), intent(inout) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
+  integer, intent(in) :: nGrid  ! Total number of grid points (= number of layers + 1).
+  integer, intent(in) :: cutoffGrid  ! Index of grid at cut-off depth.
+  complex(8), intent(inout) :: a(2,nGrid)  ! Assembled A matrix [10^12 kg/s^2].
+  complex(8), intent(out) :: g_or_c(nGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is.
+  real(8), intent(inout) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point [km].
+  real(8), intent(inout) :: eps
+  complex(8), intent(inout) :: dr(nGrid), z(nGrid), gdr(3)  ! Working arrays used when solving linear equations.
+  integer :: ier  ! Error code from subroutine solving linear equations.
+
+  ! Initialize vector.
+  g_or_c(:) = dcmplx(0.d0, 0.d0)
+
+  ! Compute excitation vector g.
+  call computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+    gdr(:), g_or_c(:))
+
+  if (mod(l, 100) == 0) then
+    ! Once in a while, compute for all grids to decide the cut-off depth.
+    ! CAUTION: In this case, all values of g_or_c(:) are computed.
+
+    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    if (m == -2 .or. m == -l) then
+      ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+      call solveWholeCFromStart(a(:,:), nGrid, 1, 2, g_or_c(:), eps, dr, z, ier)
+    else
+      ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+      call solveWholeCFromMiddle(a(:,:), nGrid, 1, 2, g_or_c(:), eps, dr, z, ier)
+    end if
+
+    ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
+    !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
+    amplitudeAtGrid(1:nGrid) = amplitudeAtGrid(1:nGrid) + abs(g_or_c(1:nGrid))
+
+  else
+    ! Otherwise, compute for just the grids above the cut-off depth.
+    ! CAUTION: In this case, only g_or_c(nGrid) is computed. Other values of g_or_c(:nGrid-1) still hold values of g!!!
+
+    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    if (m == -2 .or. m == -l) then
+      ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+      call solveC0FromStart(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, iLayerOfSource - cutoffGrid + 1, &
+        g_or_c(cutoffGrid:), eps, dr, z, ier)
+    else
+      ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+      call solveC0FromMiddle(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, iLayerOfSource - cutoffGrid + 1, &
+        g_or_c(cutoffGrid:), eps, dr, z, ier)
+    end if
+  end if
+
+end subroutine
