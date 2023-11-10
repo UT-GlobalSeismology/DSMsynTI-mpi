@@ -10,7 +10,7 @@ subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: l  ! Angular order.
-  real(8), intent(in) :: theta, phi  ! Latitude and longitude of receiver [rad].
+  real(8), intent(in) :: theta, phi  ! Colatitude and longitude of receiver with event at north pole [rad].
   real(8), intent(inout) :: plm(3, 0:3)  ! Values of the associated Legendre polynomials for this receiver.
   !:::::::::::::::::::::::::::::::::::::::: Values for previous l's must be provided.
   !:::::::::::::::::::::::::::::::::::::::: The value for this l will be placed in plm(1,m).

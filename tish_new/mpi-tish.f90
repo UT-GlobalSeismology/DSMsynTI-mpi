@@ -56,7 +56,7 @@ program tish
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
   real(8) :: lat(maxNReceiver), lon(maxNReceiver)  ! Coordinates [deg] of receivers.
-  real(8) :: theta(maxNReceiver), phi(maxNReceiver)  ! Distance and azimuth [rad] of arc.
+  real(8) :: theta(maxNReceiver), phi(maxNReceiver)  ! Colatitude and longitude of receivers with event at north pole [rad].
   integer :: ir
 
   ! Variables for the periodic range
