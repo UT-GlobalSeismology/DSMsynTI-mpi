@@ -15,7 +15,7 @@
 !
 !  This program is distributed in the hope that it will be useful,
 !  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 !  GNU General Public License for more details.
 !
 !  You should have received a copy of the GNU General Public License
@@ -43,9 +43,8 @@ program tish
   integer :: nZone  ! Number of zones.
   real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled [km].
   real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone [km].
-  real(8) :: rhoPolynomials(4, maxNZone)  ! Rho of each zone (coefficients of cubic function) [g/cm^3].
-  real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function) [km/s].
-  real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function) [km/s].
+  real(8) :: rhoPolynomials(4, maxNZone), vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone)
+  !:::::::::::::::::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vsv, and vsh [km/s] in each zone.
   real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
   integer :: i
 

@@ -152,7 +152,7 @@ subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   theta = acos(cosAlpha)
 
   ! Compute shifted longitude of receiver [rad], which is (pi - azimuth).
-  if (theta == 0.d0) then
+  if (sin(theta) == 0.d0) then
     phi = 0.d0
   else
     cosAlpha = (cos(stColat) * sin(evColat) - sin(stColat) * cos(evColat) * cos(stLon - evLon)) / sin(theta)
@@ -207,23 +207,23 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   real(8), parameter :: pi = 3.1415926535897932d0
 
   integer, intent(in) :: nZone  ! Number of zones.
-  integer, intent(in) :: imax  ! Index of maximum frequency.
-  integer, intent(in) :: lmin  ! Smallest angular order l.
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
   real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
   real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
+  integer, intent(in) :: imax  ! Index of maximum frequency.
+  integer, intent(in) :: lmin  ! Smallest angular order l.
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone [1/km].
   integer :: iZone
-  real(8) :: v(4), vs1, vs2, vmin, omega, kx, kz2
+  real(8) :: v(4), vBottom, vTop, vmin, omega, kx, kz2
 
   do iZone = 1, nZone
     v(:) = vsPolynomials(:, iZone)
-    ! Compute Vs [km/s] at bottom (vs1) and top (vs2) of zone.
-    call valueAtRadius(v, rminOfZone(iZone), rmax, vs1)
-    call valueAtRadius(v, rmaxOfZone(iZone), rmax, vs2)
-    ! Get smaller Vs value [km/s]. (This is to get larger k_z value.)
-    vmin = min(vs1, vs2)
+    ! Compute velocity [km/s] at bottom and top of zone.
+    call valueAtRadius(v, rminOfZone(iZone), rmax, vBottom)
+    call valueAtRadius(v, rmaxOfZone(iZone), rmax, vTop)
+    ! Get smaller velocity value [km/s]. (This is to get larger k_z value.)
+    vmin = min(vBottom, vTop)
     ! largest omega [1/s] (This is to get larger k_z value.)
     omega = 2.d0 * pi * dble(imax) / tlen
     ! smallest k_x [1/km] (See eq. 30 of Kawai et al. 2006.) (This is to get larger k_z value.)

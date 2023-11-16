@@ -156,7 +156,7 @@ subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
   theta = acos(cosAlpha)
 
   ! Compute shifted longitude of receiver [rad], which is (pi - azimuth).
-  if (theta == 0.d0) then
+  if (sin(theta) == 0.d0) then
     phi = 0.d0
   else
     cosAlpha = (cos(stColat) * sin(evColat) - sin(stColat) * cos(evColat) * cos(stLon - evLon)) / sin(theta)
@@ -173,4 +173,187 @@ subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
 
   return
 end subroutine
+
+
+!------------------------------------------------------------------------
+! Decide if each zone is solid or liquid.
+!------------------------------------------------------------------------
+subroutine judgeSolidOrLiquid(nZone, vsPolynomials, phaseOfZone, nZoneSolid, nZoneLiquid)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
+  integer, intent(out) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(out) :: nZoneSolid, nZoneLiquid  ! Number of solid and liquid zones.
+  integer :: i
+
+  nZoneSolid = 0
+  nZoneLiquid = 0
+
+  do i = 1, nZone
+    if (vsPolynomials(1,i) == 0.0d0 .and. vsPolynomials(2,i) == 0.0d0 &
+      .and. vsPolynomials(3,i) == 0.0d0 .and. vsPolynomials(4,i) == 0.0d0) then
+      ! liquid
+      nZoneLiquid = nZoneLiquid + 1
+      phaseOfZone(i) = 2
+    else
+      ! solid
+      nZoneSolid = nZoneSolid + 1
+      phaseOfZone(i) = 1
+    end if
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------!!Common
+! Function to compute a + bx + cx^2 + dx^3, where x = r/R.
+!------------------------------------------------------------------------
+subroutine valueAtRadius(coefficients, radius, rmax, result)
+!------------------------------------------------------------------------
+  implicit none
+
+  real(8), intent(in) :: coefficients(4)  ! Coefficients of cubic function. [a, b, c, d] in a + bx + cx^2 + dx^3.
+  real(8), intent(in) :: radius  ! r : The radius to compute the value at [km].
+  real(8), intent(in) :: rmax  ! R: Maximum radius of region considered [km].
+  real(8), intent(out) :: result
+  integer :: j
+  real(8) :: x_n  ! Power of x = r/R.
+  real(8) :: accumulatedValue  ! Variable to store the temporary result of accumulation.
+
+  x_n = 1.d0
+  accumulatedValue = coefficients(1)
+  do j = 2, 4
+    x_n = x_n * (radius / rmax)
+    accumulatedValue = accumulatedValue + coefficients(j) * x_n
+  end do
+
+  result = accumulatedValue
+  return
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
+!------------------------------------------------------------------------
+subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, vsPolynomials, rmax, imax, lmin, tlen, kzAtZone)
+!------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
+  real(8), intent(in) :: vpPolynomials(4,nZone), vsPolynomials(4,nZone)  ! Polynomial functions of vp and vs structure [km/s].
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
+  integer, intent(in) :: imax  ! Index of maximum frequency.
+  integer, intent(in) :: lmin  ! Smallest angular order l.
+  real(8), intent(in) :: tlen  ! Time length [s].
+  real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone [1/km].
+  integer :: iZone
+  real(8) :: v(4), vBottom, vTop, vmin, omega, kx, kz2
+
+  do iZone = 1, nZone
+    ! Use Vs in solid, Vp in liquid.
+    if (phaseOfZone(iZone) == 1) then
+      v(:) = vsPolynomials(:, iZone)
+    else
+      v(:) = vpPolynomials(:, iZone)
+    end if
+    ! Compute velocity [km/s] at bottom and top of zone.
+    call valueAtRadius(v, rminOfZone(iZone), rmax, vBottom)
+    call valueAtRadius(v, rmaxOfZone(iZone), rmax, vTop)
+    ! Get smaller velocity value [km/s]. (This is to get larger k_z value.)
+    vmin = min(vBottom, vTop)
+    ! largest omega [1/s] (This is to get larger k_z value.)
+    omega = 2.d0 * pi * dble(imax) / tlen
+    ! smallest k_x [1/km] (See eq. 30 of Kawai et al. 2006.) (This is to get larger k_z value.)
+    kx = (dble(lmin) + 0.5d0) / rmaxOfZone(iZone)
+    ! k_z^2 [1/km^2] (See eq. 32 of Kawai et al. 2006.)
+    kz2 = (omega ** 2) / (vmin ** 2) - (kx ** 2)
+    ! k_z [1/km] (When it is not real, it is set to 0.)
+    if (kz2 > 0.d0) then
+      kzAtZone(iZone) = sqrt(kz2)
+    else
+      kzAtZone(iZone) = 0.d0
+    end if
+  end do
+
+  return
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Deciding the distribution of grid points.
+!------------------------------------------------------------------------
+subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone, rmin, re, &
+  nGrid, nLayerInZone, nLayerSolid, nLayerLiquid, gridRadii)
+!------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone [1/km].
+  real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
+  real(8), intent(in) :: rmin  ! Minimum radius of region considered [km].
+  real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
+  integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
+  integer, intent(out) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  integer, intent(out) :: nLayerSolid, nLayerLiquid  ! Number of layers in solid and liquid regions.
+  real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point [km].
+  integer :: iZone, iGrid, i, nTemp
+  real(8) :: rh
+
+  ! Compute the distribution of grid points.
+  iGrid = 1
+  nLayerSolid = 0
+  nLayerLiquid = 0
+  gridRadii(1) = rmin
+  do iZone = 1, nZone
+    ! zone thickness [km]
+    rh = rmaxOfZone(iZone) - rminOfZone(iZone)
+    ! Decide the number of layers in this zone.
+    if (kzAtZone(iZone) == 0.d0) then
+      ! We usually do not compute for the evanescent regime
+      !  (unless they can be seen on the surface, which is the case of shallow sources).
+      nTemp = 1
+    else
+      ! rh / dz = rh * (lambda_z / dz) / lambda_z = rh * sqrt(3.3 / re) * (k_z / 2 pi)
+      !  (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
+      !  The "/0.7 +1" is to increase the number of grids a bit.
+      nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
+    end if
+    nLayerInZone(iZone) = max(nTemp, 5)
+    ! Accumulate number of layers in solid and liquid regions.
+    if (phaseOfZone(iZone) == 1) then
+      nLayerSolid = nLayerSolid + nLayerInZone(iZone)
+    else
+      nLayerLiquid = nLayerLiquid + nLayerInZone(iZone)
+    end if
+    ! Compute radius at each grid point [km].
+    do i = 1, nLayerInZone(iZone)
+      iGrid = iGrid + 1
+      gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
+    end do
+  end do
+
+  ! Register the total number of grid points.
+  nGrid = iGrid
+
+  return
+end subroutine
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,0 +1,188 @@
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!  ************** tipsv ****************
+!  Computation of PSV synthetic seismograms
+!  in transversely isotropic media for anisotropic PREM
+!  using modified DSM operators & modified source representation.
+!  Synthetics for shallow events can be computed.
+!
+!  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
+!  (C) 2002.12  University of Tokyo
+!
+!  This program is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU General Public License as published by
+!  the Free Software Foundation, either version 3 of the License, or
+!  (at your option) any later version.
+!
+!  This program is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+!  GNU General Public License for more details.
+!
+!  You should have received a copy of the GNU General Public License
+!  along with this program. If not, see <https://www.gnu.org/licenses/>.
+!
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+program tipsv
+!  use FileIO  TODO
+  implicit none
+
+  !----------------------------<<constants>>----------------------------
+  real(8), parameter :: pi = 3.1415926535897932d0
+  integer, parameter :: maxNGrid = 88300  ! Maximum number of grid points.
+  integer, parameter :: maxNLayerSolid = 48840  ! Maximum number of layers in solid region.
+  integer, parameter :: maxNLayerLiquid = 32040  ! Maximum number of layers in liquid region.
+  integer, parameter :: maxNZone = 15  ! Maximum number of zones.
+  integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
+  integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
+  real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
+  real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
+  integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
+  integer, parameter :: ilog = 1
+
+  !----------------------------<<variables>>----------------------------
+  ! Variables for the structure
+  integer :: nZone  ! Number of zones.
+  integer :: nZoneSolid, nZoneLiquid  ! Number of solid and liquid zones.
+  integer :: phaseOfZone(maxNZone)  ! Phase of each zone (1: solid, 2: liquid).
+  real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled [km].
+  real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone [km].
+  real(8) :: rhoPolynomials(4, maxNZone), vpvPolynomials(4, maxNZone), vphPolynomials(4, maxNZone)
+  real(8) :: vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone), etaPolynomials(4, maxNZone)
+  !::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta in each zone.
+  real(8) :: qmuOfZone(maxNZone), qkappaOfZone(maxNZone)  ! Qmu and Qkappa of each zone.
+  integer :: i
+
+  ! Variables for the source
+  real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
+  real(8) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
+
+  ! Variables for the receivers
+  integer :: nReceiver  ! Number of receivers.
+  real(8) :: lat(maxNReceiver), lon(maxNReceiver)  ! Coordinates [deg] of receivers.
+  real(8) :: theta(maxNReceiver), phi(maxNReceiver)  ! Colatitude and longitude of receivers with event at north pole [rad].
+  integer :: ir
+
+  ! Variables for the periodic range
+  real(8) :: tlen  ! Time length [s].
+  integer :: np  ! Number of points in frequency domain.
+  real(8) :: omega  ! Angular frequency (real part) [1/s].
+  real(8) :: omegaI  ! Imaginary part of angular frequency for artificial damping [1/s].
+  !:::::::::::::::::::::::::::::::::::::::: (See section 5.1 of Geller & Ohminato 1994.)
+  integer :: imin, imax  ! Index of minimum and maximum frequency.
+  integer :: iFreq, iCount
+  integer :: ltmp(2), imaxFixed
+
+  ! Variables for grid spacing and cut-off
+  real(8) :: kzAtZone(maxNZone)  ! Vertical wavenumber k_z at each zone [1/km]. (See section 3.2 of Kawai et al. 2006.)
+  real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
+  real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
+  real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
+  real(8) :: amplitudeAtGrid(maxNGrid)  ! Estimate of the amplitude at each grid point [km], used for vertical grid cut-off.
+  integer :: cutoffGrid  ! Index of grid at cut-off depth.
+  integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
+  real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
+  integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
+  integer :: llog
+
+  ! Variables for the vertical grid
+  integer :: nGrid  ! Total number of grid points.
+  real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
+  integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
+  integer :: nLayerSolid, nLayerLiquid  ! Number of layers in solid and liquid regions.
+  integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
+  real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
+  integer :: iZoneOfSource  ! Which zone the source is in.
+  integer :: iLayerOfSource  ! Index of layer that the source is in.
+
+
+  ! Variables for the output file
+  character(len=80) :: output(maxNReceiver)
+
+
+  ! Efficiency improvement variables
+  !     When the values to be output use memory over outputMemory MB,
+  !     they are written in output files. The interval is outputInterval.
+  real(8) :: outputMemory = 10  ! Approximate amount of memory to write at a time. [MB]
+  real(8) :: memoryPerOmega  ! The amount of memory used for one omega step. [MB]
+  integer :: outputInterval  ! Interval of omega that data should be written out.
+  integer :: outputCounter  ! Counter to keep track of how many omegas have been computed after previous output.
+  integer :: iOut
+  integer, allocatable :: outputi(:)
+  complex(8), allocatable :: outputu(:,:,:)
+
+
+  ! ************************** Inputting parameters **************************
+  ! --- read parameters ---
+  call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, nZone, rminOfZone, rmaxOfZone, &
+    rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, qmuOfZone, qkappaOfZone, &
+    r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
+
+  ! --- computing the required parameters ---
+  rmin = rminOfZone(1)
+  rmax = rmaxOfZone(nZone)
+  if (r0 < rmin .or. r0 > rmax) stop 'The source position is improper.'
+
+  call judgeSolidOrLiquid(nZone, vsvPolynomials, phaseOfZone, nZoneSolid, nZoneLiquid)
+
+  ! Find the amount of memory that is written in 1 omega step.
+  !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
+  memoryPerOmega = 3 * 16 * nReceiver * 0.000001
+  ! Find how many omegas can be written within outputMemory.
+  outputInterval = int(outputMemory / memoryPerOmega)
+  ! Allocate arrays to store output.
+  allocate(outputi(outputInterval))
+  allocate(outputu(3, nReceiver, outputInterval))
+
+  if (imin == 0) imin = 1
+  ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
+  imaxFixed = imax
+
+
+  ! ************************** Files handling **************************
+  do ir = 1, nReceiver
+    call openSPCFile(output(ir), 11, spcFormat, 0)
+    call writeSPCFile(11, spcFormat, tlen)
+    call writeSPCFile(11, spcFormat, np, 1, 3)
+    call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
+    call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
+    call closeSPCFile(11)
+  end do
+
+  if (ilog == 1) then
+    open(unit = 11, file = 'llog.log', status = 'unknown')
+    write(11, *) 'iFreq, llog, nGrid-1'
+    close(11)
+  end if
+
+
+  ! ************************** Option for shallow events **************************
+  ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ! ******************* Computing parameters *******************
+  ! Design the number and position of grid points.
+  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
+    rmax, imaxFixed, 1, tlen, kzAtZone(:))
+  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), rmin, re, &
+    nGrid, nLayerInZone(:), nLayerSolid, nLayerLiquid, gridRadii(:))
+  if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
+  if (nLayerSolid > maxNLayerSolid) stop 'The number of solid layers is too large.'
+  if (nLayerLiquid > maxNLayerLiquid) stop 'The number of liquid layers is too large.'
+
+
+  write(*,*) "Ivalice looks to the horizon"
+
+  stop
+end program tipsv
