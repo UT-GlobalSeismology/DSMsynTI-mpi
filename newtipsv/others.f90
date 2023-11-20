@@ -346,8 +346,85 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
 end subroutine
 
 
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
 
+
+
+!------------------------------------------------------------------------
+! Computing the source position.
+!------------------------------------------------------------------------
+subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nGrid  ! Total number of grid points.
+  real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone [km].
+  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: liquid).
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
+  real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
+  integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
+  integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
+  integer, intent(out) :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the source layer.
+  integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
+  real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
+
+  ! Compute a double-value index of source position.
+  if (r0 >= gridRadii(nGrid)) then
+    ! Fix source position when it is at planet surface.
+    xLayerOfSource = dble(nGrid) - 0.01d0
+    r0 = gridRadii(nGrid) - 0.01d0 * (gridRadii(nGrid) - gridRadii(nGrid-1))
+
+  else
+    ! Find the layer that the source is in. (Note that the index of the lowermost layer is 1, not 0.)
+    iLayer = 1
+    do
+      if (r0 < gridRadii(iLayer + 1)) exit
+      iLayer = iLayer + 1
+    end do
+
+    ! Compute the double-value index of source position.
+    xLayerOfSource = dble(iLayer) + (r0 - gridRadii(iLayer)) / (gridRadii(iLayer + 1) - gridRadii(iLayer))
+
+    ! Fix source position when it is too close to a grid point.
+    if ((xLayerOfSource - dble(iLayer)) < 0.01d0) then
+      xLayerOfSource = dble(iLayer) + 0.01d0
+      r0 = gridRadii(iLayer) + 0.01d0 * (gridRadii(iLayer + 1) - gridRadii(iLayer))
+    elseif ((xLayerOfSource - dble(iLayer)) > 0.99d0) then
+      xLayerOfSource = dble(iLayer) + 0.99d0
+      r0 = gridRadii(iLayer) + 0.99d0 * (gridRadii(iLayer + 1) - gridRadii(iLayer))
+    end if
+  end if
+
+  ! Find the zone that the source is in.
+  iZoneOfSource = 1
+  do
+    if (r0 < rmaxOfZone(iZoneOfSource)) exit
+    iZoneOfSource = iZoneOfSource + 1
+  end do
+  if (phaseOfZone(iZoneOfSource) /= 1) stop 'The source is in a liquid zone. (computeSourcePosition)'
+
+  ! Find the layer that the source is in.
+  iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
+  ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
+  oRowOfSource = 4 * iLayerOfSource - 3
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
+
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
 
 

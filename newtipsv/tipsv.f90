@@ -24,7 +24,7 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 program tipsv
-!  use FileIO  TODO
+  use FileIO
   implicit none
 
   !----------------------------<<constants>>----------------------------
@@ -95,9 +95,39 @@ program tipsv
   integer :: iZoneOfSource  ! Which zone the source is in.
   integer :: iLayerOfSource  ! Index of layer that the source is in.
 
+  ! Variables for the values
+  integer :: nValue  ! Total number of values.
+  real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value [km].
+  integer :: oValueOfZone(maxNZone)  ! Index of the first value in each zone.
+  real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries) [g/cm^3].
+  real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
+  complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+
+  ! Variables for the trial function
+  integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
+  real(8) :: largeL2  ! L^2 = l(l+1).
+  real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
+  !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
+  complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1:3), m (-2:2), iReceiver.
+
+  ! Variables for the matrix elements
+  real(8) :: t(4 * maxNGrid - 4)
+  real(8) :: h1(4 * maxNGrid - 4), h2(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
+  real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
+  integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
+  integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
+  complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
+  complex(8) :: a(2, maxNGrid)
+  complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
+  complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
+  complex(8) :: u(3, maxNReceiver)  ! Displacement [km].
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
+
 
 
   ! Efficiency improvement variables
@@ -180,6 +210,14 @@ program tipsv
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
   if (nLayerSolid > maxNLayerSolid) stop 'The number of solid layers is too large.'
   if (nLayerLiquid > maxNLayerLiquid) stop 'The number of liquid layers is too large.'
+
+  ! Compute the first indices in each zone.
+!  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
+
+  ! Compute the source position.
+  call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+
+
 
 
   write(*,*) "Ivalice looks to the horizon"
