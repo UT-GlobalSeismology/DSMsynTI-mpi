@@ -55,7 +55,7 @@ program tipsv
 
   ! Variables for the source
   real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
-  real(8) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
+  real(8) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
 
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
@@ -100,9 +100,13 @@ program tipsv
   real(8) :: valuedRadii(maxNGrid + maxNZone - 1)  ! Radii corresponding to each variable value [km].
   integer :: oValueOfZone(maxNZone)  ! Index of the first value in each zone.
   real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries) [g/cm^3].
+  real(8) :: kappaValues(maxNGrid + maxNZone - 1)  !
+  real(8) :: ecKxValues(maxNGrid + maxNZone - 1)  ! 3*Kx=3A-4N
+  real(8) :: ecKyValues(maxNGrid + maxNZone - 1)  ! 3*Ky=3F+2N
+  real(8) :: ecKzValues(maxNGrid + maxNZone - 1)  ! 3*Kz=2F+C
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
-  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
+!  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
   complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
 
   ! Variables for the trial function
@@ -216,6 +220,25 @@ program tipsv
 
   ! Compute the source position.
   call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+
+  call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
+    vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), nLayerInZone(:), gridRadii(:), &
+    nValue, valuedRadii(:), rhoValues(:), kappaValues(:), ecKxValues(:), ecKyValues(:), ecKzValues(:), ecLValues(:), ecNValues(:))
+  call computeSourceStructureValues(iZoneOfSource, r0, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
+    vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), ecC0, ecF0, ecL0)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -401,16 +401,16 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing variable values at grid points.
 !------------------------------------------------------------------------
-subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, &
-  nLayerInZone, gridRadii, nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
+subroutine computeStructureValues(nZone, rmax, rhoPolynomials, vsvPolynomials, vshPolynomials, nLayerInZone, gridRadii, &
+  nValue, valuedRadii, rhoValues, ecLValues, ecNValues)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
-  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   real(8), intent(in) :: rhoPolynomials(4,nZone), vsvPolynomials(4,nZone), vshPolynomials(4,nZone)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vsv, and vsh [km/s] structure.
+  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value [km].

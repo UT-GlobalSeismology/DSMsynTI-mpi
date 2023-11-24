@@ -415,6 +415,100 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+! Computing variable values at grid points.
+!------------------------------------------------------------------------
+subroutine computeStructureValues(nZone, rmax, &
+  rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, nLayerInZone, gridRadii, &
+  nValue, valuedRadii, rhoValues, kappaValues, ecKxValues, ecKyValues, ecKzValues, ecLValues, ecNValues)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
+  real(8), intent(in) :: rhoPolynomials(4,nZone), vpvPolynomials(4,nZone), vphPolynomials(4,nZone)
+  real(8), intent(in) :: vsvPolynomials(4,nZone), vshPolynomials(4,nZone), etaPolynomials(4,nZone)
+  !:::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta structure.
+  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
+  integer, intent(out) :: nValue  ! Total number of values for each variable.
+  real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value [km].
+  real(8), intent(out) :: rhoValues(*), kappaValues(*), ecKxValues(*), ecKyValues(*), ecKzValues(*), ecLValues(*), ecNValues(*)
+  ! Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa]
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).  !!!!TODO
+  real(8) :: rhoTemp, vpvTemp, vphTemp, vsvTemp, vshTemp, etaTemp, ecA, ecC, ecF
+  integer :: iZone, iLayer, iValue, iGrid
+
+  ! Initialize variables.
+  iValue = 0
+  iGrid = 0
+
+  ! Compute variable values at grid points.
+  do iZone = 1, nZone
+    do iLayer = 1, nLayerInZone(iZone) + 1
+      iValue = iValue + 1
+      iGrid = iGrid + 1
+      valuedRadii(iValue) = gridRadii(iGrid)
+
+      ! Evaluate the density and elastic constants at this point.
+      call valueAtRadius(rhoPolynomials(:, iZone), valuedRadii(iValue), rmax, rhoTemp)
+      call valueAtRadius(vpvPolynomials(:, iZone), valuedRadii(iValue), rmax, vpvTemp)
+      call valueAtRadius(vphPolynomials(:, iZone), valuedRadii(iValue), rmax, vphTemp)
+      call valueAtRadius(vsvPolynomials(:, iZone), valuedRadii(iValue), rmax, vsvTemp)
+      call valueAtRadius(vshPolynomials(:, iZone), valuedRadii(iValue), rmax, vshTemp)
+      call valueAtRadius(etaPolynomials(:, iZone), valuedRadii(iValue), rmax, etaTemp)
+      rhoValues(iValue) = rhoTemp
+      ecLValues(iValue) = rhoTemp * vsvTemp * vsvTemp
+      ecNValues(iValue) = rhoTemp * vshTemp * vshTemp
+      ecA = rhoTemp * vphTemp * vphTemp
+      ecC = rhoTemp * vpvTemp * vpvTemp
+      ecF = etaTemp * (ecA - 2.d0 * ecLValues(iValue))
+      kappaValues(iValue) = (4.d0 * ecA + ecC + 4.d0 * ecF - 4.d0 * ecNValues(iValue) ) / 9.d0
+      ecKxValues(iValue) = ecA - 4.d0 / 3.d0 * ecNValues(iValue)
+      ecKyValues(iValue) = ecF + 2.d0 / 3.d0 * ecNValues(iValue)
+      ecKzValues(iValue) = (ecC + 2.d0 * ecF) / 3.d0
+    end do
+
+    iGrid = iGrid - 1
+  end do
+
+  nValue = iValue
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing variable values near the source.
+!------------------------------------------------------------------------
+subroutine computeSourceStructureValues(iZoneOfSource, r0, rmax, &
+  rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, ecC0, ecF0, ecL0)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
+  real(8), intent(in) :: r0  ! Input source radius [km].
+  real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
+  real(8), intent(in) :: rhoPolynomials(4,*), vpvPolynomials(4,*), vphPolynomials(4,*)
+  real(8), intent(in) :: vsvPolynomials(4,*), vshPolynomials(4,*), etaPolynomials(4,*)
+  !:::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta structure.
+  real(8), intent(out) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
+  real(8) :: rhoTemp, vpvTemp, vphTemp, vsvTemp, vshTemp, etaTemp, ecA0
+
+  ! Evaluate the density and elastic constants at source.
+  call valueAtRadius(rhoPolynomials(:, iZoneOfSource), r0, rmax, rhoTemp)
+  call valueAtRadius(vpvPolynomials(:, iZoneOfSource), r0, rmax, vpvTemp)
+  call valueAtRadius(vphPolynomials(:, iZoneOfSource), r0, rmax, vphTemp)
+  call valueAtRadius(vsvPolynomials(:, iZoneOfSource), r0, rmax, vsvTemp)
+  call valueAtRadius(vshPolynomials(:, iZoneOfSource), r0, rmax, vshTemp)
+  call valueAtRadius(etaPolynomials(:, iZoneOfSource), r0, rmax, etaTemp)
+  ecL0 = rhoTemp * vsvTemp * vsvTemp
+  ecA0 = rhoTemp * vphTemp * vphTemp
+  ecC0 = rhoTemp * vpvTemp * vpvTemp
+  ecF0 = etaTemp * (ecA0 - 2.d0 * ecL0)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 
