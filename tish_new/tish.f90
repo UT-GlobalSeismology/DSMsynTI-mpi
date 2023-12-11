@@ -6,7 +6,7 @@
 !  Synthetics for shallow events can be computed.
 !
 !  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
-!  (C) 2002.10  University of Tokyo
+!  (C) 2002 - 2023  University of Tokyo
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -125,7 +125,6 @@ program tish
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
   complex(8) :: cwork(4 * maxNGrid - 4)  ! Working array for matrix computations.
-  integer :: ier  ! Error code from subroutine solving linear equations.
   complex(8) :: dr(maxNGrid), z(maxNGrid), gdr(3)  ! Working arrays used when solving linear equations.
 
   ! Constants

@@ -6,7 +6,7 @@
 !  Synthetics for shallow events can be computed.
 !
 !  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
-!  (C) 2002.12  University of Tokyo
+!  (C) 2002 - 2023  University of Tokyo
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -106,6 +106,8 @@ program tipsv
   real(8) :: ecKzValues(maxNGrid + maxNZone - 1)  ! 3*Kz=2F+C
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: rhoReciprocals(maxNGrid + maxNZone - 1)  !
+  real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  !
 !  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
   complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
 
@@ -118,8 +120,12 @@ program tipsv
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1:3), m (-2:2), iReceiver.
 
   ! Variables for the matrix elements
-  real(8) :: t(4 * maxNGrid - 4)
-  real(8) :: h1(4 * maxNGrid - 4), h2(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
+  real(8) :: t(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerSolid
+  real(8) :: h1x(4 * maxNGrid - 4), h1y(4 * maxNGrid - 4), h1z(4 * maxNGrid - 4), h2L(4 * maxNGrid - 4), h2N(4 * maxNGrid - 4)
+  real(8) :: h3x(4 * maxNGrid - 4), h3y(4 * maxNGrid - 4), h3z(4 * maxNGrid - 4), h4L(4 * maxNGrid - 4), h4N(4 * maxNGrid - 4)
+  real(8) :: h5x(4 * maxNGrid - 4), h5y(4 * maxNGrid - 4), h5z(4 * maxNGrid - 4), h6L(4 * maxNGrid - 4), h6N(4 * maxNGrid - 4)
+  real(8) :: h7x(4 * maxNGrid - 4), h7y(4 * maxNGrid - 4), h7z(4 * maxNGrid - 4), h8L(4 * maxNGrid - 4), h8N(4 * maxNGrid - 4)
+  real(8) :: p1(4 * maxNGrid - 4), p2(4 * maxNGrid - 4), p3(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerLiquid
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
   integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
@@ -132,6 +138,8 @@ program tipsv
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
 
+  ! Other variables
+  real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
 
 
   ! Efficiency improvement variables
@@ -221,15 +229,89 @@ program tipsv
   ! Compute the source position.
   call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
 
+
+  ! ******************* Computing the matrix elements *******************
+  ! Compute variable values at grid points.
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
     vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), nLayerInZone(:), gridRadii(:), &
     nValue, valuedRadii(:), rhoValues(:), kappaValues(:), ecKxValues(:), ecKyValues(:), ecKzValues(:), ecLValues(:), ecNValues(:))
   call computeSourceStructureValues(iZoneOfSource, r0, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
     vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), ecC0, ecF0, ecL0)
 
+  ! compute 1/rho and 1/kappa
+  call computeReciprocals(nValue, rhoValues(:), kappaValues(:), rhoReciprocals(:), kappaReciprocals(:))
 
+  ! Compute mass and rigitidy matrices.
+  do i = 1, nZone
+    if (phaseOfZone(i) == 1) then
+      ! solid
 
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
+        t(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKxValues(oValueOfZone(i):), 0, 0, 0, &
+        h1x(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKyValues(oValueOfZone(i):), 0, 0, 0, &
+        h1y(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKzValues(oValueOfZone(i):), 0, 0, 0, &
+        h1z(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
+        h2L(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
+        h2N(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKxValues(oValueOfZone(i):), 1, 1, 0, &
+        h5x(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKyValues(oValueOfZone(i):), 1, 1, 0, &
+        h5y(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKzValues(oValueOfZone(i):), 1, 1, 0, &
+        h5z(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
+        h6L(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 1, 1, 0, &
+        h6N(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKxValues(oValueOfZone(i):), 2, 1, 1, &
+        h7x(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKyValues(oValueOfZone(i):), 2, 1, 1, &
+        h7y(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKzValues(oValueOfZone(i):), 2, 1, 1, &
+        h7z(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
+        h8L(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 2, 1, 1, &
+        h8N(oRowOfZone(i):))
+      call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKxValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), h1x(oRowOfZone(i):), work(oRowOfZone(i):), h1x(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKyValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), h1y(oRowOfZone(i):), work(oRowOfZone(i):), h1y(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecKzValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), h1z(oRowOfZone(i):), work(oRowOfZone(i):), h1z(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), h2L(oRowOfZone(i):), work(oRowOfZone(i):), h2L(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), h2N(oRowOfZone(i):), work(oRowOfZone(i):), h2N(oRowOfZone(i):))
+      call computeTranspose(nLayerInZone(i), h5x(oRowOfZone(i):), h3x(oRowOfZone(i):))
+      call computeTranspose(nLayerInZone(i), h5y(oRowOfZone(i):), h3y(oRowOfZone(i):))
+      call computeTranspose(nLayerInZone(i), h5z(oRowOfZone(i):), h3z(oRowOfZone(i):))
+      call computeTranspose(nLayerInZone(i), h6L(oRowOfZone(i):), h4L(oRowOfZone(i):))
+      call computeTranspose(nLayerInZone(i), h6N(oRowOfZone(i):), h4N(oRowOfZone(i):))
 
+    else
+      !liquid
+
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoReciprocals(oValueOfZone(i):), 2, 1, 1, &
+        p1(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoReciprocals(oValueOfZone(i):), 0, 0, 0, &
+        p2(oRowOfZone(i):))
+      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), kappaReciprocals(oValueOfZone(i):), 2, 0, 0, &
+        p3(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoReciprocals(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), p2(oRowOfZone(i):), work(oRowOfZone(i):), p2(oRowOfZone(i):))
+      call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), kappaReciprocals(oValueOfZone(i):), work(oRowOfZone(i):))
+      call computeAverage(nLayerInZone(i), p3(oRowOfZone(i):), work(oRowOfZone(i):), p3(oRowOfZone(i):))
+
+    end if
+  end do
 
 
 
