@@ -186,21 +186,21 @@ subroutine judgeSolidOrLiquid(nZone, vsPolynomials, phaseOfZone, nZoneSolid, nZo
   real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
   integer, intent(out) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
   integer, intent(out) :: nZoneSolid, nZoneLiquid  ! Number of solid and liquid zones.
-  integer :: i
+  integer :: iZone
 
   nZoneSolid = 0
   nZoneLiquid = 0
 
-  do i = 1, nZone
-    if (vsPolynomials(1,i) == 0.0d0 .and. vsPolynomials(2,i) == 0.0d0 &
-      .and. vsPolynomials(3,i) == 0.0d0 .and. vsPolynomials(4,i) == 0.0d0) then
+  do iZone = 1, nZone
+    if (vsPolynomials(1,iZone) == 0.0d0 .and. vsPolynomials(2,iZone) == 0.0d0 &
+      .and. vsPolynomials(3,iZone) == 0.0d0 .and. vsPolynomials(4,iZone) == 0.0d0) then
       ! liquid
       nZoneLiquid = nZoneLiquid + 1
-      phaseOfZone(i) = 2
+      phaseOfZone(iZone) = 2
     else
       ! solid
       nZoneSolid = nZoneSolid + 1
-      phaseOfZone(i) = 1
+      phaseOfZone(iZone) = 1
     end if
   end do
 
@@ -348,7 +348,41 @@ end subroutine
 
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
+subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oRowOfZoneSolid, oRowOfZoneLiquid)
 !------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
+  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
+  integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
+  integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneLiquid(nZone)
+  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and liquid zones.
+  integer :: iZone, iS, iL
+
+  oGridOfZone(1) = 1
+  oValueOfZone(1) = 1
+  oRowOfZoneSolid(1) = 1
+  oRowOfZoneLiquid(1) = 1
+  iS = 0
+  iL = 0
+  do iZone = 1, nZone - 1
+    oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
+    oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
+
+    if (phaseOfZone(iZone) == 1) then
+      iS = iS + 1
+      oRowOfZoneSolid(iS + 1) = oRowOfZoneSolid(iS) + 4 * nLayerInZone(iZone)
+
+    else
+      iL = iL + 1
+      oRowOfZoneLiquid(iL + 1) = oRowOfZoneLiquid(iL) + 4 * nLayerInZone(iZone)
+
+    end if
+  end do
+
+end subroutine
 
 
 

@@ -305,15 +305,15 @@ subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oValueOfZone, o
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
-  integer :: i
+  integer :: iZone
 
   oGridOfZone(1) = 1
   oValueOfZone(1) = 1
   oRowOfZone(1) = 1
-  do i = 1, nZone - 1
-    oGridOfZone(i + 1) = oGridOfZone(i) + nLayerInZone(i)
-    oValueOfZone(i + 1) = oValueOfZone(i) + nLayerInZone(i) + 1
-    oRowOfZone(i + 1) = oRowOfZone(i) + 4 * nLayerInZone(i)
+  do iZone = 1, nZone - 1
+    oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
+    oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
+    oRowOfZone(iZone + 1) = oRowOfZone(iZone) + 4 * nLayerInZone(iZone)
   end do
 
 end subroutine
