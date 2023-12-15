@@ -43,8 +43,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   real(8), intent(out) :: work(4*maxNGrid-4)  ! Working matrix.
   integer :: i
 
-
-  ! ******************* Computing parameters *******************
+  ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
@@ -60,7 +59,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
 
 
-  ! ******************* Computing the matrix elements *******************
+  ! ------------------- Computing the matrix elements -------------------
   ! Compute variable values at grid points.
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vsvPolynomials(:,:), vshPolynomials(:,:), nLayerInZone(:), &
     gridRadii(:), nValue, valuedRadii(:), rhoValues(:), ecLValues(:), ecNValues(:))

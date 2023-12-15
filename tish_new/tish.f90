@@ -185,7 +185,7 @@ program tish
   end if
 
 
-  ! ************************** Option for shallow events **************************
+  ! ########################## Option for shallow events ##########################
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
   if ((rmax - r0) < shallowdepth) then
 
@@ -204,7 +204,7 @@ program tish
       t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
-    !******************** Computing the expansion coefficients *********************
+    ! ******************** Computing the expansion coefficients *********************
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
     do iCount = 1, 2  ! omega-loop
       if (iCount == 1) then  !!! difference from main section
@@ -296,6 +296,8 @@ program tish
   end if  ! option for shallow events
 
 
+  ! ########################## Main computation ##########################
+
   ! ******************* Computing the matrix elements *******************
   call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
     nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
@@ -305,7 +307,7 @@ program tish
     t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
-  !******************** Computing the displacement *********************
+  ! ******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
   do iFreq = imin, imax  ! omega-loop

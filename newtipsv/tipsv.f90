@@ -201,7 +201,7 @@ program tipsv
   end if
 
 
-  ! ************************** Option for shallow events **************************
+  ! ########################## Option for shallow events ##########################
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
 
 
@@ -213,10 +213,13 @@ program tipsv
 
 
 
+  ! ########################## Main computation ##########################
 
+  ! ******************* Computing the matrix elements *******************
 
+  !<<< operation from here >>>>
 
-  ! ******************* Computing parameters *******************
+  ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
     rmax, imaxFixed, 1, tlen, kzAtZone(:))
@@ -233,7 +236,7 @@ program tipsv
   call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
 
 
-  ! ******************* Computing the matrix elements *******************
+  ! ------------------- Computing the matrix elements -------------------
   ! Compute variable values at grid points.
   call computeStructureValues(nZone, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
     vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), nLayerInZone(:), gridRadii(:), &
@@ -241,7 +244,7 @@ program tipsv
   call computeSourceStructureValues(iZoneOfSource, r0, rmax, rhoPolynomials(:,:), vpvPolynomials(:,:), vphPolynomials(:,:), &
     vsvPolynomials(:,:), vshPolynomials(:,:), etaPolynomials(:,:), ecC0, ecF0, ecL0)
 
-  ! compute 1/rho and 1/kappa
+  ! Compute 1/rho and 1/kappa.
   call computeReciprocals(nValue, rhoValues(:), kappaValues(:), rhoReciprocals(:), kappaReciprocals(:))
 
   ! Compute mass and rigitidy matrices.
@@ -304,6 +307,14 @@ program tipsv
     end if
   end do
 
+  ! Compute the modified operator of the 1st derivative.
+  iS = 0
+  do i = 1, nZone
+    oV = oValueOfZone(i)
+    if (phaseOfZone(i) == 1) then
+      ! solid
+      iS = iS + 1
+      oR = oRowOfZoneSolid(iS)
 
 
 
@@ -315,6 +326,67 @@ program tipsv
 
 
 
+
+    end if
+  end do
+
+  !<<< operation up to here >>>>
+
+  !******************** Computing the displacement *********************
+  outputCounter = 1  !!! difference from shallow-source section
+
+  do iFreq = imin, imax  ! omega-loop
+    omega = 2.d0 * pi * dble(iFreq) / tlen
+
+
+
+
+
+
+
+
+
+    ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+    llog = min(l, maxL)
+
+    ! Store results.  !!! difference from shallow-source section
+    outputi(outputCounter) = iFreq
+    do ir = 1, nReceiver
+      outputu(:, ir, outputCounter) = u(:, ir)
+    end do
+
+
+    ! ************************** Files Handling **************************
+    ! Write to file when the output interval is reached, or when this is the last omega.
+    if (outputCounter >= outputInterval .or. iFreq == imax) then
+      write(*,*) "kakikomimasu"
+
+      do ir = 1, nReceiver
+        call openSPCFile(output(ir), 11, spcFormat, 1)
+        do iOut = 1, outputCounter
+          call writeSPCFile(11, spcFormat, outputi(iOut), dble(outputu(1, ir, iOut)), imag(outputu(1, ir, iOut)))
+          call writeSPCFile(11, spcFormat, dble(outputu(2, ir, iOut)), imag(outputu(2, ir, iOut)))
+          call writeSPCFile(11, spcFormat, dble(outputu(3, ir, iOut)), imag(outputu(3, ir, iOut)))
+        end do
+        call closeSPCFile(11)
+      end do
+
+      outputCounter = 0
+    end if
+
+    if (ilog == 1) then
+      open(unit=11, file='llog.log', position='append', status='old')
+      write(11,*) iFreq, llog, nGrid-1
+      close(11)
+    end if
+
+    outputCounter = outputCounter + 1
+
+  end do  ! omega-loop
+
+  ! Deallocate arrays.
+  deallocate(outputi)
+  deallocate(outputu)
 
   write(*,*) "Ivalice looks to the horizon"
 
