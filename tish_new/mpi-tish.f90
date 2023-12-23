@@ -110,7 +110,7 @@ program tish
 
   ! Variables for the matrix elements
   real(8) :: t(4 * maxNGrid - 4)
-  real(8) :: h1(4 * maxNGrid - 4), h2(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
+  real(8) :: h1(4 * maxNGrid - 4), h2sum(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
   integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
@@ -247,7 +247,7 @@ program tish
       kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
       iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
       nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
-      t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
+      t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
     !******************** Computing the expansion coefficients *********************
@@ -273,7 +273,7 @@ program tish
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
         call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-          h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+          h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
         call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
         call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
@@ -307,7 +307,7 @@ program tish
         ! Compute UNASSEMBLED A matrix in layer with source.
         ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
         call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-          h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
+          h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
 
         ! Compute A matrix near source.
         call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))
@@ -348,7 +348,7 @@ program tish
     kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
     iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
     nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
-    t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
+    t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
   !******************** Computing the displacement *********************
@@ -376,7 +376,7 @@ program tish
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
       call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-        h1(oRowOfZone(i):), h2(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+        h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
       call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
@@ -415,7 +415,7 @@ program tish
       ! Compute UNASSEMBLED A matrix in layer with source.
       ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
       call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-        h1(oRowOfSource:), h2(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
+        h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
 
       ! Compute A matrix near source.
       call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))

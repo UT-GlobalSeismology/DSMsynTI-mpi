@@ -347,6 +347,7 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+!!!!TODO
 !------------------------------------------------------------------------
 subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oRowOfZoneSolid, oRowOfZoneLiquid)
 !------------------------------------------------------------------------
@@ -383,8 +384,6 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   end do
 
 end subroutine
-
-
 
 
 !------------------------------------------------------------------------

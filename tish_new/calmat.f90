@@ -1,11 +1,10 @@
 
 !------------------------------------------------------------------------
 ! Computing \int dr con r^rpow X_k1^(dot1) X_k2^(dot2). (See eq. 16 of Kawai et al. 2006.)
-! "I_(k'k)^4" is replaced with "I_(k'k)^4 + I_(kk')^4". (See eq. 19 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, rpow, dot1, dot2, mat, work)
+subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, rpow, dot1, dot2, mat)
 !------------------------------------------------------------------------
   implicit none
   integer, parameter :: maxrpow = 2  ! Maximum value of rpow to allow.
@@ -15,9 +14,8 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, values
   real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
-  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals, "I_(k'k)^4" replaced with "I_(k'k)^4 + I_(kk')^4".
-  !::::::::::::::::::::::::::::::::::::::::::::::: (See eq. 19 of Kawai et al. 2006.)
-  real(8), intent(out) :: work(4*nLayerInZoneI)  ! Resulting integrals. I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
+  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
   integer :: iLayer, j1, j2, i, iRow
   real(8) :: a(2,2), b(2,2), c(5), rh
 
@@ -68,26 +66,41 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, values
         ! Integrate; the result is saved for each (iLayer, k1, k2)-pair.
         iRow = 4 * (iLayer - 1) + 2 * (j1 - 1) + j2
         call integrateProduct(5, c, valuedRadiiInZoneI(iLayer), valuedRadiiInZoneI(iLayer + 1), &
-          valuedRadiiInZoneI(iLayer:), valuesInZoneI(iLayer:), work(iRow))
+          valuedRadiiInZoneI(iLayer:), valuesInZoneI(iLayer:), mat(iRow))
       end do
     end do
   end do
 
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Add transpose of tridiagonal matrix to itself.
+! This is to replace "I_(k'k)^4" with "I_(k'k)^4 + I_(kk')^4", because "I_(k'k)^4" appears only in this form.
+!  (See eq. 19 of Kawai et al. 2006.)
+! The result is a tridiagonal matrix,
+!  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
+!------------------------------------------------------------------------
+subroutine addTranspose(nLayerInZoneI, matIn, matSum)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: matIn(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg].
+  real(8), intent(out) :: matSum(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg].
+  integer :: iLayer
+
   ! Replace "I_(k'k)^4" with "I_(k'k)^4 + I_(kk')^4". (See eq. 19 of Kawai et al. 2006.)
-  if (dot1 /= dot2) then
-    do iLayer = 1, 4 * nLayerInZoneI
-      select case(mod(iLayer, 4))
-       case (0, 1)  ! (k1, k2) = (i, i), (i+1, i+1) -> double the value
-        mat(iLayer) = 2.d0 * work(iLayer)
-       case (2)  ! (k1, k2) = (i, i+1) -> add "(k1, k2) = (i+1, i)" case
-        mat(iLayer) = work(iLayer) + work(iLayer + 1)
-       case (3)  ! (k1, k2) = (i+1, i) -> add "(k1, k2) = (i, i+1)" case
-        mat(iLayer) = work(iLayer - 1) + work(iLayer)
-      end select
-    end do
-  else
-    mat(:) = work(:)
-  end if
+  do iLayer = 1, 4 * nLayerInZoneI
+    select case(mod(iLayer, 4))
+     case (0, 1)  ! (k1, k2) = (i, i), (i+1, i+1) -> double the value
+      matSum(iLayer) = 2.d0 * matIn(iLayer)
+     case (2)  ! (k1, k2) = (i, i+1) -> add "(k1, k2) = (i+1, i)" case
+      matSum(iLayer) = matIn(iLayer) + matIn(iLayer + 1)
+     case (3)  ! (k1, k2) = (i+1, i) -> add "(k1, k2) = (i, i+1)" case
+      matSum(iLayer) = matIn(iLayer - 1) + matIn(iLayer)
+    end select
+  end do
 
 end subroutine
 
@@ -308,15 +321,15 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, qCoef, a0)
+subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, qCoef, a0)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
-  real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  real(8), intent(in) :: h1(4*nLayerInZoneI), h2sum(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
+  !::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2]. Note that h2sum is (I4 + I4').
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
@@ -329,7 +342,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2, h3, h4, qCoef, a0)
 
   do i = 1, 4 * nLayerInZoneI
     ! I2 - I4 - I4' + I6 - 2*I7. (See eq. 19 of Kawai et al. 2006.)
-    h = h1(i) - h2(i) + h3(i) - 2.d0 * h4(i)
+    h = h1(i) - h2sum(i) + h3(i) - 2.d0 * h4(i)
     ! omega^2 T - (I2 - I4 - I4' + I6 - 2*I7). (See eq. 2 of Kawai et al. 2006.)
     a0(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
   end do
@@ -394,7 +407,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, qCoef, a)
+subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4, qCoef, a)
 !------------------------------------------------------------------------
   implicit none
 
@@ -402,8 +415,8 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, qC
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
-  real(8), intent(in) :: h1(4*nLayerInZoneI), h2(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  real(8), intent(in) :: h1(4*nLayerInZoneI), h2sum(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
+  !::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2]. Note that h2sum is (I4 + I4').
   complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
@@ -420,7 +433,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2, h3, h4, qC
 
   do i = 1, 4 * nLayerInZoneI
     ! I2 - I4 - I4' + I6 + (L^2 - 2)*I7. (See eq. 19 of Kawai et al. 2006.)
-    h = h1(i) - h2(i) + h3(i) + largeL2m2 * h4(i)
+    h = h1(i) - h2sum(i) + h3(i) + largeL2m2 * h4(i)
     ! omega^2 T - H. (See eq. 2 of Kawai et al. 2006.)
     a(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
   end do

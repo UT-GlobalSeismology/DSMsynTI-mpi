@@ -1,7 +1,6 @@
 
-!------------------------------------------------------------------------
+!------------------------------------------------------------------------!!Common
 ! Computing \int dr con r^rpow X_k1^(dot1) X_k2^(dot2). (See eq. 16 of Kawai et al. 2006.)
-! "I_(k'k)^4" is replaced with "I_(k'k)^4 + I_(kk')^4". (See eq. 19 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -15,7 +14,8 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, values
   real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
-  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting integrals. I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
+  real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
   integer :: iLayer, j1, j2, i, iRow
   real(8) :: a(2,2), b(2,2), c(5), rh
 
@@ -72,7 +72,6 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, values
   end do
 
 end subroutine
-
 
 
 !------------------------------------------------------------------------!!Common
@@ -288,14 +287,16 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing the transpose of a tridiagonal matrix in a certain zone.
+! The result is a tridiagonal matrix,
+!  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
 subroutine computeTranspose(nLayerInZoneI, matIn, matOut)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: matIn(*)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-  real(8), intent(out) :: matOut(*)  ! Transposed tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  real(8), intent(in) :: matIn(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  real(8), intent(out) :: matOut(4*nLayerInZoneI)  ! Transposed tridiagonal matrix, stored for each (iLayer, k', k)-pair.
   integer :: i
 
   do i = 4, 4 * nLayerInZoneI, 4
@@ -308,10 +309,65 @@ subroutine computeTranspose(nLayerInZoneI, matIn, matOut)
 end subroutine
 
 
+!------------------------------------------------------------------------
+! Subtracting two tridiagonal matrices for a certain zone.
+! The result is a tridiagonal matrix,
+!  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
+!------------------------------------------------------------------------
+subroutine subtractMatrix(nLayerInZoneI, mat1, mat2, difference)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: mat1(4*nLayerInZoneI), mat2(4*nLayerInZoneI)
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::: Input tridiagonal matrices, stored for each (iLayer, k', k)-pair.
+  real(8), intent(out) :: difference(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  integer :: i
+
+  do i = 1, 4 * nLayerInZoneI
+    difference(i) = mat1(i) - mat2(i)
+  end do
+
+end subroutine
+
 
 !------------------------------------------------------------------------
+! Computation of the submatrix 'h5'.
 !------------------------------------------------------------------------
+subroutine computeH5(nLayerInZoneI, valuedRadii, con, gridRadii, h5)
 !------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: valuedRadii(*)
+  real(8), intent(in) :: con(*)
+  real(8), intent(in) :: gridRadii(*)
+  real(8), intent(out) :: h5(*)
+  integer :: itmp, i
+
+  ! Data initialization
+  call vecinit(4 * nLayerInZoneI, h5)
+
+  itmp = 0
+  do
+    itmp = itmp + 1
+    if (valuedRadii(itmp) == gridRadii(1)) then
+      if (valuedRadii(itmp+1) == valuedRadii(itmp)) itmp = itmp + 1
+      exit
+    end if
+  end do
+
+  itmp = itmp - 1
+
+  do i = 1, nLayerInZoneI
+    itmp = itmp + 1
+    h5(4*i-3) = - 3.0d0 / 8.0d0 * con(itmp) * gridRadii(i) - 1.0d0 / 8.0d0 * con(itmp+1) * gridRadii(i+1)
+    h5(4*i-2) = - h5(4*i-3)
+    h5(4*i-1) = - 1.0d0 / 8.0d0 * con(itmp) * gridRadii(i) - 3.0d0 / 8.0d0 * con(itmp+1) * gridRadii(i+1)
+    h5(4*i)   = - h5(4*i-1)
+  end do
+
+end subroutine
 
 
 !------------------------------------------------------------------------

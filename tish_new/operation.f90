@@ -6,7 +6,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
   iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
   nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
-  t, h1, h2, h3, h4, gt, gh1, gh2, gh3, gh4, work)
+  t, h1, h2sum, h3, h4, gt, gh1, gh2sum, gh3, gh4, work)
 !------------------------------------------------------------------------
   implicit none
 
@@ -38,10 +38,10 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   real(8), intent(out) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::  Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa] at each point.
   real(8), intent(out) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
-  real(8), intent(out) :: t(4*maxNGrid-4), h1(4*maxNGrid-4), h2(4*maxNGrid-4), h3(4*maxNGrid-4), h4(4*maxNGrid-4)
-  real(8), intent(out) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
+  real(8), intent(out) :: t(4*maxNGrid-4), h1(4*maxNGrid-4), h2sum(4*maxNGrid-4), h3(4*maxNGrid-4), h4(4*maxNGrid-4)
+  real(8), intent(out) :: gt(8), gh1(8), gh2sum(8), gh3(8), gh4(8)
   real(8), intent(out) :: work(4*maxNGrid-4)  ! Working matrix.
-  integer :: i
+  integer :: i, oV, oR
 
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
@@ -68,36 +68,35 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
 
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), 2, 0, 0, &
-      t(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 2, 1, 1, &
-      h1(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 1, 1, 0, &
-      h2(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), 0, 0, 0, &
-      h3(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), 0, 0, 0, &
-      h4(oRowOfZone(i):), work(oRowOfZone(i):))
-    call computeLumpedT(nLayerInZone(i), valuedRadii(oValueOfZone(i):), rhoValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), t(oRowOfZone(i):), work(oRowOfZone(i):), t(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecLValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), h3(oRowOfZone(i):), work(oRowOfZone(i):), h3(oRowOfZone(i):))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oValueOfZone(i):), ecNValues(oValueOfZone(i):), work(oRowOfZone(i):))
-    call computeAverage(nLayerInZone(i), h4(oRowOfZone(i):), work(oRowOfZone(i):), h4(oRowOfZone(i):))
+    oV = oValueOfZone(i)
+    oR = oRowOfZone(i)
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oR:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 2, 1, 1, h1(oR:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 1, 1, 0, work(oR:))
+    call addTranspose(nLayerInZone(i), work(oR:), h2sum(oR:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 0, 0, 0, h3(oR:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 0, 0, 0, h4(oR:))
+    call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), work(oR:))
+    call computeAverage(nLayerInZone(i), t(oR:), work(oR:), t(oR:))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oR:))
+    call computeAverage(nLayerInZone(i), h3(oR:), work(oR:), h3(oR:))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oR:))
+    call computeAverage(nLayerInZone(i), h4(oR:), work(oR:), h4(oR:))
   end do
 
   ! Compute mass and rigitidy matrices near source.
-  call computeIntermediateIntegral(2, gridRadiiForSource, rhoValuesForSource, 2, 0, 0, gt, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 2, 1, 1, gh1, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 1, 1, 0, gh2, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecLValuesForSource, 0, 0, 0, gh3, work)
-  call computeIntermediateIntegral(2, gridRadiiForSource, ecNValuesForSource, 0, 0, 0, gh4, work)
-  call computeLumpedT(2, gridRadiiForSource, rhoValuesForSource, work)
-  call computeAverage(2, gt, work, gt)
-  call computeLumpedH(2, gridRadiiForSource, ecLValuesForSource, work)
-  call computeAverage(2, gh3, work, gh3)
-  call computeLumpedH(2, gridRadiiForSource, ecNValuesForSource, work)
-  call computeAverage(2, gh4, work, gh4)
+  call computeIntermediateIntegral(2, gridRadiiForSource(:), rhoValuesForSource(:), 2, 0, 0, gt(:))
+  call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 2, 1, 1, gh1(:))
+  call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 1, 1, 0, work(:))
+  call addTranspose(2, work(:), gh2sum(:))
+  call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 0, 0, 0, gh3(:))
+  call computeIntermediateIntegral(2, gridRadiiForSource(:), ecNValuesForSource(:), 0, 0, 0, gh4(:))
+  call computeLumpedT(2, gridRadiiForSource(:), rhoValuesForSource(:), work(:))
+  call computeAverage(2, gt(:), work(:), gt(:))
+  call computeLumpedH(2, gridRadiiForSource(:), ecLValuesForSource(:), work(:))
+  call computeAverage(2, gh3(:), work(:), gh3(:))
+  call computeLumpedH(2, gridRadiiForSource(:), ecNValuesForSource(:), work(:))
+  call computeAverage(2, gh4(:), work(:), gh4(:))
 
 end subroutine
 
