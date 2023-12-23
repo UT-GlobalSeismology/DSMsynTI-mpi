@@ -474,6 +474,10 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing the excitation vector g.
+! Here, the source time function is set as the delta function (in the time domain).
+! (Note that the Fourier transform of the delta function is a constant function.
+!  The g set in this subroutine does not depend on omega, meaning it is a constant function in the frequency domain.)
+! The unit of g is [10^15 N] in the frequency domain, which corresponds to [10^15 N/s] in the time domain.
 !------------------------------------------------------------------------
 subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, gdr, g)
 !------------------------------------------------------------------------

@@ -626,7 +626,7 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
   complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
-  complex(8), intent(inout) :: u(3)  ! Displacement [km].
+  complex(8), intent(inout) :: u(3)  ! Displacement velocity - the unit is [km] in the frequency domain.
   complex(8) :: largeLc
 
   ! Compute L.

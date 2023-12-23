@@ -118,7 +118,8 @@ program tish
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
-  complex(8) :: u(3, maxNReceiver)  ! Displacement [km].
+  complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
