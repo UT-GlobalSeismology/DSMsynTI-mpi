@@ -332,51 +332,164 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computation of the submatrix 'h5'.
+! Computing the step-wise part of the unmodified operator for a certain zone.
+! (See eqs. 3.44 and 3.45 of Geller & Takeuchi 1995; eqs. 11 and 12 of Takeuchi et al. 1996.)
+! Note that in the above papers, the average of ec*r within each layer is taken,
+!  but in this program, its value at the grid point is used.
+!      / -3D0-D1  3D0+D1           0     ..    \
+! 1/8 |  -D0-3D1  D0+3D1-3D1-D2  3D1+D2  0  ..  |
+!      \    :            :           :   ..    /
 !------------------------------------------------------------------------
-subroutine computeH5(nLayerInZoneI, valuedRadii, con, gridRadii, h5)
+subroutine computeStepH(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, h5)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  real(8), intent(in) :: valuedRadii(*)
-  real(8), intent(in) :: con(*)
-  real(8), intent(in) :: gridRadii(*)
-  real(8), intent(out) :: h5(*)
-  integer :: itmp, i
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
+  real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
+  real(8), intent(out) :: h5(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  integer :: iLayer
 
-  ! Data initialization
-  call vecinit(4 * nLayerInZoneI, h5)
-
-  itmp = 0
-  do
-    itmp = itmp + 1
-    if (valuedRadii(itmp) == gridRadii(1)) then
-      if (valuedRadii(itmp+1) == valuedRadii(itmp)) itmp = itmp + 1
-      exit
-    end if
-  end do
-
-  itmp = itmp - 1
-
-  do i = 1, nLayerInZoneI
-    itmp = itmp + 1
-    h5(4*i-3) = - 3.0d0 / 8.0d0 * con(itmp) * gridRadii(i) - 1.0d0 / 8.0d0 * con(itmp+1) * gridRadii(i+1)
-    h5(4*i-2) = - h5(4*i-3)
-    h5(4*i-1) = - 1.0d0 / 8.0d0 * con(itmp) * gridRadii(i) - 3.0d0 / 8.0d0 * con(itmp+1) * gridRadii(i+1)
-    h5(4*i)   = - h5(4*i-1)
+  do iLayer = 1, nLayerInZoneI
+    h5(4 * iLayer - 3) = - 3.0d0 / 8.0d0 * ecValuesInZoneI(iLayer) * valuedRadiiInZoneI(iLayer) &
+      - 1.0d0 / 8.0d0 * ecValuesInZoneI(iLayer + 1) * valuedRadiiInZoneI(iLayer + 1)
+    h5(4 * iLayer - 2) = - h5(4 * iLayer - 3)
+    h5(4 * iLayer - 1) = - 1.0d0 / 8.0d0 * ecValuesInZoneI(iLayer) * valuedRadiiInZoneI(iLayer) &
+      - 3.0d0 / 8.0d0 * ecValuesInZoneI(iLayer + 1) * valuedRadiiInZoneI(iLayer + 1)
+    h5(4 * iLayer)   = - h5(4 * iLayer - 1)
   end do
 
 end subroutine
 
 
 !------------------------------------------------------------------------
+! Computing the step-wise part of the modified matrix for a certain zone.
+! (See eq. 16 of Takeuchi et al. 1996.)
+! Note that in the paper, the average of ec*r within each layer is taken,
+!  but in this program, its value at the grid point is used.
+!       / -7D0  8D0  -D0   0     ..    \
+!      |  -5D1  -3D1  9D1  -D1  0  ..  |
+! 1/12 |    :     :    :    :    ..    |
+!      |   ..  0  -5DN-1 -3DN-1 8DN-1  |
+!       \           ..  0  -5DN  5DN  /
+!------------------------------------------------------------------------
+subroutine computeModifiedH1(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, hm1)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
+  real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
+  real(8), intent(inout) :: hm1(-1:2, nLayerInZoneI+1)  ! Resulting matrix, stored by (offset from diagonal, row number)
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
+  integer :: i
+
+  i = 1
+  hm1(0, i) = hm1(0, i) - 7.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm1(1, i) = hm1(1, i) + 8.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm1(2, i) = hm1(2, i) - 1.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+  do i = 2, nLayerInZoneI - 1
+    hm1(-1, i) = hm1(-1, i) - 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm1(0, i) = hm1(0, i) - 3.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm1(1, i) = hm1(1, i) + 9.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm1(2, i) = hm1(2, i) - 1.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  end do
+
+  i = nLayerInZoneI
+  hm1(-1, i) = hm1(-1, i) - 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm1(0, i) = hm1(0, i) - 3.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm1(1, i) = hm1(1, i) + 8.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+  i = nLayerInZoneI + 1
+  hm1(-1, i) = hm1(-1, i) - 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm1(0, i) = hm1(0, i) + 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing the step-wise part of the modified matrix for a certain zone.
+! (See eq. 17 of Takeuchi et al. 1996.)
+! Note that in the paper, the average of ec*r within each layer is taken,
+!  but in this program, its value at the grid point is used.
+!       / -5D0  5D0   0   ..           \
+!      |  -8D1  3D1  5D1  0   ..        |
+! 1/12 |    :    :    :   :   ..        |
+!      |  .. 0  DN-1 -9DN-1 3DN-1 5DN-1 |
+!       \    ..   0    DN   -8DN   7DN /
+!------------------------------------------------------------------------
+subroutine computeModifiedH2(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, hm2)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
+  real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
+  real(8), intent(inout) :: hm2(-2:1, nLayerInZoneI+1)  ! Resulting matrix, stored by (offset from diagonal, row number)
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
+  integer :: i
+
+  i = 1
+  hm2(0, i) = hm2(0, i) - 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm2(1, i) = hm2(1, i) + 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+  i = 2
+  hm2(-1, i) = hm2(-1, i) - 8.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm2(0, i) = hm2(0, i) + 3.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm2(1, i) = hm2(1, i) + 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+  do i = 3, nLayerInZoneI
+    hm2(-2, i) = hm2(-2, i) + 1.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm2(-1, i) = hm2(-1, i) - 9.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm2(0, i) = hm2(0, i) + 3.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+    hm2(1, i) = hm2(1, i) + 5.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  end do
+
+  i = nLayerInZoneI + 1
+  hm2(-2, i) = hm2(-2, i) + 1.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm2(-1, i) = hm2(-1, i) - 8.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  hm2(0, i) = hm2(0, i) + 7.0d0 / 12.0d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing the transpose of a band matrix stored by (offset from diagonal, row number) in a certain zone.
+!------------------------------------------------------------------------
+subroutine computeTransposeMod(nLayerInZoneI, pMin, pMax, hModIn, hModOut)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  integer, intent(in) :: pMin, pMax
+  real(8), intent(in) :: hModIn(pMin:pMax, nLayerInZoneI+1)  ! Input matrix, stored by (offset from diagonal, row number).
+  real(8), intent(out) :: hModOut(-pMax:-pMin, nLayerInZoneI+1)  ! Resulting matrix, stored by (offset from diagonal, row number).
+  integer :: pOut, iOut, pIn, iIn
+
+  do pOut = -pMax, -pMin
+    do iOut = 1, nLayerInZoneI + 1
+      pIn = -pOut
+      iIn = pOut + iOut
+      if (1 <= iIn .and. iIn <= nLayerInZoneI + 1) then
+        hModOut(pOut, iOut) = hModIn(pIn, iIn)
+      end if
+    end do
+  end do
+
+end subroutine
+
+
+
+!------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 
 
+
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
+
 
 

@@ -349,7 +349,8 @@ end subroutine
 !------------------------------------------------------------------------
 !!!!TODO
 !------------------------------------------------------------------------
-subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oRowOfZoneSolid, oRowOfZoneLiquid)
+subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
+  oRowOfZoneSolid, oRowOfZoneLiquid)
 !------------------------------------------------------------------------
   implicit none
 
@@ -358,12 +359,14 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: liquid).
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
+  integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
   integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneLiquid(nZone)
   !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and liquid zones.
   integer :: iZone, iS, iL
 
   oGridOfZone(1) = 1
   oValueOfZone(1) = 1
+  oValueOfZoneSolid(1) = 1
   oRowOfZoneSolid(1) = 1
   oRowOfZoneLiquid(1) = 1
   iS = 0
@@ -375,6 +378,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
     if (phaseOfZone(iZone) == 1) then
       iS = iS + 1
       oRowOfZoneSolid(iS + 1) = oRowOfZoneSolid(iS) + 4 * nLayerInZone(iZone)
+      oValueOfZoneSolid(iS + 1) = oValueOfZoneSolid(iS) + nLayerInZone(iZone) + 1
 
     else
       iL = iL + 1
