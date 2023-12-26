@@ -1,7 +1,9 @@
 
 !------------------------------------------------------------------------
-! Evaluating the value of poloidal harmonics (fully normalized) for a certain receiver and l value.
-! Computed here are the values of the r-component of S_lm^1 and the theta- and phi-components of S_lm^2.
+! Evaluating the value of each term of the vector harmonics (fully normalized) for a certain receiver and l value.
+! Term 1 is the r-component of S_lm^1.
+! Term 2 is the theta-component of S_lm^2, or (-1) times the phi-component of T_lm.
+! Term 3 is the phi-component of S_lm^2, or the theta-component of T_lm.
 ! The coefficient 1/largeL is not multiplied here. (See eq. 12 of Kawai et al. 2006.)
 ! For each receiver, this subroutine must be called for each l in order, since results from previous l's are referenced.
 !------------------------------------------------------------------------
@@ -18,7 +20,7 @@ subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
   !:::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
   complex(8), intent(out) :: trialFunctionValues(3, -2:2)  ! Values of trial functions, computed for each l and receiver.
   !::::::::::::::::::::::::::::::::::::::::::: The coefficient 1/largeL is not multiplied yet.
-  !::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1 for S_lm^1, 2:3 for S_lm^2), m (-2:2).
+  !::::::::::::::::::::::::::::::::::::::::::: Arguments: term (1:3), m (-2:2).
   integer :: m, i
   real(8) :: x, fact, coef
   complex(8) :: expimp
@@ -30,8 +32,7 @@ subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
     call computePlm(l, m, x, plm(1, m))
   end do
 
-  ! Compute values of poloidal harmonics.
-  ! Computations for m and -m is done at the same time.
+  ! Compute values of vector harmonics. Computations for m and -m is done at the same time.
   do m = 0, min(l, 2)
     ! Compute (l + |m|)! / (l - |m|)! = (l+m)(l+m-1)...(l-m+1).  (This is 1 when m=0.)
     fact = 1.d0
@@ -86,7 +87,7 @@ subroutine computePlm(l, m, x, plm)
 
   ! Check input validity
   if (m < 0 .or. m > l .or. abs(x) > 1.d0) then
-    stop "bad arguments in calplm"
+    stop "Invalid arguments. (computePlm)"
   endif
 
   if (m == l) then

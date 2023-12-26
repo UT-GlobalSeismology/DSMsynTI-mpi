@@ -614,10 +614,10 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Accumulates the value of 'u' at a certain receiver for a certain (l, m)-pair (= for a certain trial function).
-! (See eq. 1 of Kawai et al. 2006.)
+! Accumulates the value of 'u' at a certain receiver on planet surface for a certain (l, m)-pair (= for a certain trial function).
+!  (See eq. 1 of Kawai et al. 2006.)
 ! The trial function is specified by (k=k_max (at surface of planet), l, m, 3 (the T spherical harmonic)).
-! (See eqs. 12 & 13 of Kawai et al. 2006.)
+!  (See eqs. 12 & 13 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
 subroutine computeU(c0, largeL2, trialFunctionValues, u)
 !------------------------------------------------------------------------
@@ -625,7 +625,7 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
 
   complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
-  complex(8), intent(in) :: trialFunctionValues(3)  ! Trial function term. The coefficient 1/largeL is not multiplied yet.
+  complex(8), intent(in) :: trialFunctionValues(3)  ! Vector harmonics term. The coefficient 1/largeL is not multiplied yet.
   complex(8), intent(inout) :: u(3)  ! Displacement velocity - the unit is [km] in the frequency domain.
   complex(8) :: largeLc
 
@@ -633,10 +633,11 @@ subroutine computeU(c0, largeL2, trialFunctionValues, u)
   largeLc = dcmplx(sqrt(largeL2))
 
   ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
-  ! The coefficient 1/largeL is not included in the trial function term, so is multiplied here. (See eq. 12 of Kawai et al. 2006.)
+  ! The coefficient 1/largeL is not yet multiplied to the vector harmonics term, so is multiplied here.
+  !  (See eq. 12 of Kawai et al. 2006.)
   u(1) = dcmplx(0.d0, 0.d0)
-  u(2) = u(2) + c0 * trialFunctionValues(2) / largeLc
-  u(3) = u(3) + c0 * trialFunctionValues(3) / largeLc
+  u(2) = u(2) + c0 * trialFunctionValues(3) / largeLc
+  u(3) = u(3) - c0 * trialFunctionValues(2) / largeLc
 
 end subroutine
 
