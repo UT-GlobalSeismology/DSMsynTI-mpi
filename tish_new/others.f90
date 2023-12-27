@@ -510,9 +510,9 @@ end subroutine
 
 
 !------------------------------------------------------------------------  !!TODO understand
-! Computes the coefficient to multiply to elastic moduli for attenuation.
+! Computes the coefficients to multiply to elastic moduli for anelastic attenuation.
 !------------------------------------------------------------------------
-subroutine computeCoef(nZone, omega, qmuOfZone, qCoef)
+subroutine computeCoef(nZone, omega, qmuOfZone, coefQmu)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -520,19 +520,23 @@ subroutine computeCoef(nZone, omega, qmuOfZone, qCoef)
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: omega  ! Angular frequency [1/s].
   real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
-  complex(8), intent(out) :: qCoef(nZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8), intent(out) :: coefQmu(nZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   real(8) :: aa, bb
   integer :: iZone
 
-  ! Compute coefficients.
   do iZone = 1, nZone
-    if (omega == 0.d0) then
-      aa = 1.d0
+    ! Compute coefficient for Qmu.
+    if (qmuOfZone(iZone) <= 0.d0) then
+      coefQmu(iZone) = dcmplx(1.d0)
     else
-      aa = 1.d0 + log(omega / (2.d0 * pi)) / (pi * qmuOfZone(iZone))
+      if (omega == 0.d0) then
+        aa = 1.d0
+      else
+        aa = 1.d0 + log(omega / (2.d0 * pi)) / (pi * qmuOfZone(iZone))
+      end if
+      bb = 1.d0 / (2.d0 * qmuOfZone(iZone))
+      coefQmu(iZone) = dcmplx(aa, bb) ** 2
     end if
-    bb = 1.d0 / (2.d0 * qmuOfZone(iZone))
-    qCoef(iZone) = dcmplx(aa, bb) ** 2
   end do
 
 end subroutine

@@ -192,8 +192,8 @@ subroutine judgeSolidOrLiquid(nZone, vsPolynomials, phaseOfZone, nZoneSolid, nZo
   nZoneLiquid = 0
 
   do iZone = 1, nZone
-    if (vsPolynomials(1,iZone) == 0.0d0 .and. vsPolynomials(2,iZone) == 0.0d0 &
-      .and. vsPolynomials(3,iZone) == 0.0d0 .and. vsPolynomials(4,iZone) == 0.0d0) then
+    if (vsPolynomials(1,iZone) == 0.d0 .and. vsPolynomials(2,iZone) == 0.d0 &
+      .and. vsPolynomials(3,iZone) == 0.d0 .and. vsPolynomials(4,iZone) == 0.d0) then
       ! liquid
       nZoneLiquid = nZoneLiquid + 1
       phaseOfZone(iZone) = 2
@@ -563,6 +563,82 @@ subroutine computeReciprocals(nValue, rhoValues, kappaValues, rhoReciprocals, ka
 end subroutine
 
 
+!------------------------------------------------------------------------!!Common
+! Computes the accuracy threshold of angular order that is sufficient to compute the slowest phase velocity.
+! (See eq. 29 of Kawai et al. 2006.)
+! This corresponds to l_d in Kawai et al. (2006).
+!------------------------------------------------------------------------
+subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+!------------------------------------------------------------------------
+  implicit none
+
+  real(8), intent(in) :: omega  ! Angular frequency.
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone [km].
+  real(8), intent(in) :: vsvPolynomials(4,nZone)  ! Polynomial functions of vsv structure [km/s].
+  integer, intent(out) :: lsuf  ! Accuracy threshold of angular order.
+  real(8) :: vsAtSurface
+
+  ! Compute Vs at planet surface [km/s].
+  call valueAtRadius(vsvPolynomials(:, nZone), 1.d0, 1.d0, vsAtSurface)
+
+  ! Compute lsuf. (See eq. 29 of Kawai et al. 2006.)
+  !  The slowest velocity (vs at surface) and largest radius (planet radius) is used to gain larger bound of angular order.
+  lsuf = int(omega * rmaxOfZone(nZone) / vsAtSurface - 0.5d0) + 1
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computes the coefficients to multiply to elastic moduli for anelastic attenuation.
+!------------------------------------------------------------------------
+subroutine computeCoef(nZone, omega, qmuOfZone, qkappaOfZone, coefQmu, coefQkappa, coefQliquid)
+!------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: omega  ! Angular frequency [1/s].
+  real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
+  real(8), intent(in) :: qkappaOfZone(nZone)  ! Qkappa of each zone.
+  complex(8), intent(out) :: coefQmu(nZone), coefQkappa(nZone), coefQliquid(nZone)
+  !::::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
+  real(8) :: aa, bb
+  integer :: iZone
+
+  do iZone = 1, nZone
+
+    ! Compute coefficient for Qmu.
+    if (qmuOfZone(iZone) <= 0.d0) then
+      coefQmu(iZone) = dcmplx(1.d0)
+    else
+      if (omega == 0.d0) then
+        aa = 1.d0
+      else
+        aa = 1.d0 + log(omega / (2.d0 * pi)) / (pi * qmuOfZone(iZone))
+      end if
+      bb = 1.d0 / (2.d0 * qmuOfZone(iZone))
+      coefQmu(iZone) = dcmplx(aa, bb) ** 2
+    end if
+
+    ! Compute coefficient for Qkappa.
+    if (qkappaOfZone(iZone) <= 0.d0) then
+      coefQkappa(iZone) = dcmplx(1.d0)
+    else
+      if (omega == 0.d0) then
+        aa = 1.d0
+      else
+        aa = 1.d0 + dlog(omega / (2.d0 * pi)) / (pi * qkappaOfZone(iZone))
+      end if
+      bb = 1.d0 / (2.d0 * qkappaOfZone(iZone))
+      coefQkappa(iZone) = dcmplx(aa, bb) ** 2
+    end if
+
+    ! Compute coefficient for Q in liquid.
+    coefQliquid(iZone) = dcmplx(1.d0) / coefQkappa(iZone)
+  end do
+
+end subroutine
 
 
 
@@ -571,12 +647,6 @@ end subroutine
 !------------------------------------------------------------------------
 
 
-
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-
-
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
@@ -585,6 +655,34 @@ end subroutine
 
 
 
+
+!------------------------------------------------------------------------
+! Accumulates the value of 'u' at a certain receiver on planet surface for a certain (l, m)-pair (= for a certain trial function).
+!  (See eq. 1 of Kawai et al. 2006.)
+! The trial function is specified by (k=k_max (at surface of planet), l, m, 1:2 (the S^1 and S^2 spherical harmonics)).
+!  (See eqs. 12 & 13 of Kawai et al. 2006.)
+!------------------------------------------------------------------------
+subroutine computeU(c0, largeL2, harmonicsValues, u)
+!------------------------------------------------------------------------
+  implicit none
+
+  complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
+  real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
+  complex(8), intent(in) :: harmonicsValues(3)  ! Vector harmonics term. The coefficient 1/largeL is not multiplied yet.
+  complex(8), intent(inout) :: u(3)  ! Displacement velocity - the unit is [km] in the frequency domain.
+  complex(8) :: largeLc
+
+  ! Compute L.
+  largeLc = dcmplx(sqrt(largeL2))
+
+  ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
+  ! The coefficient 1/largeL is not yet multiplied to the vector harmonics term, so is multiplied here.
+  !  (See eq. 12 of Kawai et al. 2006.)
+  u(1) = u(1) + c0 * harmonicsValues(1)
+  u(2) = u(2) + c0 * harmonicsValues(2) / largeLc
+  u(3) = u(3) + c0 * harmonicsValues(3) / largeLc
+
+end subroutine
 
 
 

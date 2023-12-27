@@ -356,7 +356,7 @@ subroutine computeStepH(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, h5)
     h5(4 * iLayer - 2) = - h5(4 * iLayer - 3)
     h5(4 * iLayer - 1) = - 1.0d0 / 8.0d0 * ecValuesInZoneI(iLayer) * valuedRadiiInZoneI(iLayer) &
       - 3.0d0 / 8.0d0 * ecValuesInZoneI(iLayer + 1) * valuedRadiiInZoneI(iLayer + 1)
-    h5(4 * iLayer)   = - h5(4 * iLayer - 1)
+    h5(4 * iLayer) = - h5(4 * iLayer - 1)
   end do
 
 end subroutine

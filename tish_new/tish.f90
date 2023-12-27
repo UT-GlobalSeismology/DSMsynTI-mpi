@@ -97,7 +97,7 @@ program tish
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8) :: qCoef(maxNZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
@@ -324,7 +324,7 @@ program tish
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
-    ! Compute coefficient related to attenuation.
+    ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), qCoef(:))
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)

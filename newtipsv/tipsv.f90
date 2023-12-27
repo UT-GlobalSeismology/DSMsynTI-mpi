@@ -110,7 +110,8 @@ program tipsv
   real(8) :: rhoReciprocals(maxNGrid + maxNZone - 1)  !
   real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  !
 !  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: qCoef(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8) :: coefQmu(maxNZone), coefQkappa(maxNZone), coefQliquid(maxNZone)
+  !::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   integer :: oV, oVS
 
   ! Variables for the trial function
@@ -377,6 +378,40 @@ program tipsv
 
   do iFreq = imin, imax  ! omega-loop
     omega = 2.d0 * pi * dble(iFreq) / tlen
+
+    ! Initialize matrices.
+!    a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+!    a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+    u(:, :nReceiver) = dcmplx(0.0d0, 0.0d0)
+    ! Plm must be cleared for each omega.  !!! difference from shallow-source section
+    plm(:, :, :nReceiver) = 0.d0
+
+    ! Compute the angular order that is sufficient to compute the slowest phase velocity.
+    call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
+
+    ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
+    call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQliquid(:))
+
+    ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
+    iS = 0
+    iL = 0
+    do i = 1, nZone
+      if (phaseOfZone(i) == 1) then
+        ! solid
+        iS = iS + 1
+        oR = oRowOfZoneSolid(iS)
+
+
+
+      else
+        !liquid
+        iL = iL + 1
+        oR = oRowOfZoneLiquid(iL)
+
+
+      end if
+    end do
+
 
 
 
