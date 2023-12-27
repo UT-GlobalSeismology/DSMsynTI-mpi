@@ -7,7 +7,7 @@
 ! The coefficient 1/largeL is not multiplied here. (See eq. 12 of Kawai et al. 2006.)
 ! For each receiver, this subroutine must be called for each l in order, since results from previous l's are referenced.
 !------------------------------------------------------------------------
-subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
+subroutine computeHarmonicsValues(l, theta, phi, plm, harmonicsValues)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -18,7 +18,7 @@ subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
   !:::::::::::::::::::::::::::::::::::::::: Values for previous l's must be provided.
   !:::::::::::::::::::::::::::::::::::::::: The value for this l will be placed in plm(1,m).
   !:::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
-  complex(8), intent(out) :: trialFunctionValues(3, -2:2)  ! Values of trial functions, computed for each l and receiver.
+  complex(8), intent(out) :: harmonicsValues(3, -2:2)  ! Values of vector harmonics terms, computed for each l and receiver.
   !::::::::::::::::::::::::::::::::::::::::::: The coefficient 1/largeL is not multiplied yet.
   !::::::::::::::::::::::::::::::::::::::::::: Arguments: term (1:3), m (-2:2).
   integer :: m, i
@@ -47,20 +47,20 @@ subroutine computeTrialFunctionValues(l, theta, phi, plm, trialFunctionValues)
     expimp = exp(dcmplx(0.d0, dble(m) * phi))
 
     ! Y_lm(theta,phi) = coef P_lm(x) e^{i m phi}.
-    trialFunctionValues(1, m) = coef * plm(1, m) * expimp
-    trialFunctionValues(1, -m) = conjg(trialFunctionValues(1, m))
+    harmonicsValues(1, m) = coef * plm(1, m) * expimp
+    harmonicsValues(1, -m) = conjg(harmonicsValues(1, m))
     ! [del Y_lm(theta,phi) / del theta] = coef [ mx/sin(theta) P_lm(x) + P_{l}{m+1}(x) ] e^{i m phi}.
-    trialFunctionValues(2, m) = coef * (dble(m) * x / sin(theta) * plm(1, m) + plm(1, m+1)) * expimp
-    trialFunctionValues(2, -m) = conjg(trialFunctionValues(2, m))
+    harmonicsValues(2, m) = coef * (dble(m) * x / sin(theta) * plm(1, m) + plm(1, m+1)) * expimp
+    harmonicsValues(2, -m) = conjg(harmonicsValues(2, m))
     ! 1/sin(theta) [del Y_lm(theta,phi) / del phi] = im/sin(theta) coef P_lm(x) e^{i m phi}.
-    trialFunctionValues(3, m) = dcmplx(0.d0, dble(m)) / sin(theta) * coef * plm(1, m) * expimp
-    trialFunctionValues(3, -m) = conjg(trialFunctionValues(3, m))
+    harmonicsValues(3, m) = dcmplx(0.d0, dble(m)) / sin(theta) * coef * plm(1, m) * expimp
+    harmonicsValues(3, -m) = conjg(harmonicsValues(3, m))
 
     ! When m is odd, sign of P_{l}{-m}(x) must be flipped from that of P_lm(x).
     if (mod(m, 2) == 1) then
-      trialFunctionValues(1, -m) = -trialFunctionValues(1, -m)
-      trialFunctionValues(2, -m) = -trialFunctionValues(2, -m)
-      trialFunctionValues(3, -m) = -trialFunctionValues(3, -m)
+      harmonicsValues(1, -m) = -harmonicsValues(1, -m)
+      harmonicsValues(2, -m) = -harmonicsValues(2, -m)
+      harmonicsValues(3, -m) = -harmonicsValues(3, -m)
     endif
   end do
 

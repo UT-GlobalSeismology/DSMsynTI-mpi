@@ -6,7 +6,7 @@
 !  Synthetics for shallow events can be computed.
 !
 !  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
-!  (C) 2002.10  University of Tokyo
+!  (C) 2002 - 2023  University of Tokyo
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 !
 !  This program is distributed in the hope that it will be useful,
 !  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 !  GNU General Public License for more details.
 !
 !  You should have received a copy of the GNU General Public License
@@ -43,9 +43,8 @@ program tish
   integer :: nZone  ! Number of zones.
   real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled [km].
   real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone [km].
-  real(8) :: rhoPolynomials(4, maxNZone)  ! Rho of each zone (coefficients of cubic function) [g/cm^3].
-  real(8) :: vsvPolynomials(4, maxNZone)  ! Vsv of each zone (coefficients of cubic function) [km/s].
-  real(8) :: vshPolynomials(4, maxNZone)  ! Vsh of each zone (coefficients of cubic function) [km/s].
+  real(8) :: rhoPolynomials(4, maxNZone), vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone)
+  !:::::::::::::::::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vsv, and vsh [km/s] in each zone.
   real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
   integer :: i
 
@@ -105,8 +104,8 @@ program tish
   real(8) :: largeL2  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
-  complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: component (1:3), m (-2:2), iReceiver.
+  complex(8) :: harmonicsValues(3, -2:2, maxNReceiver)  ! Values of vector harmonics terms at each receiver, computed for each l.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: term (1:3), m (-2:2), iReceiver.
 
   ! Variables for the matrix elements
   real(8) :: t(4 * maxNGrid - 4)
@@ -127,7 +126,6 @@ program tish
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
   complex(8) :: cwork(4 * maxNGrid - 4)  ! Working array for matrix computations.
-  integer :: ier  ! Error code from subroutine solving linear equations.
   complex(8) :: dr(maxNGrid), z(maxNGrid), gdr(3)  ! Working arrays used when solving linear equations.
 
   ! Constants
@@ -232,7 +230,7 @@ program tish
   end if
 
 
-  ! ************************** Option for shallow events **************************
+  ! ########################## Option for shallow events ##########################
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
   if ((rmax - r0) < shallowdepth) then
 
@@ -251,7 +249,7 @@ program tish
       t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
-    !******************** Computing the expansion coefficients *********************
+    ! ******************** Computing the expansion coefficients *********************
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
     do iCount = 1, 2  ! omega-loop
       if (iCount == 1) then  !!! difference from main section
@@ -343,6 +341,8 @@ program tish
   end if  ! option for shallow events
 
 
+  ! ########################## Main computation ##########################
+
   ! ******************* Computing the matrix elements *******************
   call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
     nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
@@ -352,7 +352,7 @@ program tish
     t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
 
-  !******************** Computing the displacement *********************
+  ! ******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
   call trianglesplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
@@ -407,7 +407,7 @@ program tish
 
       ! Compute trial functions.  !!! difference from shallow-source section
       do ir = 1, nReceiver
-        call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
+        call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
       end do
 
       ! Assemble A matrix from parts that have already been computed.
@@ -435,7 +435,7 @@ program tish
 
         ! Accumulate u.  !!! difference from shallow-source section
         do ir = 1, nReceiver
-          call computeU(g_or_c(nGrid), largeL2, trialFunctionValues(:, m, ir), u(:, ir))
+          call computeU(g_or_c(nGrid), largeL2, harmonicsValues(:, m, ir), u(:, ir))
         end do
 
       end do  ! m-loop

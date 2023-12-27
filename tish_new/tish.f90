@@ -104,7 +104,7 @@ program tish
   real(8) :: largeL2  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
-  complex(8) :: trialFunctionValues(3, -2:2, maxNReceiver)  ! Values of trial function at each receiver, computed for each l.
+  complex(8) :: harmonicsValues(3, -2:2, maxNReceiver)  ! Values of vector harmonics terms at each receiver, computed for each l.
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: term (1:3), m (-2:2), iReceiver.
 
   ! Variables for the matrix elements
@@ -360,7 +360,7 @@ program tish
 
       ! Compute trial functions.  !!! difference from shallow-source section
       do ir = 1, nReceiver
-        call computeTrialFunctionValues(l, theta(ir), phi(ir), plm(:, :, ir), trialFunctionValues(:, :, ir))
+        call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
       end do
 
       ! Assemble A matrix from parts that have already been computed.
@@ -388,7 +388,7 @@ program tish
 
         ! Accumulate u.  !!! difference from shallow-source section
         do ir = 1, nReceiver
-          call computeU(g_or_c(nGrid), largeL2, trialFunctionValues(:, m, ir), u(:, ir))
+          call computeU(g_or_c(nGrid), largeL2, harmonicsValues(:, m, ir), u(:, ir))
         end do
 
       end do  ! m-loop
