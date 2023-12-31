@@ -317,7 +317,7 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing part of the coefficient matrix 'A' for a certain zone in the solid part.
-! This computes (omega^2 T - (I2 - I4 - I4' + I6 - 2*I7)). (See eq. 2 & 19 of Kawai et al. 2006.)
+! This computes (omega^2 T - (I2 - I4 - I4' + I6 - 2*I7)). (See eqs. 2 & 19 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -352,7 +352,7 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing part of the coefficient matrix 'A' for a certain zone in the solid part.
-! This computes (- (I7)). (See eq. 2 & 19 of Kawai et al. 2006.)
+! This computes (- (I7)). (See eqs. 2 & 19 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -368,7 +368,7 @@ subroutine computeA2(nLayerInZoneI, h4, qCoef, a2)
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
-    ! -(I7). (See eq. 2 & 19 of Kawai et al. 2006.)
+    ! -(I7). (See eqs. 2 & 19 of Kawai et al. 2006.)
     a2(i) = - qCoef * dcmplx(h4(i))
   end do
 
@@ -403,7 +403,7 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Computing the coefficient matrix 'A' for a certain zone in the solid part. (See eq. 2 & 19 of Kawai et al. 2006.)
+! Computing the coefficient matrix 'A' for a certain zone in the solid part. (See eqs. 2 & 19 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------

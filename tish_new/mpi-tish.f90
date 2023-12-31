@@ -260,8 +260,8 @@ program tish
       omega = 2.d0 * pi * dble(iFreq) / tlen
 
       ! Initialize matrices.
-      a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-      a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
+      a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+      a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
 
       ! Compute the angular order that is sufficient to compute the slowest phase velocity.
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
@@ -295,8 +295,8 @@ program tish
         largeL2 = dble(l) * dble(l + 1)
 
         ! Initialize matrices.
-        a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-        aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
+        a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+        aSource(:lda, :) = dcmplx(0.d0, 0.d0)
         ! Clear the amplitude accumulated for all m's.
         if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
@@ -362,9 +362,9 @@ program tish
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
-    a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-    a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-    u(:, :nReceiver) = dcmplx(0.0d0, 0.0d0)
+    a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+    a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+    u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
     ! Plm must be cleared for each omega.  !!! difference from shallow-source section
     plm(:, :, :nReceiver) = 0.d0
 
@@ -400,8 +400,8 @@ program tish
       largeL2 = dble(l) * dble(l + 1)
 
       ! Initialize matrices.
-      a(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-      aSource(:lda, :) = dcmplx(0.0d0, 0.0d0)
+      a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+      aSource(:lda, :) = dcmplx(0.d0, 0.d0)
       ! Clear the amplitude accumulated for all m's.
       if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 

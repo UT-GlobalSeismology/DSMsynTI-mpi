@@ -147,19 +147,22 @@ program tipsv
   integer :: oRowOfZoneSolid(maxNZone), oRowOfZoneLiquid(maxNZone)
   !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and liquid zones.
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
-  complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
+  complex(8) :: a0(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
+  complex(8) :: a1(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
+  complex(8) :: a2(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
-  integer :: oR
+  integer :: oR, oElement, oColumn
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
 
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
+  complex(8) :: cwork(16 * maxNLayerSolid + 4 * maxNLayerLiquid)  ! Working array for matrix computations.
 
 
   ! Efficiency improvement variables
@@ -380,9 +383,9 @@ program tipsv
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
-!    a0(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-!    a2(:lda, :nGrid) = dcmplx(0.0d0, 0.0d0)
-    u(:, :nReceiver) = dcmplx(0.0d0, 0.0d0)
+!    a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+!    a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+    u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
     ! Plm must be cleared for each omega.  !!! difference from shallow-source section
     plm(:, :, :nReceiver) = 0.d0
 
@@ -392,6 +395,12 @@ program tipsv
     ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQliquid(:))
 
+
+    ! call calabnum
+    !!TODO
+
+
+
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     iS = 0
     iL = 0
@@ -400,14 +409,27 @@ program tipsv
         ! solid
         iS = iS + 1
         oR = oRowOfZoneSolid(iS)
+        oElement = (oRowOfZoneSolid(iS) - 1) * 4 + 1
+        oColumn = (oValueOfZoneSolid(iS) - 1) * 2 + 1
 
+        call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oR:), h1x(oR:), h2L(oR:), h2N(oR:), &
+          hUn3y(oR:), hUn4L(oR:), hUn4N(oR:), hUn5y(oR:), hUn6L(oR:), hUn6N(oR:), h7y(oR:), h7z(oR:), h8L(oR:), h8N(oR:), &
+          coefQmu(i), coefQkappa(i), cwork(oElement:))
+        call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
+        call computeA1Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), hResid3y(oR:), hResid4L(oR:), hResid4N(oR:), &
+          hResid5y(oR:), hResid6L(oR:), hResid6N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
+        call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:,oColumn:))
+        call computeA2Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
+        call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
 
+        !!TODO
 
       else
         !liquid
         iL = iL + 1
         oR = oRowOfZoneLiquid(iL)
 
+        !!TODO
 
       end if
     end do

@@ -666,7 +666,7 @@ subroutine computeU(c0, largeL2, harmonicsValues, u)
 !------------------------------------------------------------------------
   implicit none
 
-  complex(8), intent(in) :: c0  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
+  complex(8), intent(in) :: c0(2)  ! Expansion coefficent corresponding to this trial function [km] (k=k_max, l, m, 3).
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: harmonicsValues(3)  ! Vector harmonics term. The coefficient 1/largeL is not multiplied yet.
   complex(8), intent(inout) :: u(3)  ! Displacement velocity - the unit is [km] in the frequency domain.
@@ -678,9 +678,9 @@ subroutine computeU(c0, largeL2, harmonicsValues, u)
   ! Accumulate value of u. (See eq. 1 of Kawai et al. 2006.)
   ! The coefficient 1/largeL is not yet multiplied to the vector harmonics term, so is multiplied here.
   !  (See eq. 12 of Kawai et al. 2006.)
-  u(1) = u(1) + c0 * harmonicsValues(1)
-  u(2) = u(2) + c0 * harmonicsValues(2) / largeLc
-  u(3) = u(3) + c0 * harmonicsValues(3) / largeLc
+  u(1) = u(1) + c0(1) * harmonicsValues(1)
+  u(2) = u(2) + c0(2) * harmonicsValues(2) / largeLc
+  u(3) = u(3) + c0(2) * harmonicsValues(3) / largeLc
 
 end subroutine
 
