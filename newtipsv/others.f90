@@ -176,26 +176,26 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Decide if each zone is solid or liquid.
+! Decide if each zone is solid or fluid.
 !------------------------------------------------------------------------
-subroutine judgeSolidOrLiquid(nZone, vsPolynomials, phaseOfZone, nZoneSolid, nZoneLiquid)
+subroutine judgeSolidOrFluid(nZone, vsPolynomials, phaseOfZone, nZoneSolid, nZoneFluid)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
-  integer, intent(out) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
-  integer, intent(out) :: nZoneSolid, nZoneLiquid  ! Number of solid and liquid zones.
+  integer, intent(out) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(out) :: nZoneSolid, nZoneFluid  ! Number of solid and fluid zones.
   integer :: iZone
 
   nZoneSolid = 0
-  nZoneLiquid = 0
+  nZoneFluid = 0
 
   do iZone = 1, nZone
     if (vsPolynomials(1,iZone) == 0.d0 .and. vsPolynomials(2,iZone) == 0.d0 &
       .and. vsPolynomials(3,iZone) == 0.d0 .and. vsPolynomials(4,iZone) == 0.d0) then
-      ! liquid
-      nZoneLiquid = nZoneLiquid + 1
+      ! fluid
+      nZoneFluid = nZoneFluid + 1
       phaseOfZone(iZone) = 2
     else
       ! solid
@@ -244,7 +244,7 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
 
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
-  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   real(8), intent(in) :: vpPolynomials(4,nZone), vsPolynomials(4,nZone)  ! Polynomial functions of vp and vs structure [km/s].
   real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
   integer, intent(in) :: imax  ! Index of maximum frequency.
@@ -255,7 +255,7 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
   real(8) :: v(4), vBottom, vTop, vmin, omega, kx, kz2
 
   do iZone = 1, nZone
-    ! Use Vs in solid, Vp in liquid.
+    ! Use Vs in solid, Vp in fluid.
     if (phaseOfZone(iZone) == 1) then
       v(:) = vsPolynomials(:, iZone)
     else
@@ -288,7 +288,7 @@ end subroutine
 ! Deciding the distribution of grid points.
 !------------------------------------------------------------------------
 subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone, rmin, re, &
-  nGrid, nLayerInZone, nLayerSolid, nLayerLiquid, gridRadii)
+  nGrid, nLayerInZone, nLayerSolid, nLayerFluid, gridRadii)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -296,12 +296,12 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone [1/km].
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
-  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   real(8), intent(in) :: rmin  ! Minimum radius of region considered [km].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
   integer, intent(out) :: nLayerInZone(nZone)  ! Number of layers in each zone.
-  integer, intent(out) :: nLayerSolid, nLayerLiquid  ! Number of layers in solid and liquid regions.
+  integer, intent(out) :: nLayerSolid, nLayerFluid  ! Number of layers in solid and fluid regions.
   real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point [km].
   integer :: iZone, iGrid, i, nTemp
   real(8) :: rh
@@ -309,7 +309,7 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
   ! Compute the distribution of grid points.
   iGrid = 1
   nLayerSolid = 0
-  nLayerLiquid = 0
+  nLayerFluid = 0
   gridRadii(1) = rmin
   do iZone = 1, nZone
     ! zone thickness [km]
@@ -326,11 +326,11 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
       nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
     end if
     nLayerInZone(iZone) = max(nTemp, 5)
-    ! Accumulate number of layers in solid and liquid regions.
+    ! Accumulate number of layers in solid and fluid regions.
     if (phaseOfZone(iZone) == 1) then
       nLayerSolid = nLayerSolid + nLayerInZone(iZone)
     else
-      nLayerLiquid = nLayerLiquid + nLayerInZone(iZone)
+      nLayerFluid = nLayerFluid + nLayerInZone(iZone)
     end if
     ! Compute radius at each grid point [km].
     do i = 1, nLayerInZone(iZone)
@@ -350,39 +350,47 @@ end subroutine
 !!!!TODO
 !------------------------------------------------------------------------
 subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
-  oRowOfZoneSolid, oRowOfZoneLiquid)
+  oRowOfZoneSolid, oRowOfZoneFluid, oElementOfZone, oColumnOfZone)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
-  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: fluid).
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
-  integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneLiquid(nZone)
-  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and liquid zones.
-  integer :: iZone, iS, iL
+  integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneFluid(nZone)
+  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and fluid zones.
+  integer, intent(out) :: oElementOfZone(nZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
+  integer, intent(out) :: oColumnOfZone(nZone)  ! Index of the first column in the band matrix in each zone.
+  integer :: iZone, iSolid, iFluid
 
   oGridOfZone(1) = 1
   oValueOfZone(1) = 1
   oValueOfZoneSolid(1) = 1
   oRowOfZoneSolid(1) = 1
-  oRowOfZoneLiquid(1) = 1
-  iS = 0
-  iL = 0
+  oRowOfZoneFluid(1) = 1
+  oElementOfZone(1) = 1
+  oColumnOfZone(1) = 1
+  iSolid = 0
+  iFluid = 0
   do iZone = 1, nZone - 1
     oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
     oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
 
     if (phaseOfZone(iZone) == 1) then
-      iS = iS + 1
-      oRowOfZoneSolid(iS + 1) = oRowOfZoneSolid(iS) + 4 * nLayerInZone(iZone)
-      oValueOfZoneSolid(iS + 1) = oValueOfZoneSolid(iS) + nLayerInZone(iZone) + 1
+      iSolid = iSolid + 1
+      oRowOfZoneSolid(iSolid + 1) = oRowOfZoneSolid(iSolid) + 4 * nLayerInZone(iZone)
+      oValueOfZoneSolid(iSolid + 1) = oValueOfZoneSolid(iSolid) + nLayerInZone(iZone) + 1
+      oElementOfZone(iSolid + 1) = oElementOfZone(iSolid) + 16 * nLayerInZone(iZone)
+      oColumnOfZone(iSolid + 1) = oColumnOfZone(iSolid) + 2 * nLayerInZone(iZone) + 2
 
     else
-      iL = iL + 1
-      oRowOfZoneLiquid(iL + 1) = oRowOfZoneLiquid(iL) + 4 * nLayerInZone(iZone)
+      iFluid = iFluid + 1
+      oRowOfZoneFluid(iFluid + 1) = oRowOfZoneFluid(iFluid) + 4 * nLayerInZone(iZone)
+      oElementOfZone(iSolid + 1) = oElementOfZone(iSolid) + 4 * nLayerInZone(iZone)
+      oColumnOfZone(iSolid + 1) = oColumnOfZone(iSolid) + nLayerInZone(iZone) + 1
 
     end if
   end do
@@ -399,7 +407,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
 
   integer, intent(in) :: nGrid  ! Total number of grid points.
   real(8), intent(in) :: rmaxOfZone(*)  ! Upper radius of each zone [km].
-  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: liquid).
+  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: fluid).
   real(8), intent(in) :: gridRadii(*)  ! Radii of grid points [km].
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
@@ -441,7 +449,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
     if (r0 < rmaxOfZone(iZoneOfSource)) exit
     iZoneOfSource = iZoneOfSource + 1
   end do
-  if (phaseOfZone(iZoneOfSource) /= 1) stop 'The source is in a liquid zone. (computeSourcePosition)'
+  if (phaseOfZone(iZoneOfSource) /= 1) stop 'The source is in a fluid zone. (computeSourcePosition)'
 
   ! Find the layer that the source is in.
   iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
@@ -554,7 +562,9 @@ subroutine computeReciprocals(nValue, rhoValues, kappaValues, rhoReciprocals, ka
 
   integer, intent(in) :: nValue
   real(8), intent(in) :: rhoValues(nValue), kappaValues(nValue)
+  !::::::::::::::::::::::: Values of rho [g/cm^3] and kappa [10^10 dyn/cm^2 = GPa] at each point (with 2 values at boundaries).
   real(8), intent(out) :: rhoReciprocals(nValue), kappaReciprocals(nValue)
+  !:::::::::: Values of 1/rho [cm^3/g] and 1/kappa [(10^10 dyn/cm^2)^(-1) = 1/GPa] at each point (with 2 values at boundaries).
 
   ! Compute inverses using array operations
   rhoReciprocals(:) = 1.d0 / rhoValues(:)
@@ -592,7 +602,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computes the coefficients to multiply to elastic moduli for anelastic attenuation.
 !------------------------------------------------------------------------
-subroutine computeCoef(nZone, omega, qmuOfZone, qkappaOfZone, coefQmu, coefQkappa, coefQliquid)
+subroutine computeCoef(nZone, omega, qmuOfZone, qkappaOfZone, coefQmu, coefQkappa, coefQfluid)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -601,7 +611,7 @@ subroutine computeCoef(nZone, omega, qmuOfZone, qkappaOfZone, coefQmu, coefQkapp
   real(8), intent(in) :: omega  ! Angular frequency [1/s].
   real(8), intent(in) :: qmuOfZone(nZone)  ! Qmu of each zone.
   real(8), intent(in) :: qkappaOfZone(nZone)  ! Qkappa of each zone.
-  complex(8), intent(out) :: coefQmu(nZone), coefQkappa(nZone), coefQliquid(nZone)
+  complex(8), intent(out) :: coefQmu(nZone), coefQkappa(nZone), coefQfluid(nZone)
   !::::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   real(8) :: aa, bb
   integer :: iZone
@@ -634,8 +644,8 @@ subroutine computeCoef(nZone, omega, qmuOfZone, qkappaOfZone, coefQmu, coefQkapp
       coefQkappa(iZone) = dcmplx(aa, bb) ** 2
     end if
 
-    ! Compute coefficient for Q in liquid.
-    coefQliquid(iZone) = dcmplx(1.d0) / coefQkappa(iZone)
+    ! Compute coefficient for Q in fluid.
+    coefQfluid(iZone) = dcmplx(1.d0) / coefQkappa(iZone)
   end do
 
 end subroutine

@@ -31,7 +31,7 @@ program tipsv
   real(8), parameter :: pi = 3.1415926535897932d0
   integer, parameter :: maxNGrid = 88300  ! Maximum number of grid points.
   integer, parameter :: maxNLayerSolid = 48840  ! Maximum number of layers in solid region.
-  integer, parameter :: maxNLayerLiquid = 32040  ! Maximum number of layers in liquid region.
+  integer, parameter :: maxNLayerFluid = 32040  ! Maximum number of layers in fluid region.
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
@@ -43,15 +43,15 @@ program tipsv
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure
   integer :: nZone  ! Number of zones.
-  integer :: nZoneSolid, nZoneLiquid  ! Number of solid and liquid zones.
-  integer :: phaseOfZone(maxNZone)  ! Phase of each zone (1: solid, 2: liquid).
+  integer :: nZoneSolid, nZoneFluid  ! Number of solid and fluid zones.
+  integer :: phaseOfZone(maxNZone)  ! Phase of each zone (1: solid, 2: fluid).
   real(8) :: rmin, rmax  ! Minimum and maximum radii of region that will be handled [km].
   real(8) :: rminOfZone(maxNZone), rmaxOfZone(maxNZone)  ! Minimum and maximum radii of each zone [km].
   real(8) :: rhoPolynomials(4, maxNZone), vpvPolynomials(4, maxNZone), vphPolynomials(4, maxNZone)
   real(8) :: vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone), etaPolynomials(4, maxNZone)
   !::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta in each zone.
   real(8) :: qmuOfZone(maxNZone), qkappaOfZone(maxNZone)  ! Qmu and Qkappa of each zone.
-  integer :: i, iS, iL
+  integer :: i, iSolid, iFluid
 
   ! Variables for the source
   real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
@@ -89,7 +89,7 @@ program tipsv
   integer :: nGrid  ! Total number of grid points.
   real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
-  integer :: nLayerSolid, nLayerLiquid  ! Number of layers in solid and liquid regions.
+  integer :: nLayerSolid, nLayerFluid  ! Number of layers in solid and fluid regions.
   integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer :: iZoneOfSource  ! Which zone the source is in.
@@ -110,7 +110,7 @@ program tipsv
   real(8) :: rhoReciprocals(maxNGrid + maxNZone - 1)  !
   real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  !
 !  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: coefQmu(maxNZone), coefQkappa(maxNZone), coefQliquid(maxNZone)
+  complex(8) :: coefQmu(maxNZone), coefQkappa(maxNZone), coefQfluid(maxNZone)
   !::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   integer :: oV, oVS
 
@@ -142,14 +142,14 @@ program tipsv
   real(8) :: h6Mod1L(-1:2, maxNLayerSolid + maxNZone), h6Mod1N(-1:2, maxNLayerSolid + maxNZone)
   real(8) :: h6Mod2L(-2:1, maxNLayerSolid + maxNZone), h6Mod2N(-2:1, maxNLayerSolid + maxNZone)
   real(8) :: h7x(4 * maxNGrid - 4), h7y(4 * maxNGrid - 4), h7z(4 * maxNGrid - 4), h8L(4 * maxNGrid - 4), h8N(4 * maxNGrid - 4)
-  real(8) :: p1(4 * maxNGrid - 4), p2(4 * maxNGrid - 4), p3(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerLiquid
+  real(8) :: p1(4 * maxNGrid - 4), p2(4 * maxNGrid - 4), p3(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerFluid
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
-  integer :: oRowOfZoneSolid(maxNZone), oRowOfZoneLiquid(maxNZone)
-  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and liquid zones.
+  integer :: oRowOfZoneSolid(maxNZone), oRowOfZoneFluid(maxNZone)
+  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and fluid zones.
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
-  complex(8) :: a0(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
-  complex(8) :: a1(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
-  complex(8) :: a2(4, 2*(maxNLayerSolid+1)+(maxNLayerLiquid+1)+maxNZone)
+  complex(8) :: a0(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
+  complex(8) :: a1(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
+  complex(8) :: a2(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
@@ -157,12 +157,15 @@ program tipsv
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
   integer :: oR, oElement, oColumn
 
+  integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
+  integer :: oColumnOfZone(maxNZone)  ! Index of the first column in the band matrix in each zone.
+
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
 
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
-  complex(8) :: cwork(16 * maxNLayerSolid + 4 * maxNLayerLiquid)  ! Working array for matrix computations.
+  complex(8) :: cwork(16 * maxNLayerSolid + 4 * maxNLayerFluid)  ! Working array for matrix computations.
 
 
   ! Efficiency improvement variables
@@ -188,7 +191,7 @@ program tipsv
   rmax = rmaxOfZone(nZone)
   if (r0 < rmin .or. r0 > rmax) stop 'The source position is improper.'
 
-  call judgeSolidOrLiquid(nZone, vsvPolynomials, phaseOfZone, nZoneSolid, nZoneLiquid)
+  call judgeSolidOrFluid(nZone, vsvPolynomials, phaseOfZone, nZoneSolid, nZoneFluid)
 
   ! Find the amount of memory that is written in 1 omega step.
   !  For each omega and receiver, 3 complex numbers (16 B each) are written. 1 B = 0.000001 MB.
@@ -244,14 +247,14 @@ program tipsv
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
     rmax, imaxFixed, 1, tlen, kzAtZone(:))
   call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), rmin, re, &
-    nGrid, nLayerInZone(:), nLayerSolid, nLayerLiquid, gridRadii(:))
+    nGrid, nLayerInZone(:), nLayerSolid, nLayerFluid, gridRadii(:))
   if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
   if (nLayerSolid > maxNLayerSolid) stop 'The number of solid layers is too large.'
-  if (nLayerLiquid > maxNLayerLiquid) stop 'The number of liquid layers is too large.'
+  if (nLayerFluid > maxNLayerFluid) stop 'The number of fluid layers is too large.'
 
   ! Compute the first indices in each zone.
 !  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oGridOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
-!    oRowOfZoneSolid(:), oRowOfZoneLiquid(:))
+!    oRowOfZoneSolid(:), oRowOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:))
 
   ! Compute the source position.
   call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
@@ -269,14 +272,14 @@ program tipsv
   call computeReciprocals(nValue, rhoValues(:), kappaValues(:), rhoReciprocals(:), kappaReciprocals(:))
 
   ! Compute mass and rigitidy matrices.
-  iS = 0
-  iL = 0
+  iSolid = 0
+  iFluid = 0
   do i = 1, nZone
     oV = oValueOfZone(i)
     if (phaseOfZone(i) == 1) then
       ! solid
-      iS = iS + 1
-      oR = oRowOfZoneSolid(iS)
+      iSolid = iSolid + 1
+      oR = oRowOfZoneSolid(iSolid)
 
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), 0, 0, 0, h1x(oR:))
@@ -313,9 +316,9 @@ program tipsv
       call computeTranspose(nLayerInZone(i), hUn6N(oR:), hUn4N(oR:))
 
     else
-      !liquid
-      iL = iL + 1
-      oR = oRowOfZoneLiquid(iL)
+      !fluid
+      iFluid = iFluid + 1
+      oR = oRowOfZoneFluid(iFluid)
 
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), 2, 1, 1, p1(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), 0, 0, 0, p2(oR:))
@@ -329,14 +332,14 @@ program tipsv
   end do
 
   ! Compute the modified operator of the 1st derivative.
-  iS = 0
+  iSolid = 0
   do i = 1, nZone
     oV = oValueOfZone(i)
     if (phaseOfZone(i) == 1) then
       ! solid
-      iS = iS + 1
-      oR = oRowOfZoneSolid(iS)
-      oVS = oValueOfZoneSolid(iS)
+      iSolid = iSolid + 1
+      oR = oRowOfZoneSolid(iSolid)
+      oVS = oValueOfZoneSolid(iSolid)
 
       ! Compute residual after subtracting step-wise matrix from unmodified matrix.
       call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), work(oR:))
@@ -393,7 +396,7 @@ program tipsv
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
     ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-    call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQliquid(:))
+    call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
 
     ! call calabnum
@@ -402,15 +405,16 @@ program tipsv
 
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-    iS = 0
-    iL = 0
+    iSolid = 0
+    iFluid = 0
     do i = 1, nZone
+      oElement = oElementOfZone(i)
+      oColumn = oColumnOfZone(i)
+
       if (phaseOfZone(i) == 1) then
         ! solid
-        iS = iS + 1
-        oR = oRowOfZoneSolid(iS)
-        oElement = (oRowOfZoneSolid(iS) - 1) * 4 + 1
-        oColumn = (oValueOfZoneSolid(iS) - 1) * 2 + 1
+        iSolid = iSolid + 1
+        oR = oRowOfZoneSolid(iSolid)
 
         call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oR:), h1x(oR:), h2L(oR:), h2N(oR:), &
           hUn3y(oR:), hUn4L(oR:), hUn4N(oR:), hUn5y(oR:), hUn6L(oR:), hUn6N(oR:), h7y(oR:), h7z(oR:), h8L(oR:), h8N(oR:), &
@@ -425,11 +429,14 @@ program tipsv
         !!TODO
 
       else
-        !liquid
-        iL = iL + 1
-        oR = oRowOfZoneLiquid(iL)
+        !fluid
+        iFluid = iFluid + 1
+        oR = oRowOfZoneFluid(iFluid)
 
-        !!TODO
+        call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oR:), p3(oR:), coefQfluid(i), cwork(oElement:))
+        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
+        call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oR:), cwork(oElement:))
+        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
 
       end if
     end do

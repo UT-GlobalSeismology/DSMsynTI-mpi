@@ -648,32 +648,126 @@ subroutine overlapASolid(nLayerInZoneI, aIn, aOut)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(16*nLayerInZoneI)  ! Input block tridiagonal matrix,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: stored for each (iLayer, k'-gamma', k-gamma)-pair [10^12 kg/s^2].
-  complex(8), intent(out) :: aOut(4,*)  ! Upper band of the overlapped matrix
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
+  complex(8), intent(out) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [10^12 kg/s^2].
   integer :: j
+
+  ! TODO should unused elements be set 0?
 
   do j = 1, nLayerInZoneI
     ! (j,j)-block
     if (j == 1) then
-      aOut(4, 2 * j - 1) = aOut(4, 2 * j - 1) + aIn(1)
-      aOut(3, 2 * j) = aOut(3, 2 * j) + aIn(2)
-      aOut(4, 2 * j) = aOut(4, 2 * j) + aIn(4)
+      aOut(4, 2 * j - 1) = aIn(16 * j - 15)
+      aOut(3, 2 * j) = aIn(16 * j - 14)
+      aOut(4, 2 * j) = aIn(16 * j - 12)
     else
-      aOut(4, 2 * j - 1) = aOut(4, 2 * j - 1) + aIn(16 * j - 19) + aIn(16 * j - 15)
-      aOut(3, 2 * j) = aOut(3, 2 * j) + aIn(16 * j - 18) + aIn(16 * j - 14)
-      aOut(4, 2 * j) = aOut(4, 2 * j) + aIn(16 * j - 16) + aIn(16 * j - 12)
+      aOut(4, 2 * j - 1) = aIn(16 * j - 19) + aIn(16 * j - 15)
+      aOut(3, 2 * j) = aIn(16 * j - 18) + aIn(16 * j - 14)
+      aOut(4, 2 * j) = aIn(16 * j - 16) + aIn(16 * j - 12)
     end if
     ! (j,j+1)-block
-    aOut(2, 2 * j + 1) = aOut(2, 2 * j + 1) + aIn(16 * j - 11)
-    aOut(3, 2 * j + 1) = aOut(3, 2 * j + 1) + aIn(16 * j - 10)
-    aOut(1, 2 * j + 2) = aOut(1, 2 * j + 2) + aIn(16 * j - 9)
-    aOut(2, 2 * j + 2) = aOut(2, 2 * j + 2) + aIn(16 * j - 8)
+    aOut(2, 2 * j + 1) = aIn(16 * j - 11)
+    aOut(3, 2 * j + 1) = aIn(16 * j - 10)
+    aOut(1, 2 * j + 2) = aIn(16 * j - 9)
+    aOut(2, 2 * j + 2) = aIn(16 * j - 8)
   end do
   ! (N,N)-block
   j = nLayerInZoneI + 1
-  aOut(4, 2 * j - 1) = aOut(4, 2 * j - 1) + aIn(16 * j - 19)
-  aOut(3, 2 * j) = aOut(3, 2 * j) + aIn(16 * j - 18)
-  aOut(4, 2 * j) = aOut(4, 2 * j) + aIn(16 * j - 16)
+  aOut(4, 2 * j - 1) = aIn(16 * j - 19)
+  aOut(3, 2 * j) = aIn(16 * j - 18)
+  aOut(4, 2 * j) = aIn(16 * j - 16)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing part of the coefficient matrix 'A' for a certain zone in the fluid part.
+! This computes the part without largeL coefficients. (See eqs. 2 & 17-18 of Kawai et al. 2006.)
+! The result is a tridiagonal matrix,
+!  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
+!------------------------------------------------------------------------
+subroutine computeA0Fluid(nLayerInZoneI, omega, omegaI, p1, p3, coefQfluid, a0)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
+  real(8), intent(in) :: p1(4*nLayerInZoneI), p3(4*nLayerInZoneI)
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of T and H matrix stored for each (iLayer, k', k)-pair [TODO].
+  complex(8), intent(in) :: coefQfluid  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
+  complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO].
+  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
+  integer :: i
+
+  ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
+  omegaDamped2 = dcmplx(omega, -omegaI) ** 2
+
+  ! Calculate b0 for each relevant index
+  do i = 1, 4 * nLayerInZoneI
+    a0(i) = -dcmplx(p1(i)) / omegaDamped2 + coefQfluid * dcmplx(p3(i))
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Computing part of the coefficient matrix 'A' for a certain zone in the fluid part.
+! This computes the part with coefficient largeL^2. (See eqs. 2 & 17-18 of Kawai et al. 2006.)
+! The result is a tridiagonal matrix,
+!  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
+!------------------------------------------------------------------------
+subroutine computeA2Fluid(nLayerInZoneI, omega, omegaI, p2, a2)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
+  real(8), intent(in) :: p2(4*nLayerInZoneI)  ! Parts of H matrix stored for each (iLayer, k', k)-pair [TODO].
+  complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO].
+  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
+  integer :: i
+
+  ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
+  omegaDamped2 = dcmplx(omega, -omegaI) ** 2
+
+  ! Calculate b0 for each relevant index
+  do i = 1, 4 * nLayerInZoneI
+    a2(i) = -dcmplx(p2(i)) / omegaDamped2
+  end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Overlapping the coefficient matrix elements for a certain zone in the fluid part.
+! The results are the components in the upper band of the matrix,
+!  stored for each (iRow, iColumn) = (1,1), (1,2),(2,2), (1,3),(2,3),(3,3), (1,4),(2,4),(3,4),(4,4), (2,5),(3,5),(4,5),(5,5), ...
+!------------------------------------------------------------------------
+subroutine overlapAFluid(nLayerInZoneI, aIn, aOut)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [TODO].
+  complex(8), intent(out) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO]. Should be initialized with 0s beforehand.
+  integer :: j
+
+  ! TODO should unused elements be set 0?
+
+  do j = 1, nLayerInZoneI
+    ! (j,j)-component
+    if (j == 1) then
+      aOut(4, 1) = aIn(1)
+    else
+      aOut(4, j) = aIn(4 * j - 4) + aIn(4 * j - 3)
+    end if
+    ! (j,j+1)-component
+    aOut(3, j + 1) = aIn(4 * j - 2)
+  end do
+  ! (N,N)-component
+  aOut(4, nLayerInZoneI + 1) = aIn(4 * nLayerInZoneI)
 
 end subroutine
 
@@ -686,6 +780,4 @@ end subroutine
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
-
-
 
