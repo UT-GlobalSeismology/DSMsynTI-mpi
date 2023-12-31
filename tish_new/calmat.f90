@@ -321,7 +321,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, qCoef, a0)
+subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, coefQmu, a0)
 !------------------------------------------------------------------------
   implicit none
 
@@ -330,7 +330,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, qCoef, 
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2sum(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2]. Note that h2sum is (I4 + I4').
-  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
@@ -344,7 +344,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, qCoef, 
     ! I2 - I4 - I4' + I6 - 2*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2sum(i) + h3(i) - 2.d0 * h4(i)
     ! omega^2 T - (I2 - I4 - I4' + I6 - 2*I7). (See eq. 2 of Kawai et al. 2006.)
-    a0(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
+    a0(i) = omegaDamped2 * dcmplx(t(i)) - coefQmu * dcmplx(h)
   end do
 
 end subroutine
@@ -356,20 +356,20 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA2(nLayerInZoneI, h4, qCoef, a2)
+subroutine computeA2(nLayerInZoneI, h4, coefQmu, a2)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
-  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
     ! -(I7). (See eqs. 2 & 19 of Kawai et al. 2006.)
-    a2(i) = - qCoef * dcmplx(h4(i))
+    a2(i) = - coefQmu * dcmplx(h4(i))
   end do
 
 end subroutine
@@ -407,7 +407,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4, qCoef, a)
+subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4, coefQmu, a)
 !------------------------------------------------------------------------
   implicit none
 
@@ -417,7 +417,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4,
   real(8), intent(in) :: t(4*nLayerInZoneI)  ! T matrix stored for each (iLayer, k', k)-pair [10^12 kg].
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2sum(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2]. Note that h2sum is (I4 + I4').
-  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: a(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
@@ -435,7 +435,7 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4,
     ! I2 - I4 - I4' + I6 + (L^2 - 2)*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2sum(i) + h3(i) + largeL2m2 * h4(i)
     ! omega^2 T - H. (See eq. 2 of Kawai et al. 2006.)
-    a(i) = omegaDamped2 * dcmplx(t(i)) - qCoef * dcmplx(h)
+    a(i) = omegaDamped2 * dcmplx(t(i)) - coefQmu * dcmplx(h)
   end do
 
 end subroutine
@@ -479,7 +479,7 @@ end subroutine
 !  The g set in this subroutine does not depend on omega, meaning it is a constant function in the frequency domain.)
 ! The unit of g is [10^15 N] in the frequency domain, which corresponds to [10^15 N/s] in the time domain.
 !------------------------------------------------------------------------
-subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, gdr, g)
+subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, gdr, g)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -489,7 +489,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceP
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mt(3,3)  ! Depth [km] and moment tensor [10^25 dyn cm] of source.
   real(8), intent(in) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
-  complex(8), intent(in) :: qCoef  ! Coefficient to multiply to elastic moduli for attenuation.
+  complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
   complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix [10^12 kg/s^2].
   complex(8), intent(inout) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
   complex(8), intent(inout) :: gdr(3)  ! Working array.
@@ -515,7 +515,7 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceP
     ! b1 in eq. (26) of Kawai et al. (2006).
     b = sqrt(dble(2 * l + 1) / (16.d0 * pi))
     ! D3 [km] of eq. (26) of Kawai et al. (2006).
-    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * ecL0) * qCoef)
+    dd = dcmplx(b) * dcmplx(sgnM * mt(1, 3), mt(1, 2)) / (dcmplx(r0 * r0 * ecL0) * coefQmu)
 
     !TODO ??
     do i = 2, 3

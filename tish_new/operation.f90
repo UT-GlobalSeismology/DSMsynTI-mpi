@@ -104,7 +104,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Form and solve the linear equation Ac=-g.
 !------------------------------------------------------------------------
-subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, &
+subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, &
   nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
 !------------------------------------------------------------------------
   implicit none
@@ -115,7 +115,7 @@ subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   real(8), intent(in) :: r0, mt(3,3)  ! Depth [km] and moment tensor [10^25 dyn cm] of source.
   real(8), intent(in) :: ecL0  ! Elastic modulus L at source position [10^10 dyn/cm^2 = GPa].
-  complex(8), intent(in) :: qCoef(*)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8), intent(in) :: coefQmu(*)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
   complex(8), intent(in) :: aaParts(4), aSourceParts(8)  ! Unassembled A matrix [10^12 kg/s^2].
   complex(8), intent(inout) :: aSource(2,3)  ! Assembled A matrix [10^12 kg/s^2].
   integer, intent(in) :: nGrid  ! Total number of grid points (= number of layers + 1).
@@ -131,7 +131,7 @@ subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL
   g_or_c(:) = dcmplx(0.d0, 0.d0)
 
   ! Compute excitation vector g.
-  call computeG(l, m, iLayerOfSource, r0, mt, ecL0, qCoef(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
+  call computeG(l, m, iLayerOfSource, r0, mt, ecL0, coefQmu(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
     gdr(:), g_or_c(:))
 
   if (mod(l, 100) == 0) then

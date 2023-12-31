@@ -97,7 +97,7 @@ program tish
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: qCoef(maxNZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
+  complex(8) :: coefQmu(maxNZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
@@ -223,15 +223,15 @@ program tish
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
       ! Compute coefficient related to attenuation.
-      call computeCoef(nZone, omega, qmuOfZone(:), qCoef(:))
+      call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
         call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-          h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+          h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
         call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
-        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
         call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
       end do
 
@@ -262,17 +262,17 @@ program tish
         ! Compute UNASSEMBLED A matrix in layer with source.
         ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
         call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-          h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
+          h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coefQmu(iZoneOfSource), aaParts(:))
 
         ! Compute A matrix near source.
-        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))
+        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
         call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
         do m = -2, 2  ! m-loop
           if (m == 0 .or. abs(m) > abs(l)) cycle
 
           ! Form and solve the linear equation Ac=-g.
-          call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, &
+          call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, &
             nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
 
           ! Check whether the amplitude has decayed enough to stop the l-loops.
@@ -325,15 +325,15 @@ program tish
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
     ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-    call computeCoef(nZone, omega, qmuOfZone(:), qCoef(:))
+    call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
       call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-        h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+        h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
 
-      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), qCoef(i), cwork(oRowOfZone(i):))
+      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
       call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
     end do
 
@@ -369,17 +369,17 @@ program tish
       ! Compute UNASSEMBLED A matrix in layer with source.
       ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
       call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-        h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), qCoef(iZoneOfSource), aaParts(:))
+        h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coefQmu(iZoneOfSource), aaParts(:))
 
       ! Compute A matrix near source.
-      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), qCoef(iZoneOfSource), aSourceParts(:))
+      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
       call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
 
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
 
         ! Form and solve the linear equation Ac=-g.
-        call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, qCoef, aaParts, aSourceParts, aSource, &
+        call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, &
           nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
 
         ! Check whether the amplitude has decayed enough to stop the l-loops.
