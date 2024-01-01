@@ -116,7 +116,7 @@ program tipsv
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
-  real(8) :: largeL2  ! L^2 = l(l+1).
+  real(8) :: largeL2, largeL  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
   complex(8) :: harmonicsValues(3, -2:2, maxNReceiver)  ! Values of vector harmonics terms at each receiver, computed for each l.
@@ -155,10 +155,10 @@ program tipsv
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
-  integer :: oR, oElement, oColumn
-
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
-  integer :: oColumnOfZone(maxNZone)  ! Index of the first column in the band matrix in each zone.
+  integer :: oColumnOfZone(maxNZone + 1)  ! Index of the first column in the band matrix for each zone.
+  integer :: nColumn  ! Total number of columns in the band matrix.
+  integer :: oR, oElement, oColumn
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -253,8 +253,8 @@ program tipsv
   if (nLayerFluid > maxNLayerFluid) stop 'The number of fluid layers is too large.'
 
   ! Compute the first indices in each zone.
-!  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oGridOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
-!    oRowOfZoneSolid(:), oRowOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:))
+  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oGridOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
+    oRowOfZoneSolid(:), oRowOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:), nColumn)
 
   ! Compute the source position.
   call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
@@ -316,7 +316,7 @@ program tipsv
       call computeTranspose(nLayerInZone(i), hUn6N(oR:), hUn4N(oR:))
 
     else
-      !fluid
+      ! fluid
       iFluid = iFluid + 1
       oR = oRowOfZoneFluid(iFluid)
 
@@ -386,8 +386,9 @@ program tipsv
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
-!    a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-!    a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+    a0(:, :nColumn) = dcmplx(0.d0, 0.d0)
+    a1(:, :nColumn) = dcmplx(0.d0, 0.d0)
+    a2(:, :nColumn) = dcmplx(0.d0, 0.d0)
     u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
     ! Plm must be cleared for each omega.  !!! difference from shallow-source section
     plm(:, :, :nReceiver) = 0.d0
@@ -416,20 +417,24 @@ program tipsv
         iSolid = iSolid + 1
         oR = oRowOfZoneSolid(iSolid)
 
+        ! All parts of A0 are either unmodified or already modified using lumped matrix.
         call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oR:), h1x(oR:), h2L(oR:), h2N(oR:), &
           hUn3y(oR:), hUn4L(oR:), hUn4N(oR:), hUn5y(oR:), hUn6L(oR:), hUn6N(oR:), h7y(oR:), h7z(oR:), h8L(oR:), h8N(oR:), &
           coefQmu(i), coefQkappa(i), cwork(oElement:))
         call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
+        ! Unmodified residual part of A1.
         call computeA1Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), hResid3y(oR:), hResid4L(oR:), hResid4N(oR:), &
           hResid5y(oR:), hResid6L(oR:), hResid6N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
         call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:,oColumn:))
+        ! All parts of A2 are either unmodified or already modified using lumped matrix.
         call computeA2Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
         call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
 
+        ! Modified step part of A1.
         !!TODO
 
       else
-        !fluid
+        ! fluid
         iFluid = iFluid + 1
         oR = oRowOfZoneFluid(iFluid)
 
@@ -441,6 +446,37 @@ program tipsv
       end if
     end do
 
+    ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
+    cutoffGrid = 1
+    ! Clear counter.
+    decayCounter = 0
+    ! Clear amplitude record.
+    recordAmplitude = -1.d0
+
+    do l = 0, maxL  ! l-loop
+      ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
+      if (decayCounter > 20) exit
+
+      ! L^2 and L. (See the part after eq. 12 of Kawai et al. 2006.)
+      ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
+      largeL2 = dble(l) * dble(l + 1)
+!      largeL = sqrt(largeL2)
+
+      ! Initialize matrices.
+      a(:, :nColumn) = dcmplx(0.d0, 0.d0)
+!      aSource(:, :) = dcmplx(0.d0, 0.d0)
+      ! Clear the amplitude accumulated for all m's.
+      if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
+
+      ! Compute trial functions.  !!! difference from shallow-source section
+      do ir = 1, nReceiver
+        call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
+      end do
+
+      !!TODO calmdr;    calspdr not needed.
+
+      ! Assemble A matrix from parts that have already been computed.
+      call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))
 
 
 
@@ -448,7 +484,23 @@ program tipsv
 
 
 
+      do m = -2, 2  ! m-loop
+        if (abs(m) > abs(l)) cycle
 
+
+
+
+
+
+
+      end do  ! m-loop
+
+      ! Decide cut-off depth (at a certain interval of l).
+      if (mod(l, 100) == 0) then
+        call computeCutoffDepth(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
+      end if
+
+    end do  ! l-loop
 
     ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
     llog = min(l, maxL)

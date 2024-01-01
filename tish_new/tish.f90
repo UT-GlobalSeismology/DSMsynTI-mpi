@@ -129,7 +129,6 @@ program tish
   complex(8) :: dr(maxNGrid), z(maxNGrid), gdr(3)  ! Working arrays used when solving linear equations.
 
   ! Constants
-  integer :: lda = 2
   real(8) :: eps = -1.d0
 
   ! Efficiency improvement variables
@@ -251,8 +250,8 @@ program tish
         largeL2 = dble(l) * dble(l + 1)
 
         ! Initialize matrices.
-        a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-        aSource(:lda, :) = dcmplx(0.d0, 0.d0)
+        a(:, :nGrid) = dcmplx(0.d0, 0.d0)
+        aSource(:, :) = dcmplx(0.d0, 0.d0)
         ! Clear the amplitude accumulated for all m's.
         if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
@@ -353,8 +352,8 @@ program tish
       largeL2 = dble(l) * dble(l + 1)
 
       ! Initialize matrices.
-      a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-      aSource(:lda, :) = dcmplx(0.d0, 0.d0)
+      a(:, :nGrid) = dcmplx(0.d0, 0.d0)
+      aSource(:, :) = dcmplx(0.d0, 0.d0)
       ! Clear the amplitude accumulated for all m's.
       if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 

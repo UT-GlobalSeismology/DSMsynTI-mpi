@@ -452,22 +452,23 @@ subroutine overlapMatrixBlocks(nLayerInZoneI, aIn, aOut)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
-  complex(8), intent(out) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
-  integer :: j
+  complex(8), intent(inout) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
+  integer :: i
 
-  do j = 1, nLayerInZoneI
-    ! (j,j)-component
-    if (j == 1) then
-      aOut(2, j) = aOut(2, j) + aIn(1)
+  do i = 1, nLayerInZoneI
+    ! (i,i)-component
+    if (i == 1) then
+      ! This overlaps with previous zone (if present).
+      aOut(2, i) = aOut(2, i) + aIn(1)
     else
-      aOut(2, j) = aOut(2, j) + aIn(4 * j - 4) + aIn(4 * j - 3)
+      aOut(2, i) = aIn(4 * i - 4) + aIn(4 * i - 3)
     end if
-    ! (j,j+1)-component
-    aOut(1, j + 1) = aOut(1, j + 1) + aIn(4 * j - 2)
+    ! (i,i+1)-component
+    aOut(1, i + 1) = aIn(4 * i - 2)
   end do
   ! (N,N)-component
-  aOut(2, nLayerInZoneI + 1) = aOut(2, nLayerInZoneI + 1) + aIn(4 * nLayerInZoneI)
+  aOut(2, nLayerInZoneI + 1) = aIn(4 * nLayerInZoneI)
 
 end subroutine
 

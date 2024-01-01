@@ -509,6 +509,7 @@ subroutine computeA0Solid(nLayerInZoneI, omega, omegaI, t, h1x, h2L, h2N, h3ay, 
   complex(8) :: hh0
   integer :: iElement, iBlock
 
+  ! Initialize all elements, since they are referenced when overlapping.
   a0(:) = dcmplx(0.d0)
 
   ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
@@ -564,6 +565,7 @@ subroutine computeA1Solid(nLayerInZoneI, h1x, h2L, h2N, h3y, h4L, h4N, h5y, h6L,
   complex(8) :: hh1
   integer :: iElement, iBlock
 
+  ! Initialize all elements, since they are referenced when overlapping.
   a1(:) = dcmplx(0.d0)
 
   do iBlock = 1, 4 * nLayerInZoneI
@@ -615,6 +617,7 @@ subroutine computeA2Solid(nLayerInZoneI, h1x, h2L, h2N, coefQmu, coefQkappa, a2)
   complex(8) :: hh2
   integer :: iElement, iBlock
 
+  ! Initialize all elements, since they are referenced when overlapping.
   a2(:) = dcmplx(0.d0)
 
   do iBlock = 1, 4 * nLayerInZoneI
@@ -648,33 +651,33 @@ subroutine overlapASolid(nLayerInZoneI, aIn, aOut)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(16*nLayerInZoneI)  ! Input block tridiagonal matrix,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: stored for each (iLayer, k'-gamma', k-gamma)-pair [10^12 kg/s^2].
-  complex(8), intent(out) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [10^12 kg/s^2].
-  integer :: j
+  complex(8), intent(inout) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [10^12 kg/s^2].
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
+  integer :: i
 
-  ! TODO should unused elements be set 0?
-
-  do j = 1, nLayerInZoneI
-    ! (j,j)-block
-    if (j == 1) then
-      aOut(4, 2 * j - 1) = aIn(16 * j - 15)
-      aOut(3, 2 * j) = aIn(16 * j - 14)
-      aOut(4, 2 * j) = aIn(16 * j - 12)
+  do i = 1, nLayerInZoneI
+    ! (i,i)-block
+    if (i == 1) then
+      ! This overlaps with previous zone if phase is same.
+      aOut(4, 2 * i - 1) = aOut(4, 2 * i - 1) + aIn(16 * i - 15)
+      aOut(3, 2 * i) = aOut(3, 2 * i) + aIn(16 * i - 14)
+      aOut(4, 2 * i) = aOut(4, 2 * i) + aIn(16 * i - 12)
     else
-      aOut(4, 2 * j - 1) = aIn(16 * j - 19) + aIn(16 * j - 15)
-      aOut(3, 2 * j) = aIn(16 * j - 18) + aIn(16 * j - 14)
-      aOut(4, 2 * j) = aIn(16 * j - 16) + aIn(16 * j - 12)
+      aOut(4, 2 * i - 1) = aIn(16 * i - 19) + aIn(16 * i - 15)
+      aOut(3, 2 * i) = aIn(16 * i - 18) + aIn(16 * i - 14)
+      aOut(4, 2 * i) = aIn(16 * i - 16) + aIn(16 * i - 12)
     end if
-    ! (j,j+1)-block
-    aOut(2, 2 * j + 1) = aIn(16 * j - 11)
-    aOut(3, 2 * j + 1) = aIn(16 * j - 10)
-    aOut(1, 2 * j + 2) = aIn(16 * j - 9)
-    aOut(2, 2 * j + 2) = aIn(16 * j - 8)
+    ! (i,i+1)-block
+    aOut(2, 2 * i + 1) = aIn(16 * i - 11)
+    aOut(3, 2 * i + 1) = aIn(16 * i - 10)
+    aOut(1, 2 * i + 2) = aIn(16 * i - 9)
+    aOut(2, 2 * i + 2) = aIn(16 * i - 8)
   end do
   ! (N,N)-block
-  j = nLayerInZoneI + 1
-  aOut(4, 2 * j - 1) = aIn(16 * j - 19)
-  aOut(3, 2 * j) = aIn(16 * j - 18)
-  aOut(4, 2 * j) = aIn(16 * j - 16)
+  i = nLayerInZoneI + 1
+  aOut(4, 2 * i - 1) = aIn(16 * i - 19)
+  aOut(3, 2 * i) = aIn(16 * i - 18)
+  aOut(4, 2 * i) = aIn(16 * i - 16)
 
 end subroutine
 
@@ -750,24 +753,74 @@ subroutine overlapAFluid(nLayerInZoneI, aIn, aOut)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [TODO].
-  complex(8), intent(out) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO]. Should be initialized with 0s beforehand.
-  integer :: j
+  complex(8), intent(inout) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [TODO].
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
+  integer :: i
 
-  ! TODO should unused elements be set 0?
-
-  do j = 1, nLayerInZoneI
-    ! (j,j)-component
-    if (j == 1) then
-      aOut(4, 1) = aIn(1)
+  do i = 1, nLayerInZoneI
+    ! (i,i)-component
+    if (i == 1) then
+      ! This overlaps with previous zone if phase is same.
+      aOut(4, 1) = aOut(4, 1) + aIn(1)
     else
-      aOut(4, j) = aIn(4 * j - 4) + aIn(4 * j - 3)
+      aOut(4, i) = aIn(4 * i - 4) + aIn(4 * i - 3)
     end if
-    ! (j,j+1)-component
-    aOut(3, j + 1) = aIn(4 * j - 2)
+    ! (i,i+1)-component
+    aOut(3, i + 1) = aIn(4 * i - 2)
   end do
   ! (N,N)-component
   aOut(4, nLayerInZoneI + 1) = aIn(4 * nLayerInZoneI)
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Assembling the coefficient matrix 'A' for the whole region from several parts.
+! The results are the components in the upper band of the matrix,
+!  stored for each (iRow, iColumn) = (1,1), (1,2),(2,2), (1,3),(2,3),(3,3), (1,4),(2,4),(3,4),(4,4), (2,5),(3,5),(4,5),(5,5), ...
+!------------------------------------------------------------------------
+subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2, a)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
+  real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
+  complex(8), intent(in) :: a0(4, *), a1(4, *), a2(4, *)  ! Parts of the A matrix, containing upper band elements.
+  complex(8), intent(out) :: a(4, *)  ! Assembled A matrix, containing upper band elements.
+  integer :: iZone, q, iColumn, i1, i2
+  complex(8) :: largeL2c, largeLc
+
+  ! These are changed to complex beforehand to reduce computation amount inside loop.
+  largeL2c = dcmplx(largeL2)
+  largeLc = dcmplx(sqrt(largeL2))
+
+  do iZone = 1, nZone
+    i1 = oColumnOfZone(iZone)
+    i2 = oColumnOfZone(iZone + 1) - 1
+
+    if (phaseOfZone(iZone) == 1) then
+      ! solid
+      do iColumn = i1, i2
+        do q = 2, 4, 2
+          a(q, iColumn) = a0(q, iColumn) + largeL2c * a2(q, iColumn)
+        end do
+        do q = 1, 3, 2
+          a(q, iColumn) = largeLc * a1(q, iColumn)
+        end do
+      end do
+
+    else
+      ! fluid
+      do iColumn = i1, i2
+        do q = 3, 4
+          a(q, iColumn) = a0(q, iColumn) + largeL2c * a2(q, iColumn)
+        end do
+      end do
+
+    end if
+  end do
 
 end subroutine
 
@@ -780,4 +833,11 @@ end subroutine
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
 

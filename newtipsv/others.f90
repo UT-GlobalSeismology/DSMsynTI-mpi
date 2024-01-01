@@ -347,25 +347,27 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-!!!!TODO
+! Computing the first indices of each zone for vectors and matrices used later in the program.
 !------------------------------------------------------------------------
 subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
-  oRowOfZoneSolid, oRowOfZoneFluid, oElementOfZone, oColumnOfZone)
+  oRowOfZoneSolid, oRowOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
-  integer, intent(in) :: phaseOfZone(*)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
   integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneFluid(nZone)
   !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and fluid zones.
   integer, intent(out) :: oElementOfZone(nZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
-  integer, intent(out) :: oColumnOfZone(nZone)  ! Index of the first column in the band matrix in each zone.
+  integer, intent(out) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
+  integer, intent(out) :: nColumn  ! Total number of columns in the band matrix.
   integer :: iZone, iSolid, iFluid
 
+  ! Set first index.
   oGridOfZone(1) = 1
   oValueOfZone(1) = 1
   oValueOfZoneSolid(1) = 1
@@ -373,6 +375,8 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   oRowOfZoneFluid(1) = 1
   oElementOfZone(1) = 1
   oColumnOfZone(1) = 1
+
+  ! Accumulate indices for each zone.
   iSolid = 0
   iFluid = 0
   do iZone = 1, nZone - 1
@@ -380,20 +384,40 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
     oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
 
     if (phaseOfZone(iZone) == 1) then
+      ! solid
       iSolid = iSolid + 1
       oRowOfZoneSolid(iSolid + 1) = oRowOfZoneSolid(iSolid) + 4 * nLayerInZone(iZone)
       oValueOfZoneSolid(iSolid + 1) = oValueOfZoneSolid(iSolid) + nLayerInZone(iZone) + 1
-      oElementOfZone(iSolid + 1) = oElementOfZone(iSolid) + 16 * nLayerInZone(iZone)
-      oColumnOfZone(iSolid + 1) = oColumnOfZone(iSolid) + 2 * nLayerInZone(iZone) + 2
+      oElementOfZone(iZone + 1) = oElementOfZone(iZone) + 16 * nLayerInZone(iZone)
+      if (phaseOfZone(iZone + 1) == 1) then
+        oColumnOfZone(iZone + 1) = oColumnOfZone(iZone) + 2 * nLayerInZone(iZone)
+      else
+        oColumnOfZone(iZone + 1) = oColumnOfZone(iZone) + 2 * nLayerInZone(iZone) + 2
+      end if
 
     else
+      ! fluid
       iFluid = iFluid + 1
       oRowOfZoneFluid(iFluid + 1) = oRowOfZoneFluid(iFluid) + 4 * nLayerInZone(iZone)
-      oElementOfZone(iSolid + 1) = oElementOfZone(iSolid) + 4 * nLayerInZone(iZone)
-      oColumnOfZone(iSolid + 1) = oColumnOfZone(iSolid) + nLayerInZone(iZone) + 1
+      oElementOfZone(iZone + 1) = oElementOfZone(iZone) + 4 * nLayerInZone(iZone)
+      if (phaseOfZone(iZone + 1) == 1) then
+        oColumnOfZone(iZone + 1) = oColumnOfZone(iZone) + nLayerInZone(iZone) + 1
+      else
+        oColumnOfZone(iZone + 1) = oColumnOfZone(iZone) + nLayerInZone(iZone)
+      end if
 
     end if
   end do
+
+  ! Find end of last zone.
+  if (phaseOfZone(nZone) == 1) then
+    ! solid
+    oColumnOfZone(nZone + 1) = oColumnOfZone(nZone) + 2 * nLayerInZone(nZone) + 2
+  else
+    ! fluid
+    oColumnOfZone(nZone + 1) = oColumnOfZone(nZone) + nLayerInZone(nZone) + 1
+  end if
+  nColumn = oColumnOfZone(nZone + 1) - 1
 
 end subroutine
 
