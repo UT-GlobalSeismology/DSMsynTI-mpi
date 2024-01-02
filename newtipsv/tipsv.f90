@@ -30,8 +30,8 @@ program tipsv
   !----------------------------<<constants>>----------------------------
   real(8), parameter :: pi = 3.1415926535897932d0
   integer, parameter :: maxNGrid = 88300  ! Maximum number of grid points.
-  integer, parameter :: maxNLayerSolid = 48840  ! Maximum number of layers in solid region.
-  integer, parameter :: maxNLayerFluid = 32040  ! Maximum number of layers in fluid region.
+  integer, parameter :: maxNGridSolid = 48840  ! Maximum number of grid points in solid region.
+  integer, parameter :: maxNGridFluid = 32040  ! Maximum number of grid points in fluid region.
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
@@ -89,8 +89,6 @@ program tipsv
   integer :: nGrid  ! Total number of grid points.
   real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
-  integer :: nLayerSolid, nLayerFluid  ! Number of layers in solid and fluid regions.
-  integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer :: iZoneOfSource  ! Which zone the source is in.
   integer :: iLayerOfSource  ! Index of layer that the source is in.
@@ -123,34 +121,24 @@ program tipsv
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Arguments: term (1:3), m (-2:2), iReceiver.
 
   ! Variables for the matrix elements
-  real(8) :: t(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerSolid
-  real(8) :: h1x(4 * maxNGrid - 4), h1y(4 * maxNGrid - 4), h1z(4 * maxNGrid - 4), h2L(4 * maxNGrid - 4), h2N(4 * maxNGrid - 4)
-  real(8) :: hUn3x(4 * maxNGrid - 4), hUn3y(4 * maxNGrid - 4), hUn3z(4 * maxNGrid - 4)
-  real(8) :: hUn4L(4 * maxNGrid - 4), hUn4N(4 * maxNGrid - 4)
-  real(8) :: hResid3x(4 * maxNGrid - 4), hResid3y(4 * maxNGrid - 4), hResid3z(4 * maxNGrid - 4)
-  real(8) :: hResid4L(4 * maxNGrid - 4), hResid4N(4 * maxNGrid - 4)
-  real(8) :: h3Mod2x(-2:1, maxNLayerSolid + maxNZone), h3Mod2y(-2:1, maxNLayerSolid + maxNZone), &
-    h3Mod2z(-2:1, maxNLayerSolid + maxNZone)
-  real(8) :: h4Mod1L(-1:2, maxNLayerSolid + maxNZone), h4Mod1N(-1:2, maxNLayerSolid + maxNZone)
-  real(8) :: h4Mod2L(-2:1, maxNLayerSolid + maxNZone), h4Mod2N(-2:1, maxNLayerSolid + maxNZone)
-  real(8) :: hUn5x(4 * maxNGrid - 4), hUn5y(4 * maxNGrid - 4), hUn5z(4 * maxNGrid - 4)
-  real(8) :: hUn6L(4 * maxNGrid - 4), hUn6N(4 * maxNGrid - 4)
-  real(8) :: hResid5x(4 * maxNGrid - 4), hResid5y(4 * maxNGrid - 4), hResid5z(4 * maxNGrid - 4)
-  real(8) :: hResid6L(4 * maxNGrid - 4), hResid6N(4 * maxNGrid - 4)
-  real(8) :: h5Mod1x(-1:2, maxNLayerSolid + maxNZone), h5Mod1y(-1:2, maxNLayerSolid + maxNZone), &
-    h5Mod1z(-1:2, maxNLayerSolid + maxNZone)
-  real(8) :: h6Mod1L(-1:2, maxNLayerSolid + maxNZone), h6Mod1N(-1:2, maxNLayerSolid + maxNZone)
-  real(8) :: h6Mod2L(-2:1, maxNLayerSolid + maxNZone), h6Mod2N(-2:1, maxNLayerSolid + maxNZone)
-  real(8) :: h7x(4 * maxNGrid - 4), h7y(4 * maxNGrid - 4), h7z(4 * maxNGrid - 4), h8L(4 * maxNGrid - 4), h8N(4 * maxNGrid - 4)
-  real(8) :: p1(4 * maxNGrid - 4), p2(4 * maxNGrid - 4), p3(4 * maxNGrid - 4)  !!!TODO change to 4*maxNLayerFluid
+  real(8) :: t(4 * maxNGridSolid - 4)
+  real(8) :: h1x(4 * maxNGridSolid - 4), h2L(4 * maxNGridSolid - 4), h2N(4 * maxNGridSolid - 4)
+  real(8) :: hUn3y(4 * maxNGridSolid - 4), hResid3y(4 * maxNGridSolid - 4), h3Mod2y(-2:1, maxNGridSolid)
+  real(8) :: hUn4L(4 * maxNGridSolid - 4), hResid4L(4 * maxNGridSolid - 4), h4Mod1L(-1:2, maxNGridSolid)
+  real(8) :: hUn4N(4 * maxNGridSolid - 4), hResid4N(4 * maxNGridSolid - 4), h4Mod2N(-2:1, maxNGridSolid)
+  real(8) :: hUn5y(4 * maxNGridSolid - 4), hResid5y(4 * maxNGridSolid - 4), h5Mod1y(-1:2, maxNGridSolid)
+  real(8) :: hUn6L(4 * maxNGridSolid - 4), hResid6L(4 * maxNGridSolid - 4), h6Mod2L(-2:1, maxNGridSolid)
+  real(8) :: hUn6N(4 * maxNGridSolid - 4), hResid6N(4 * maxNGridSolid - 4), h6Mod1N(-1:2, maxNGridSolid)
+  real(8) :: h7y(4 * maxNGridSolid - 4), h7z(4 * maxNGridSolid - 4), h8L(4 * maxNGridSolid - 4), h8N(4 * maxNGridSolid - 4)
+  real(8) :: p1(4 * maxNGridFluid - 4), p2(4 * maxNGridFluid - 4), p3(4 * maxNGridFluid - 4)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
   integer :: oRowOfZoneSolid(maxNZone), oRowOfZoneFluid(maxNZone)
   !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and fluid zones.
   integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
-  complex(8) :: a0(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
-  complex(8) :: a1(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
-  complex(8) :: a2(4, 2*(maxNLayerSolid+1)+(maxNLayerFluid+1)+maxNZone)
-  complex(8) :: a(2, maxNGrid)
+  complex(8) :: a0(4, 2 * maxNGridSolid + maxNGridFluid)
+  complex(8) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
+  complex(8) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
+  complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
@@ -165,7 +153,7 @@ program tipsv
 
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
-  complex(8) :: cwork(16 * maxNLayerSolid + 4 * maxNLayerFluid)  ! Working array for matrix computations.
+  complex(8) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
 
 
   ! Efficiency improvement variables
@@ -246,14 +234,11 @@ program tipsv
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
     rmax, imaxFixed, 1, tlen, kzAtZone(:))
-  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), rmin, re, &
-    nGrid, nLayerInZone(:), nLayerSolid, nLayerFluid, gridRadii(:))
-  if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
-  if (nLayerSolid > maxNLayerSolid) stop 'The number of solid layers is too large.'
-  if (nLayerFluid > maxNLayerFluid) stop 'The number of fluid layers is too large.'
+  call computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), &
+    rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.
-  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oGridOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
+  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
     oRowOfZoneSolid(:), oRowOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:), nColumn)
 
   ! Compute the source position.
@@ -281,48 +266,41 @@ program tipsv
       iSolid = iSolid + 1
       oR = oRowOfZoneSolid(iSolid)
 
+      ! Compute unmodified matrices.
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), 0, 0, 0, h1x(oR:))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), 0, 0, 0, h1y(oR:))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), 0, 0, 0, h1z(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 0, 0, 0, h2L(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 0, 0, 0, h2N(oR:))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), 1, 0, 1, hUn5x(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), 1, 0, 1, hUn5y(oR:))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), 1, 0, 1, hUn5z(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 1, 0, 1, hUn6L(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 1, 0, 1, hUn6N(oR:))
-      call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), 2, 1, 1, h7x(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), 2, 1, 1, h7y(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), 2, 1, 1, h7z(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 2, 1, 1, h8L(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 2, 1, 1, h8N(oR:))
+      call computeTranspose(nLayerInZone(i), hUn5y(oR:), hUn3y(oR:))
+      call computeTranspose(nLayerInZone(i), hUn6L(oR:), hUn4L(oR:))
+      call computeTranspose(nLayerInZone(i), hUn6N(oR:), hUn4N(oR:))
+      ! Modify matrices for I0 and I2 using lumped matrices.
       call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), work(oR:))
       call computeAverage(nLayerInZone(i), t(oR:), work(oR:), t(oR:))
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), work(oR:))
       call computeAverage(nLayerInZone(i), h1x(oR:), work(oR:), h1x(oR:))
-      call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), work(oR:))
-      call computeAverage(nLayerInZone(i), h1y(oR:), work(oR:), h1y(oR:))
-      call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), work(oR:))
-      call computeAverage(nLayerInZone(i), h1z(oR:), work(oR:), h1z(oR:))
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oR:))
       call computeAverage(nLayerInZone(i), h2L(oR:), work(oR:), h2L(oR:))
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oR:))
       call computeAverage(nLayerInZone(i), h2N(oR:), work(oR:), h2N(oR:))
-      call computeTranspose(nLayerInZone(i), hUn5x(oR:), hUn3x(oR:))
-      call computeTranspose(nLayerInZone(i), hUn5y(oR:), hUn3y(oR:))
-      call computeTranspose(nLayerInZone(i), hUn5z(oR:), hUn3z(oR:))
-      call computeTranspose(nLayerInZone(i), hUn6L(oR:), hUn4L(oR:))
-      call computeTranspose(nLayerInZone(i), hUn6N(oR:), hUn4N(oR:))
 
     else
       ! fluid
       iFluid = iFluid + 1
       oR = oRowOfZoneFluid(iFluid)
 
+      ! Compute unmodified matrices.
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), 2, 1, 1, p1(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), 0, 0, 0, p2(oR:))
       call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), kappaReciprocals(oV:), 2, 0, 0, p3(oR:))
+      ! Modify matrices for I0 and I2 using lumped matrices.
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), work(oR:))
       call computeAverage(nLayerInZone(i), p2(oR:), work(oR:), p2(oR:))
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), kappaReciprocals(oV:), work(oR:))
@@ -342,37 +320,23 @@ program tipsv
       oVS = oValueOfZoneSolid(iSolid)
 
       ! Compute residual after subtracting step-wise matrix from unmodified matrix.
-      call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), work(oR:))
-      call subtractMatrix(nLayerInZone(i), hUn5x(oR:), work(oR:), hResid5x(oR:))
       call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), work(oR:))
       call subtractMatrix(nLayerInZone(i), hUn5y(oR:), work(oR:), hResid5y(oR:))
-      call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), work(oR:))
-      call subtractMatrix(nLayerInZone(i), hUn5z(oR:), work(oR:), hResid5z(oR:))
       call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oR:))
       call subtractMatrix(nLayerInZone(i), hUn6L(oR:), work(oR:), hResid6L(oR:))
       call computeStepH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oR:))
       call subtractMatrix(nLayerInZone(i), hUn6N(oR:), work(oR:), hResid6N(oR:))
-      call computeTranspose(nLayerInZone(i), hResid5x(oR:), hResid3x(oR:))
       call computeTranspose(nLayerInZone(i), hResid5y(oR:), hResid3y(oR:))
-      call computeTranspose(nLayerInZone(i), hResid5z(oR:), hResid3z(oR:))
       call computeTranspose(nLayerInZone(i), hResid6L(oR:), hResid4L(oR:))
       call computeTranspose(nLayerInZone(i), hResid6N(oR:), hResid4N(oR:))
 
       ! Compute modified matrices.
-      call computeModifiedH1(nLayerInZone(i), valuedRadii(oV:), ecKxValues(oV:), h5Mod1x(-1:2, oVS:))
       call computeModifiedH1(nLayerInZone(i), valuedRadii(oV:), ecKyValues(oV:), h5Mod1y(-1:2, oVS:))
-      call computeModifiedH1(nLayerInZone(i), valuedRadii(oV:), ecKzValues(oV:), h5Mod1z(-1:2, oVS:))
-      call computeModifiedH1(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), h6Mod1L(-1:2, oVS:))
       call computeModifiedH1(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), h6Mod1N(-1:2, oVS:))
       call computeModifiedH2(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), h6Mod2L(-2:1, oVS:))
-      call computeModifiedH2(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), h6Mod2N(-2:1, oVS:))
-      call computeTransposeMod(nLayerInZone(i), -1, 2, h5Mod1x(-1:2, oVS:), h3Mod2x(-2:1, oVS:))
       call computeTransposeMod(nLayerInZone(i), -1, 2, h5Mod1y(-1:2, oVS:), h3Mod2y(-2:1, oVS:))
-      call computeTransposeMod(nLayerInZone(i), -1, 2, h5Mod1z(-1:2, oVS:), h3Mod2z(-2:1, oVS:))
-      call computeTransposeMod(nLayerInZone(i), -1, 2, h6Mod1L(-1:2, oVS:), h4Mod2L(-2:1, oVS:))
       call computeTransposeMod(nLayerInZone(i), -1, 2, h6Mod1N(-1:2, oVS:), h4Mod2N(-2:1, oVS:))
       call computeTransposeMod(nLayerInZone(i), -2, 1, h6Mod2L(-2:1, oVS:), h4Mod1L(-1:2, oVS:))
-      call computeTransposeMod(nLayerInZone(i), -2, 1, h6Mod2N(-2:1, oVS:), h4Mod1N(-1:2, oVS:))
 
     end if
   end do
@@ -416,30 +380,34 @@ program tipsv
         ! solid
         iSolid = iSolid + 1
         oR = oRowOfZoneSolid(iSolid)
+        oVS = oValueOfZoneSolid(iSolid)
 
         ! All parts of A0 are either unmodified or already modified using lumped matrix.
         call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oR:), h1x(oR:), h2L(oR:), h2N(oR:), &
           hUn3y(oR:), hUn4L(oR:), hUn4N(oR:), hUn5y(oR:), hUn6L(oR:), hUn6N(oR:), h7y(oR:), h7z(oR:), h8L(oR:), h8N(oR:), &
           coefQmu(i), coefQkappa(i), cwork(oElement:))
-        call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
-        ! Unmodified residual part of A1.
-        call computeA1Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), hResid3y(oR:), hResid4L(oR:), hResid4N(oR:), &
-          hResid5y(oR:), hResid6L(oR:), hResid6N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
-        call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:,oColumn:))
+        call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
         ! All parts of A2 are either unmodified or already modified using lumped matrix.
         call computeA2Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
         call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
-
+        ! Unmodified residual part of A1.
+        call computeA1Solid(nLayerInZone(i), h1x(oR:), h2L(oR:), h2N(oR:), hResid3y(oR:), hResid4L(oR:), hResid4N(oR:), &
+          hResid5y(oR:), hResid6L(oR:), hResid6N(oR:), coefQmu(i), coefQkappa(i), cwork(oElement:))
+        call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:, oColumn:))
         ! Modified step part of A1.
-        !!TODO
+        call addModifiedHToA1(nLayerInZone(i), coefQmu(i), coefQkappa(i), &
+          h3Mod2y(-2:1, oVS:), h4Mod1L(-1:2, oVS:), h4Mod2N(-2:1, oVS:), &
+          h5Mod1y(-1:2, oVS:), h6Mod1N(-1:2, oVS:), h6Mod2L(-2:1, oVS:), a1(:, oColumn:))
 
       else
         ! fluid
         iFluid = iFluid + 1
         oR = oRowOfZoneFluid(iFluid)
 
+        ! All parts of A0 are either unmodified or already modified using lumped matrix.
         call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oR:), p3(oR:), coefQfluid(i), cwork(oElement:))
         call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
+        ! All parts of A2 are either unmodified or already modified using lumped matrix.
         call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oR:), cwork(oElement:))
         call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
 
@@ -472,8 +440,6 @@ program tipsv
       do ir = 1, nReceiver
         call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
       end do
-
-      !!TODO calmdr;    calspdr not needed.
 
       ! Assemble A matrix from parts that have already been computed.
       call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))

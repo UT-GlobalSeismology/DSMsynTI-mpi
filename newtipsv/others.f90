@@ -287,12 +287,14 @@ end subroutine
 !------------------------------------------------------------------------
 ! Deciding the distribution of grid points.
 !------------------------------------------------------------------------
-subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone, rmin, re, &
-  nGrid, nLayerInZone, nLayerSolid, nLayerFluid, gridRadii)
+subroutine computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone, &
+  rmin, re, nGrid, nLayerInZone, gridRadii)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
+  integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
+  integer, intent(in) :: maxNGridSolid, maxNGridFluid  ! Maximum number of grid points in solid and fluid regions.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone [1/km].
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
@@ -301,15 +303,15 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(out) :: nGrid  ! Total number of grid points (= number of layers + 1).
   integer, intent(out) :: nLayerInZone(nZone)  ! Number of layers in each zone.
-  integer, intent(out) :: nLayerSolid, nLayerFluid  ! Number of layers in solid and fluid regions.
   real(8), intent(out) :: gridRadii(*)  ! Radius at each grid point [km].
+  integer :: nGridSolid, nGridFluid  ! Number of grid points in solid and fluid regions.
   integer :: iZone, iGrid, i, nTemp
   real(8) :: rh
 
   ! Compute the distribution of grid points.
   iGrid = 1
-  nLayerSolid = 0
-  nLayerFluid = 0
+  nGridSolid = 0
+  nGridFluid = 0
   gridRadii(1) = rmin
   do iZone = 1, nZone
     ! zone thickness [km]
@@ -328,9 +330,9 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
     nLayerInZone(iZone) = max(nTemp, 5)
     ! Accumulate number of layers in solid and fluid regions.
     if (phaseOfZone(iZone) == 1) then
-      nLayerSolid = nLayerSolid + nLayerInZone(iZone)
+      nGridSolid = nGridSolid + nLayerInZone(iZone) + 1
     else
-      nLayerFluid = nLayerFluid + nLayerInZone(iZone)
+      nGridFluid = nGridFluid + nLayerInZone(iZone) + 1
     end if
     ! Compute radius at each grid point [km].
     do i = 1, nLayerInZone(iZone)
@@ -341,6 +343,9 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, phaseOfZone
 
   ! Register the total number of grid points.
   nGrid = iGrid
+  if (nGrid > maxNGrid) stop 'The number of grid points is too large. (computeGridRadii)'
+  if (nGridSolid > maxNGridSolid) stop 'The number of solid grid points is too large. (computeGridRadii)'
+  if (nGridFluid > maxNGridFluid) stop 'The number of fluid grid points is too large. (computeGridRadii)'
 
   return
 end subroutine
@@ -349,7 +354,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the first indices of each zone for vectors and matrices used later in the program.
 !------------------------------------------------------------------------
-subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
+subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, oValueOfZoneSolid, &
   oRowOfZoneSolid, oRowOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn)
 !------------------------------------------------------------------------
   implicit none
@@ -357,7 +362,6 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
-  integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
   integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneFluid(nZone)
@@ -368,7 +372,6 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   integer :: iZone, iSolid, iFluid
 
   ! Set first index.
-  oGridOfZone(1) = 1
   oValueOfZone(1) = 1
   oValueOfZoneSolid(1) = 1
   oRowOfZoneSolid(1) = 1
@@ -380,7 +383,6 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oV
   iSolid = 0
   iFluid = 0
   do iZone = 1, nZone - 1
-    oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
     oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
 
     if (phaseOfZone(iZone) == 1) then

@@ -382,28 +382,28 @@ subroutine computeModifiedH1(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI,
   real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
   real(8), intent(inout) :: hm1(-1:2, nLayerInZoneI+1)  ! Resulting band matrix, stored by (offset from diagonal, row number)
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
-  integer :: i
+  integer :: iGrid
 
-  i = 1
-  hm1(0, i) = hm1(0, i) - 7.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm1(1, i) = hm1(1, i) + 8.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm1(2, i) = hm1(2, i) - 1.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = 1
+  hm1(0, iGrid) = hm1(0, iGrid) - 7.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm1(1, iGrid) = hm1(1, iGrid) + 8.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm1(2, iGrid) = hm1(2, iGrid) - 1.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
-  do i = 2, nLayerInZoneI - 1
-    hm1(-1, i) = hm1(-1, i) - 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm1(0, i) = hm1(0, i) - 3.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm1(1, i) = hm1(1, i) + 9.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm1(2, i) = hm1(2, i) - 1.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  do iGrid = 2, nLayerInZoneI - 1
+    hm1(-1, iGrid) = hm1(-1, iGrid) - 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm1(0, iGrid) = hm1(0, iGrid) - 3.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm1(1, iGrid) = hm1(1, iGrid) + 9.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm1(2, iGrid) = hm1(2, iGrid) - 1.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
   end do
 
-  i = nLayerInZoneI
-  hm1(-1, i) = hm1(-1, i) - 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm1(0, i) = hm1(0, i) - 3.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm1(1, i) = hm1(1, i) + 8.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = nLayerInZoneI
+  hm1(-1, iGrid) = hm1(-1, iGrid) - 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm1(0, iGrid) = hm1(0, iGrid) - 3.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm1(1, iGrid) = hm1(1, iGrid) + 8.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
-  i = nLayerInZoneI + 1
-  hm1(-1, i) = hm1(-1, i) - 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm1(0, i) = hm1(0, i) + 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = nLayerInZoneI + 1
+  hm1(-1, iGrid) = hm1(-1, iGrid) - 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm1(0, iGrid) = hm1(0, iGrid) + 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
 end subroutine
 
@@ -428,28 +428,28 @@ subroutine computeModifiedH2(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI,
   real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
   real(8), intent(inout) :: hm2(-2:1, nLayerInZoneI+1)  ! Resulting band matrix, stored by (offset from diagonal, row number)
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
-  integer :: i
+  integer :: iGrid
 
-  i = 1
-  hm2(0, i) = hm2(0, i) - 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm2(1, i) = hm2(1, i) + 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = 1
+  hm2(0, iGrid) = hm2(0, iGrid) - 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm2(1, iGrid) = hm2(1, iGrid) + 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
-  i = 2
-  hm2(-1, i) = hm2(-1, i) - 8.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm2(0, i) = hm2(0, i) + 3.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm2(1, i) = hm2(1, i) + 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = 2
+  hm2(-1, iGrid) = hm2(-1, iGrid) - 8.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm2(0, iGrid) = hm2(0, iGrid) + 3.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm2(1, iGrid) = hm2(1, iGrid) + 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
-  do i = 3, nLayerInZoneI
-    hm2(-2, i) = hm2(-2, i) + 1.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm2(-1, i) = hm2(-1, i) - 9.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm2(0, i) = hm2(0, i) + 3.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-    hm2(1, i) = hm2(1, i) + 5.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  do iGrid = 3, nLayerInZoneI
+    hm2(-2, iGrid) = hm2(-2, iGrid) + 1.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm2(-1, iGrid) = hm2(-1, iGrid) - 9.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm2(0, iGrid) = hm2(0, iGrid) + 3.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+    hm2(1, iGrid) = hm2(1, iGrid) + 5.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
   end do
 
-  i = nLayerInZoneI + 1
-  hm2(-2, i) = hm2(-2, i) + 1.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm2(-1, i) = hm2(-1, i) - 8.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
-  hm2(0, i) = hm2(0, i) + 7.d0 / 12.d0 * ecValuesInZoneI(i) * valuedRadiiInZoneI(i)
+  iGrid = nLayerInZoneI + 1
+  hm2(-2, iGrid) = hm2(-2, iGrid) + 1.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm2(-1, iGrid) = hm2(-1, iGrid) - 8.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
+  hm2(0, iGrid) = hm2(0, iGrid) + 7.d0 / 12.d0 * ecValuesInZoneI(iGrid) * valuedRadiiInZoneI(iGrid)
 
 end subroutine
 
@@ -480,6 +480,57 @@ subroutine computeTransposeMod(nLayerInZoneI, pMin, pMax, hModIn, hModOut)
 
 end subroutine
 
+
+!------------------------------------------------------------------------
+! Adding the modified part of the coefficient matrix 'A' for a certain zone in the solid part.
+! This computes H_(k'1k2) and H_(k'2k1) (largeL is not multiplied). (See eqs. 2 & 17-18 of Kawai et al. 2006.)
+! The result is a block tridiagonal matrix, stored for each (iLayer, k'-gamma', k-gamma)-pair.
+! Only elements in the upper triangle of A is computed.
+!------------------------------------------------------------------------
+subroutine addModifiedHToA1(nLayerInZoneI, coefQmu, coefQkappa, h3m2y, h4m1L, h4m2N, h5m1y, h6m1N, h6m2L, a1)
+  !------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  complex(8), intent(in) :: coefQmu, coefQkappa
+  !::::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
+  real(8), intent(in) :: h3m2y(-2:1, nLayerInZoneI+1), h4m1L(-1:2, nLayerInZoneI+1), h4m2N(-2:1, nLayerInZoneI+1)
+  real(8), intent(in) :: h5m1y(-1:2, nLayerInZoneI+1), h6m1N(-1:2, nLayerInZoneI+1), h6m2L(-2:1, nLayerInZoneI+1)
+  !::::::::::::::::::::::::::::::: Modified operator band matrices, stored by (offset from diagonal, row number) [10^12 kg/s^2].
+  complex(8), intent(inout) :: a1(4, 2*nLayerInZoneI+2)  ! Resulting matrix, containing upper band elements.
+  integer :: q, iColumn, p, iGrid
+
+  ! Add modified H_(k'1k2) to A.
+  do iColumn = 2, 2 * nLayerInZoneI + 2, 2
+    do q = 1, 3, 2
+      ! Skip if out of bounds.
+      if (iColumn == 2 .and. q == 1) cycle
+      ! Find indices of modified matrix corresponding to this element.
+      p = (-q + 3) / 2
+      iGrid = (q + iColumn - 3) / 2
+      ! -H_(k'1k2)mod = -( -L (I[F] - I[L]) ) = L (I[F] - I[L])  (L is not multiplied here.)
+      a1(q, iColumn) = a1(q, iColumn) &
+        + coefQkappa * dcmplx(h3m2y(p, iGrid)) - coefQmu * dcmplx(2.d0 / 3.d0 * h4m2N(p, iGrid)) &  ! -[(F+2N/3) - 2N/3] = -F
+        - coefQmu * dcmplx(h6m2L(p, iGrid))  ! L
+    end do
+  end do
+
+  ! Add modified H_(k'2k1) to A.
+  do iColumn = 3, 2 * nLayerInZoneI + 1, 2
+    do q = 1, 3, 2
+      ! Skip if out of bounds.
+      if (iColumn == 3 .and. q == 1) cycle
+      ! Find indices of modified matrix corresponding to this element.
+      p = (-q + 5) / 2
+      iGrid = (q + iColumn - 4) / 2
+      ! -H_(k'2k1)mod = -( -L (I[F]mod - I[L]mod) ) = L (I[F]mod - I[L]mod)  (L is not multiplied here.)
+      a1(q, iColumn) = a1(q, iColumn) &
+        + coefQkappa * dcmplx(h5m1y(p, iGrid)) - coefQmu * dcmplx(2.d0 / 3.d0 * h6m1N(p, iGrid)) &  ! -[(F+2N/3) - 2N/3] = -F
+        - coefQmu * dcmplx(h4m1L(p, iGrid))  ! L
+    end do
+  end do
+
+end subroutine
 
 
 !------------------------------------------------------------------------
@@ -651,33 +702,33 @@ subroutine overlapASolid(nLayerInZoneI, aIn, aOut)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(16*nLayerInZoneI)  ! Input block tridiagonal matrix,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: stored for each (iLayer, k'-gamma', k-gamma)-pair [10^12 kg/s^2].
-  complex(8), intent(inout) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [10^12 kg/s^2].
+  complex(8), intent(inout) :: aOut(4, 2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [10^12 kg/s^2].
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
-  integer :: i
+  integer :: iGrid
 
-  do i = 1, nLayerInZoneI
+  do iGrid = 1, nLayerInZoneI
     ! (i,i)-block
-    if (i == 1) then
+    if (iGrid == 1) then
       ! This overlaps with previous zone if phase is same.
-      aOut(4, 2 * i - 1) = aOut(4, 2 * i - 1) + aIn(16 * i - 15)
-      aOut(3, 2 * i) = aOut(3, 2 * i) + aIn(16 * i - 14)
-      aOut(4, 2 * i) = aOut(4, 2 * i) + aIn(16 * i - 12)
+      aOut(4, 2 * iGrid - 1) = aOut(4, 2 * iGrid - 1) + aIn(16 * iGrid - 15)
+      aOut(3, 2 * iGrid) = aOut(3, 2 * iGrid) + aIn(16 * iGrid - 14)
+      aOut(4, 2 * iGrid) = aOut(4, 2 * iGrid) + aIn(16 * iGrid - 12)
     else
-      aOut(4, 2 * i - 1) = aIn(16 * i - 19) + aIn(16 * i - 15)
-      aOut(3, 2 * i) = aIn(16 * i - 18) + aIn(16 * i - 14)
-      aOut(4, 2 * i) = aIn(16 * i - 16) + aIn(16 * i - 12)
+      aOut(4, 2 * iGrid - 1) = aIn(16 * iGrid - 19) + aIn(16 * iGrid - 15)
+      aOut(3, 2 * iGrid) = aIn(16 * iGrid - 18) + aIn(16 * iGrid - 14)
+      aOut(4, 2 * iGrid) = aIn(16 * iGrid - 16) + aIn(16 * iGrid - 12)
     end if
     ! (i,i+1)-block
-    aOut(2, 2 * i + 1) = aIn(16 * i - 11)
-    aOut(3, 2 * i + 1) = aIn(16 * i - 10)
-    aOut(1, 2 * i + 2) = aIn(16 * i - 9)
-    aOut(2, 2 * i + 2) = aIn(16 * i - 8)
+    aOut(2, 2 * iGrid + 1) = aIn(16 * iGrid - 11)
+    aOut(3, 2 * iGrid + 1) = aIn(16 * iGrid - 10)
+    aOut(1, 2 * iGrid + 2) = aIn(16 * iGrid - 9)
+    aOut(2, 2 * iGrid + 2) = aIn(16 * iGrid - 8)
   end do
   ! (N,N)-block
-  i = nLayerInZoneI + 1
-  aOut(4, 2 * i - 1) = aIn(16 * i - 19)
-  aOut(3, 2 * i) = aIn(16 * i - 18)
-  aOut(4, 2 * i) = aIn(16 * i - 16)
+  iGrid = nLayerInZoneI + 1
+  aOut(4, 2 * iGrid - 1) = aIn(16 * iGrid - 19)
+  aOut(3, 2 * iGrid) = aIn(16 * iGrid - 18)
+  aOut(4, 2 * iGrid) = aIn(16 * iGrid - 16)
 
 end subroutine
 
@@ -753,20 +804,20 @@ subroutine overlapAFluid(nLayerInZoneI, aIn, aOut)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [TODO].
-  complex(8), intent(inout) :: aOut(4,2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [TODO].
+  complex(8), intent(inout) :: aOut(4, 2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [TODO].
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
-  integer :: i
+  integer :: iGrid
 
-  do i = 1, nLayerInZoneI
+  do iGrid = 1, nLayerInZoneI
     ! (i,i)-component
-    if (i == 1) then
+    if (iGrid == 1) then
       ! This overlaps with previous zone if phase is same.
       aOut(4, 1) = aOut(4, 1) + aIn(1)
     else
-      aOut(4, i) = aIn(4 * i - 4) + aIn(4 * i - 3)
+      aOut(4, iGrid) = aIn(4 * iGrid - 4) + aIn(4 * iGrid - 3)
     end if
     ! (i,i+1)-component
-    aOut(3, i + 1) = aIn(4 * i - 2)
+    aOut(3, iGrid + 1) = aIn(4 * iGrid - 2)
   end do
   ! (N,N)-component
   aOut(4, nLayerInZoneI + 1) = aIn(4 * nLayerInZoneI)
@@ -789,7 +840,7 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: a0(4, *), a1(4, *), a2(4, *)  ! Parts of the A matrix, containing upper band elements.
   complex(8), intent(out) :: a(4, *)  ! Assembled A matrix, containing upper band elements.
-  integer :: iZone, q, iColumn, i1, i2
+  integer :: iZone, q, iColumn, iStart, iEnd
   complex(8) :: largeL2c, largeLc
 
   ! These are changed to complex beforehand to reduce computation amount inside loop.
@@ -797,12 +848,12 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
   largeLc = dcmplx(sqrt(largeL2))
 
   do iZone = 1, nZone
-    i1 = oColumnOfZone(iZone)
-    i2 = oColumnOfZone(iZone + 1) - 1
+    iStart = oColumnOfZone(iZone)
+    iEnd = oColumnOfZone(iZone + 1) - 1
 
     if (phaseOfZone(iZone) == 1) then
       ! solid
-      do iColumn = i1, i2
+      do iColumn = iStart, iEnd
         do q = 2, 4, 2
           a(q, iColumn) = a0(q, iColumn) + largeL2c * a2(q, iColumn)
         end do
@@ -813,7 +864,7 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
 
     else
       ! fluid
-      do iColumn = i1, i2
+      do iColumn = iStart, iEnd
         do q = 3, 4
           a(q, iColumn) = a0(q, iColumn) + largeL2c * a2(q, iColumn)
         end do
@@ -823,6 +874,12 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
   end do
 
 end subroutine
+
+
+
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
+!------------------------------------------------------------------------
 
 
 !------------------------------------------------------------------------

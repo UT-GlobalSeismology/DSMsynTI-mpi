@@ -10,7 +10,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
 !------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: maxNGrid! Maximum number of grid points.
+  integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(in) :: imaxFixed  ! Index of maximum frequency.
@@ -46,8 +46,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
-  call computeGridRadii(nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
-  if (nGrid > maxNGrid) stop 'The number of grid points is too large.'
+  call computeGridRadii(maxNGrid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.
   call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))

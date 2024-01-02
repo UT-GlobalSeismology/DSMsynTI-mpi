@@ -245,11 +245,12 @@ end subroutine
 !------------------------------------------------------------------------
 ! Deciding the distribution of grid points.
 !------------------------------------------------------------------------
-subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, nGrid, nLayerInZone, gridRadii)
+subroutine computeGridRadii(maxNGrid, nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, nGrid, nLayerInZone, gridRadii)
 !------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
+  integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: kzAtZone(nZone)  ! Vertical wavenumber k_z at each zone [1/km].
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
@@ -288,6 +289,7 @@ subroutine computeGridRadii(nZone, kzAtZone, rminOfZone, rmaxOfZone, rmin, re, n
 
   ! Register the total number of grid points.
   nGrid = iGrid
+  if (nGrid > maxNGrid) stop 'The number of grid points is too large. (computeGridRadii)'
 
   return
 end subroutine
