@@ -69,33 +69,37 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   do i = 1, nZone
     oV = oValueOfZone(i)
     oR = oRowOfZone(i)
+    ! Compute unmodified matrices.
     call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oR:))
     call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 2, 1, 1, h1(oR:))
     call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 1, 1, 0, work(oR:))
     call addTranspose(nLayerInZone(i), work(oR:), h2sum(oR:))
     call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 0, 0, 0, h3(oR:))
     call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 0, 0, 0, h4(oR:))
+    ! Modify matrices for I^(0) using lumped matrices.
     call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), work(oR:))
-    call computeAverage(nLayerInZone(i), t(oR:), work(oR:), t(oR:))
+    call averageMatrix(nLayerInZone(i), t(oR:), work(oR:), t(oR:))
     call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oR:))
-    call computeAverage(nLayerInZone(i), h3(oR:), work(oR:), h3(oR:))
+    call averageMatrix(nLayerInZone(i), h3(oR:), work(oR:), h3(oR:))
     call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oR:))
-    call computeAverage(nLayerInZone(i), h4(oR:), work(oR:), h4(oR:))
+    call averageMatrix(nLayerInZone(i), h4(oR:), work(oR:), h4(oR:))
   end do
 
   ! Compute mass and rigitidy matrices near source.
+  ! Compute unmodified matrices.
   call computeIntermediateIntegral(2, gridRadiiForSource(:), rhoValuesForSource(:), 2, 0, 0, gt(:))
   call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 2, 1, 1, gh1(:))
   call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 1, 1, 0, work(:))
   call addTranspose(2, work(:), gh2sum(:))
   call computeIntermediateIntegral(2, gridRadiiForSource(:), ecLValuesForSource(:), 0, 0, 0, gh3(:))
   call computeIntermediateIntegral(2, gridRadiiForSource(:), ecNValuesForSource(:), 0, 0, 0, gh4(:))
+  ! Modify matrices for I^(0) using lumped matrices.
   call computeLumpedT(2, gridRadiiForSource(:), rhoValuesForSource(:), work(:))
-  call computeAverage(2, gt(:), work(:), gt(:))
+  call averageMatrix(2, gt(:), work(:), gt(:))
   call computeLumpedH(2, gridRadiiForSource(:), ecLValuesForSource(:), work(:))
-  call computeAverage(2, gh3(:), work(:), gh3(:))
+  call averageMatrix(2, gh3(:), work(:), gh3(:))
   call computeLumpedH(2, gridRadiiForSource(:), ecNValuesForSource(:), work(:))
-  call computeAverage(2, gh4(:), work(:), gh4(:))
+  call averageMatrix(2, gh4(:), work(:), gh4(:))
 
 end subroutine
 

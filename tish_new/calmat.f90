@@ -298,7 +298,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeAverage(nLayerInZoneI, mat1, mat2, average)
+subroutine averageMatrix(nLayerInZoneI, mat1, mat2, average)
 !------------------------------------------------------------------------
   implicit none
 
@@ -321,7 +321,7 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, coefQmu, a0)
+subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, coefQmu, a0Tmp)
 !------------------------------------------------------------------------
   implicit none
 
@@ -331,7 +331,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, coefQmu
   real(8), intent(in) :: h1(4*nLayerInZoneI), h2sum(4*nLayerInZoneI), h3(4*nLayerInZoneI), h4(4*nLayerInZoneI)
   !::::::::::::::::::::::: Parts of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2]. Note that h2sum is (I4 + I4').
   complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(out) :: a0(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  complex(8), intent(out) :: a0Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
   real(8) :: h
@@ -344,7 +344,7 @@ subroutine computeA0(nLayerInZoneI, omega, omegaI, t, h1, h2sum, h3, h4, coefQmu
     ! I2 - I4 - I4' + I6 - 2*I7. (See eq. 19 of Kawai et al. 2006.)
     h = h1(i) - h2sum(i) + h3(i) - 2.d0 * h4(i)
     ! omega^2 T - (I2 - I4 - I4' + I6 - 2*I7). (See eq. 2 of Kawai et al. 2006.)
-    a0(i) = omegaDamped2 * dcmplx(t(i)) - coefQmu * dcmplx(h)
+    a0Tmp(i) = omegaDamped2 * dcmplx(t(i)) - coefQmu * dcmplx(h)
   end do
 
 end subroutine
@@ -356,21 +356,53 @@ end subroutine
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeA2(nLayerInZoneI, h4, coefQmu, a2)
+subroutine computeA2(nLayerInZoneI, h4, coefQmu, a2Tmp)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: h4(4*nLayerInZoneI)  ! Part of H matrix stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   complex(8), intent(in) :: coefQmu  ! Coefficient to multiply to elastic moduli for attenuation.
-  complex(8), intent(out) :: a2(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
+  complex(8), intent(out) :: a2Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2].
   integer :: i
 
   do i = 1, 4 * nLayerInZoneI
     ! -(I7). (See eqs. 2 & 19 of Kawai et al. 2006.)
-    a2(i) = - coefQmu * dcmplx(h4(i))
+    a2Tmp(i) = - coefQmu * dcmplx(h4(i))
   end do
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Overlapping the coefficient matrix elements for a certain zone in the solid part.
+! The results are the diagonal and subdiagonal components of the tridiagonal matrix,
+!  stored for each (k', k) = (1,1), (1,2),(2,2), (2,3),(3,3), ...
+!------------------------------------------------------------------------
+subroutine overlapA(nLayerInZoneI, aTmp, aOut)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
+  complex(8), intent(in) :: aTmp(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  complex(8), intent(inout) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
+  integer :: i
+
+  do i = 1, nLayerInZoneI
+    ! (i,i)-component
+    if (i == 1) then
+      ! This overlaps with previous zone (if present).
+      aOut(2, i) = aOut(2, i) + aTmp(1)
+    else
+      aOut(2, i) = aTmp(4 * i - 4) + aTmp(4 * i - 3)
+    end if
+    ! (i,i+1)-component
+    aOut(1, i + 1) = aTmp(4 * i - 2)
+  end do
+  ! (N,N)-component
+  aOut(2, nLayerInZoneI + 1) = aTmp(4 * nLayerInZoneI)
 
 end subroutine
 
@@ -437,38 +469,6 @@ subroutine computeA(nLayerInZoneI, omega, omegaI, largeL2, t, h1, h2sum, h3, h4,
     ! omega^2 T - H. (See eq. 2 of Kawai et al. 2006.)
     a(i) = omegaDamped2 * dcmplx(t(i)) - coefQmu * dcmplx(h)
   end do
-
-end subroutine
-
-
-!------------------------------------------------------------------------
-! Overlapping the coefficient matrix elements for a certain zone in the solid part.
-! The results are the diagonal and subdiagonal components of the tridiagonal matrix,
-!  stored for each (k', k) = (1,1), (1,2),(2,2), (2,3),(3,3), ...
-!------------------------------------------------------------------------
-subroutine overlapMatrixBlocks(nLayerInZoneI, aIn, aOut)
-!------------------------------------------------------------------------
-  implicit none
-
-  integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  complex(8), intent(in) :: aIn(4*nLayerInZoneI)  ! Tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
-  complex(8), intent(inout) :: aOut(2, nLayerInZoneI+1)  ! Diagonal and subdiagonal components of the overlapped matrix
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2]. Should be initialized with 0s beforehand.
-  integer :: i
-
-  do i = 1, nLayerInZoneI
-    ! (i,i)-component
-    if (i == 1) then
-      ! This overlaps with previous zone (if present).
-      aOut(2, i) = aOut(2, i) + aIn(1)
-    else
-      aOut(2, i) = aIn(4 * i - 4) + aIn(4 * i - 3)
-    end if
-    ! (i,i+1)-component
-    aOut(1, i + 1) = aIn(4 * i - 2)
-  end do
-  ! (N,N)-component
-  aOut(2, nLayerInZoneI + 1) = aIn(4 * nLayerInZoneI)
 
 end subroutine
 

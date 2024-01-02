@@ -119,6 +119,7 @@ program tish
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
+  integer :: oR
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -226,12 +227,11 @@ program tish
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
-        call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-          h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
-
-        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
+        oR = oRowOfZone(i)
+        call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
+        call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
+        call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
+        call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
       end do
 
       ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -265,7 +265,7 @@ program tish
 
         ! Compute A matrix near source.
         call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-        call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
+        call overlapA(2, aSourceParts(:), aSource(:,:))
 
         do m = -2, 2  ! m-loop
           if (m == 0 .or. abs(m) > abs(l)) cycle
@@ -328,12 +328,11 @@ program tish
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
-      call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-        h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
-
-      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
+      oR = oRowOfZone(i)
+      call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
+      call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
+      call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
+      call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
     end do
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -372,7 +371,7 @@ program tish
 
       ! Compute A matrix near source.
       call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-      call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
+      call overlapA(2, aSourceParts(:), aSource(:,:))
 
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
