@@ -20,7 +20,6 @@ subroutine solveWholeCFromStart(a, n, nud, n1, b, eps, dr, z, ier)
   real(8), intent(inout) :: eps  ! Parameter to check singurarity of the matrix. When a negative value is set, 1.0d-14.
   complex(8), intent(inout) :: dr(n), z(n)  ! Working arrays.
   integer, intent(out) :: ier  ! Error code.
-
   complex(8) :: sum
   integer :: m, j, i1, k, j1
 
@@ -113,7 +112,6 @@ subroutine solveC0FromStart(a, n, nud, n1, np, b, eps, dr, z, ier)
   real(8), intent(inout) :: eps  ! Parameter to check singurarity of the matrix. When a negative value is set, 1.0d-14.
   complex(8), intent(inout) :: dr(n), z(n)  ! Working arrays.
   integer, intent(out) :: ier  ! Error code.
-
   complex(8) :: sum
   integer :: m, j, i1, k
 
@@ -179,7 +177,6 @@ subroutine decompose(a, n, nud, n1, eps, dr, ier)
   real(8), intent(inout) :: eps  ! Parameter to check singurarity of the matrix. When a negative value is set, 1.0d-14.
   complex(8), intent(inout) :: dr(n)  ! Working array.
   integer, intent(out) :: ier  ! Error code.
-
   complex(8) :: xx, s, sum, au, t
   real(8) :: eps1
   integer :: i, m, j, k1, mj, k

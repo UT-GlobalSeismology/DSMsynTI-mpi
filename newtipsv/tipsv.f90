@@ -160,6 +160,14 @@ program tipsv
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
   complex(8) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
+  integer :: ll(12), lli(12), llj(12), itmp
+  complex(8) :: z(2 * maxNGridSolid + maxNGridFluid), w(2 * maxNGridSolid + maxNGridFluid)
+  !::::::::::::::::::::::::::::::::::: Working arrays used when solving linear equations.
+  integer :: ier  ! Error code from subroutine solving linear equations.
+  integer :: ns
+
+  ! Constants
+  real(8) :: eps = -1.d0
 
 
   ! Efficiency improvement variables
@@ -446,16 +454,78 @@ program tipsv
       do m = -2, 2  ! m-loop
         if (abs(m) > abs(l)) cycle
 
+        !<<< operation from here >>>>
+
         ! Computing the excitation vector
         call calg(l, m, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), largeL, ecC0, ecF0, ecL0, &
           ya(:), yb(:), yc(:), yd(:), gridRadii(iLayerOfSource), r0, mt(:,:), g_or_c(iColumnOfSource))
 
-        if (l .eq. 0) then
+        if (l == 0) then
+          ! rearranging the matrix elements for l=0   !!TODO
 
+          itmp = 1
+          if (rmin == 0.d0) itmp = 2
+
+          ! ns = TODO
+
+
+          !!TODO
 
         else
 
+          itmp = 1
+          if (rmin == 0.d0) itmp = 3
 
+          ! ns = TODO
+
+          if (mod(l, 100) == 0) then
+            ! Once in a while, compute for all grids to decide the cut-off depth.
+            ! CAUTION: In this case, all values of g_or_c(:) are computed.
+
+            ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+            ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+            if (m == -2 .or. m == -l) then
+              call decomposeA(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+            end if
+            ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+            call solveWholeC(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, z(itmp:))  !!TODO
+
+            ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
+            !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
+            amplitudeAtGrid(1:nGrid) = amplitudeAtGrid(1:nGrid) + abs(g_or_c(1:nGrid))  !!TODO
+
+          else
+            ! Otherwise, compute for just the grids above the cut-off depth.
+            ! CAUTION: In this case, only g_or_c(nColumn-1:nColumn) is computed.
+            !   Other values of g_or_c(:nColumn-2) still hold values of g!!!
+
+            if (cutoffGrid < 3) cutoffGrid = 3
+            itmp = cutoffGrid
+
+            ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+            ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+            if (m == -2 .or. m == -l) then
+              call decomposeA(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+            end if
+            ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+            call solveSurfaceC(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, ns - itmp + 1, z(itmp:))  !!TODO
+
+          end if
+
+        end if
+
+        !<<< operation up to here >>>>
+
+        if (l > 0) then
+
+          ! Check whether the amplitude has decayed enough to stop the l-loops.
+          !  This is checked for the topmost-grid expansion coefficent of each m individually.
+          call checkAmplitudeDecay(g_or_c(nColumn-1:nColumn), l, lsuf, ratl, recordAmplitude, decayCounter)
+
+          ! Accumulate u.  !!! difference from shallow-source section
+          do ir = 1, nReceiver
+            call computeU(g_or_c(nColumn-1:nColumn), largeL2, harmonicsValues(:, m, ir), u(:, ir))
+          end do
 
         end if
 
@@ -463,7 +533,7 @@ program tipsv
 
       ! Decide cut-off depth (at a certain interval of l).
       if (mod(l, 100) == 0) then
-        call computeCutoffDepth(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
+        call computeCutoffDepth(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)  !!TODO
       end if
 
     end do  ! l-loop

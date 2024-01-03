@@ -689,7 +689,57 @@ end subroutine
 
 
 
+!------------------------------------------------------------------------
+! Evaluate the cut-off depth based on the relative amplitude at each depth.
+! (See the end of section 3.2 of Kawai et al. 2006.)
+!------------------------------------------------------------------------
+subroutine computeCutoffDepth()
+!------------------------------------------------------------------------
+  implicit none
 
+  !!TODO
+
+end subroutine
+
+
+!------------------------------------------------------------------------
+! Checks whether the expansion coefficient amplitude has decayed enough to stop computing subsequent l's for this frequency.
+! When the amplitude ratio is smaller than the threshold and l has surpassed the accuracy threshold, a counter is incremented.
+! The maximum amplitude encountered so far is also recorded using this subroutine.
+!------------------------------------------------------------------------
+subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
+!------------------------------------------------------------------------
+  implicit none
+
+  complex(8), intent(in) :: c0(2)  ! Expansion coefficients at topmost grid [km].
+  integer, intent(in) :: l  ! Angular order.
+  integer, intent(in) :: lsuf  ! Accuracy threshold of angular order.
+  real(8), intent(in) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
+  real(8), intent(inout) :: recordAmplitude  ! Maximum amplitude encountered, updated if the current amplitude is larger [km].
+  integer, intent(inout) :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
+  real(8) :: amp, ampratio
+
+  ! Calculate the amplitude of expansion coefficients.
+  amp = sqrt(abs(c0(1)) ** 2 + abs(c0(2)) ** 2)
+
+  ! Update maximum amplitude if current amplitude is greater.
+  if (amp > recordAmplitude) recordAmplitude = amp
+
+  ! Calculate the amplitude ratio.
+  ampratio = 0.d0
+  if (amp /= 0.d0 .and. recordAmplitude /= 0.d0) then
+    ampratio = amp / recordAmplitude
+  endif
+
+  ! Increment the counter if amplitude ratio is smaller than its threshold and l has surpassed the accuracy threshold.
+  !  Reset the counter otherwise.
+  if (l > lsuf .and. ampratio < ratl) then
+    decayCounter = decayCounter + 1
+  else
+    decayCounter = 0
+  endif
+
+end subroutine
 
 
 !------------------------------------------------------------------------
