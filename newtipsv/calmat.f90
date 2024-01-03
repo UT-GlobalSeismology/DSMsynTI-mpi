@@ -882,15 +882,416 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
 end subroutine
 
 
+!------------------------------------------------------------------------
+! Setting the boundary condition elements to the coefficient matrix 'A', with elements
+!  stored for each (iRow, iColumn) = (1,1), (1,2),(2,2), (1,3),(2,3),(3,3), (1,4),(2,4),(3,4),(4,4), (2,5),(3,5),(4,5),(5,5), ...
+!------------------------------------------------------------------------
+subroutine setBoundaryConditions(nZone, rmaxOfZone, phaseOfZone, oColumnOfZone, a)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radius of each zone [km].
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(in) :: oColumnOfZone(nZone + 1)  ! Index of the first column in the band matrix for each zone.
+  complex(8), intent(inout) :: a(4,*)  ! A matrix, containing upper band elements.
+  integer :: iZone
+
+  do iZone = 1, nZone - 1
+    if (phaseOfZone(iZone) == 1 .and. phaseOfZone(iZone + 1) == 2) then
+      a(2, oColumnOfZone(iZone + 1)) = dcmplx(rmaxOfZone(iZone) ** 2)
+    endif
+    if (phaseOfZone(iZone) == 2 .and. phaseOfZone(iZone + 1) == 1) then
+      a(3, oColumnOfZone(iZone + 1)) = -dcmplx(rmaxOfZone(iZone) ** 2)
+    endif
+  end do
+
+end subroutine
+
 
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
 
+! Computes numerical values for matrices anum and bnum.
+subroutine calabnum(omega, omegai, rmax, rrho, vpv, vph, vsv, vsh, eta, ra, r0, coef1, coef2, anum, bnum)
+  implicit none
 
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
-!------------------------------------------------------------------------
+  real(8), intent(in) :: omega, omegai, rmax
+  real(8), intent(in) :: rrho(4), vpv(4), vph(4), vsv(4), vsh(4), eta(4)
+  real(8), intent(in) :: ra(2), r0
+  complex(8), intent(in) :: coef1, coef2
+  complex(8), intent(out) :: anum(4, 4, 10), bnum(4, 4, 10)
+  integer :: i, j, k
+  real(8) :: trho, tmu, tecA, tecC, tecL, tecN, tAkappa, tCkappa
+  real(8) :: tvpv, tvph, tvsv, tvsh, teta, coef, r, r2
+  complex(8) :: xrho, xecA, xecC, xecF, xecL, xecN
+  complex(8) :: xmu, xFdC, xAmF2dC, xAkappa, xCkappa, comega2
+
+  do k=1,10
+    do j=1,4
+      do i=1,4
+        anum(i,j,k) = dcmplx( 0.d0 )
+        bnum(i,j,k) = dcmplx( 0.d0 )
+      end do
+    end do
+  end do
+! computation of mu,lam and rho at r
+  do i=1,10
+    if ( i.le.5 ) then
+      r = ra(1) + dble(i-1) / 4.d0 * ( r0 - ra(1) )
+    else
+      r = ra(2) - dble(10-i) / 4.d0 * ( ra(2) - r0 )
+    endif
+    trho = 0.d0
+    tvpv = 0.d0
+    tvph = 0.d0
+    tvsv = 0.d0
+    tvsh = 0.d0
+    teta = 0.d0
+    do j=1,4
+      if ( j.eq.1 ) then
+        coef = 1.d0
+      else
+        coef = coef * ( r / rmax )
+      endif
+      trho  = trho  + rrho(j)  * coef
+      tvpv  = tvpv  + vpv(j)   * coef
+      tvph  = tvph  + vph(j)   * coef
+      tvsv  = tvsv  + vsv(j)   * coef
+      tvsh  = tvsh  + vsh(j)   * coef
+      teta  = teta  + eta(j)   * coef
+    end do
+    tecA = trho * tvph * tvph
+    tecC = trho * tvpv * tvpv
+    tecL = trho * tvsv * tvsv
+    tecN = trho * tvsh * tvsh
+    tmu  = trho * tvsv * tvsv
+
+    tAkappa = tecA - tmu * 4.d0 / 3.d0
+    tCkappa = tecC - tmu * 4.d0 / 3.d0
+    xAkappa = dcmplx(tAkappa) * coef2
+    xCkappa = dcmplx(tCkappa) * coef2
+    xrho = dcmplx(trho)
+    xmu  = dcmplx(tmu) *coef1
+    xecL = dcmplx(tecL) * coef1
+    xecN = dcmplx(tecN) * coef1
+    xecA = xAkappa + xmu * dcmplx( 4.d0 / 3.d0 )
+    xecC = xCkappa + xmu * dcmplx( 4.d0 / 3.d0 )
+    xecF = dcmplx(teta) * ( xecA - dcmplx(2.d0) * xecL )
+    xFdC = xecF / xecC
+    xAmF2dC = xecA - xecF * xFdC
+
+    r2 = r * r
+    comega2 = dcmplx( omega, -omegai ) * dcmplx( omega, -omegai )
+
+    anum(1,1,i) = - dcmplx( 2.d0 / r ) * xFdC
+    anum(1,2,i) =   dcmplx( 1.d0 ) / xecC
+    anum(2,1,i) = - xrho * comega2 + dcmplx( 4.d0 / r2 ) * ( xAmF2dC - xecN )
+    anum(2,2,i) =   dcmplx( 2.d0 / r ) * ( xFdC - 1.d0 )
+    anum(3,1,i) = - dcmplx( 1.d0 / r )
+    anum(3,3,i) =   dcmplx( 1.d0 / r )
+    anum(3,4,i) =   dcmplx( 1.d0 ) / xecL
+    anum(4,1,i) = - dcmplx( 2.d0 / r2 ) * ( xAmF2dC - xecN )
+    anum(4,2,i) = - dcmplx( 1.d0 / r ) * xFdC
+    anum(4,3,i) = - xrho * comega2 - dcmplx( 2.d0 / r2 ) * xecN
+    anum(4,4,i) = - dcmplx( 3.d0 / r )
+    bnum(1,3,i) =   dcmplx( 1.d0 / r ) * xFdC
+    bnum(2,3,i) = - dcmplx( 2.d0 / r2 ) * ( xAmF2dC - xecN )
+    bnum(2,4,i) =   dcmplx( 1.d0 / r )
+    bnum(4,3,i) =   xAmF2dC / dcmplx(r2)
+  end do
+
+end subroutine
+
+
+ ! Computing the excitation vector using Geller and Hatori(1995).
+ ! Parameters by N.Takeuchi 1995.7
+subroutine calya(aa, bb, l2, ra, r0, ya, yb, yc, yd)
+  common a,b,cl2,itmp
+  external eqmotion1
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  real(8), intent(in) :: r0, l2, ra(2)
+  complex(8), intent(in) :: aa(160), bb(160)
+  complex(8), intent(out) :: ya(4), yb(4), yc(4), yd(4)
+  integer :: i, k, itmp
+  real(8) :: xs, xe, dr, cl2
+  complex(8) :: work(4, 2), a(64), b(64)
+  integer :: ktmp1, ktmp2, ktmp3, ktmp4
+
+! -----------------------<< common variables >>-----------------------
+  cl2 = l2
+! ---------------------<< numerical integration >>---------------------
+! integration from the lower boundary
+  ya(1) = dcmplx( 0.d0 )
+  ya(2) = dcmplx( 1.d0 )
+  ya(3) = dcmplx( 0.d0 )
+  ya(4) = dcmplx( 0.d0 )
+  yb(1) = dcmplx( 0.d0 )
+  yb(2) = dcmplx( 0.d0 )
+  yb(3) = dcmplx( 0.d0 )
+  yb(4) = dcmplx( 1.d0 )
+  dr = ( r0 - ra(1) ) / 2.d0
+  if ( dr.gt.0.d0 ) then
+    xs = ra(1)
+    do k=1,2
+!	    do 110 j=1,4
+!	      do 100 i=1,4
+!	        a(i,j,1) = aa(i,j,2*k-1)
+!	        b(i,j,1) = bb(i,j,2*k-1)
+!	        a(i,j,2) = aa(i,j,2*k)
+!	        b(i,j,2) = bb(i,j,2*k)
+!	        a(i,j,3) = aa(i,j,2*k)
+!	        b(i,j,3) = bb(i,j,2*k)
+!	        a(i,j,4) = aa(i,j,2*k+1)
+!	        b(i,j,4) = bb(i,j,2*k+1)
+! 100	      continue
+! 110	    continue
+      ktmp1 = 32 * ( k-1 )
+      ktmp2 = ktmp1 - 16
+      do i=1,64
+        if ( i.le.32 ) then
+          a(i) = aa(i+ktmp1)
+          b(i) = bb(i+ktmp1)
+        else
+          a(i) = aa(i+ktmp2)
+          b(i) = bb(i+ktmp2)
+        end if
+      end do
+      itmp = 0
+      xe = xs + dr
+      call rk3(4,eqmotion1,xs,xe,1,ya,yn,4,work)
+      itmp = 0
+      xs = xe - dr
+      call rk3(4,eqmotion1,xs,xe,1,yb,yn,4,work)
+    end do
+  end if
+! integration from the upper boundary
+  yc(1) = dcmplx( 0.d0 )
+  yc(2) = dcmplx( 1.d0 )
+  yc(3) = dcmplx( 0.d0 )
+  yc(4) = dcmplx( 0.d0 )
+  yd(1) = dcmplx( 0.d0 )
+  yd(2) = dcmplx( 0.d0 )
+  yd(3) = dcmplx( 0.d0 )
+  yd(4) = dcmplx( 1.d0 )
+  dr = ( ra(2) - r0 ) / 2.d0
+  if ( dr.gt.0.d0 ) then
+    xs = ra(2)
+    do k=1,2
+!	    do 140 j=1,4
+!	      do 130 i=1,4
+!	        a(i,j,1) = aa(i,j,12-2*k)
+!	        b(i,j,1) = bb(i,j,12-2*k)
+!	        a(i,j,2) = aa(i,j,11-2*k)
+!	        b(i,j,2) = bb(i,j,11-2*k)
+!	        a(i,j,3) = aa(i,j,11-2*k)
+!	        b(i,j,3) = bb(i,j,11-2*k)
+!	        a(i,j,4) = aa(i,j,10-2*k)
+!	        b(i,j,4) = bb(i,j,10-2*k)
+! 130	      continue
+! 140	    continue
+      ktmp1 = 144 - 32 * ( k-1 )
+      ktmp2 = ktmp1 - 32
+      ktmp3 = ktmp1 - 48
+      ktmp4 = ktmp1 - 80
+      do i=1,64
+        if ( i.le.32 ) then
+          if ( i.le.16 ) then
+            a(i) = aa(i+ktmp1)
+            b(i) = bb(i+ktmp1)
+          else
+            a(i) = aa(i+ktmp2)
+            b(i) = bb(i+ktmp2)
+          end if
+        else
+          if ( i.le.48 ) then
+            a(i) = aa(i+ktmp3)
+            b(i) = bb(i+ktmp3)
+          else
+            a(i) = aa(i+ktmp4)
+            b(i) = bb(i+ktmp4)
+          end if
+        end if
+      end do
+      itmp = 0
+      xe = xs - dr
+      call rk3(4,eqmotion1,xs,xe,1,yc,yn,4,work)
+      itmp = 0
+      xs = xe + dr
+      call rk3(4,eqmotion1,xs,xe,1,yd,yn,4,work)
+    end do
+  end if
+
+end subroutine
+
+! Computing the excitation vector using Geller and Hatori(1995).
+! Parameters by N.Takeuchi 1995.7
+subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r0, mt, g)
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  integer, intent(in) :: l, m
+  real(8), intent(in) :: r0, ecC0, ecF0, ecL0, ra(2), lsq
+  complex(8), intent(in) :: coef1, coef2
+  complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4)
+  real(8), intent(in) :: mt(3,3)
+  complex(8), intent(out) :: g(4)
+  complex(8) :: dd, ee, s1, s2, s(4)
+  integer :: ip(4), ier, i
+  complex(8) :: a(4,4), b(4), wk(4), xtmp
+  real(8) :: eps, sgn, b1, b2, r03, dtmp(4)
+
+  ! Initialization
+  eps = -1.d0
+
+! ---------------------<< parameter computation >>---------------------
+! computation of the discontinuity
+  if ( m.ge.0 ) then
+    sgn = 1.d0
+  else
+    sgn = -1.d0
+  end if
+  b1 = sqrt( dble(2*l+1)/(16.d0*pi) )
+  if ( l.ne.0 ) then
+    b2 = sqrt( dble(2*l+1)*dble(l-1)*dble(l+2)/(64.d0*pi) )
+  end if
+  if ( iabs(m).eq.2 ) then
+    dd = dcmplx( 0.d0 )
+    ee = dcmplx( 0.d0 )
+  end if
+  if ( iabs(m).eq.1 ) then
+    dd = dcmplx( 0.d0 )
+    ee = dcmplx( - b1 * sgn * mt(1,2), b1 * mt(1,3) ) / ( dcmplx( r0 * r0 * ecL0 ) * coef1 )
+  end if
+  if ( iabs(m).eq.0 ) then
+    dd = dcmplx( 2.d0 * b1 * mt(1,1) / ( r0 * r0 ) ) / (   dcmplx( ecC0 - 4.d0 / 3.d0 * ecL0 ) * coef2 &
+      + dcmplx( 4.d0/3.d0*ecL0 ) * coef1 )
+    ee = dcmplx( 0.d0 )
+  end if
+
+  if ( iabs(m).eq.0 ) then
+    r03 = r0 * r0 * r0
+    xtmp =   ( ( ecF0 + 2.d0 / 3.d0 * ecL0) * coef2 &
+      - 2.d0 / 3.d0 * ecL0 * coef1 ) / ( (ecC0 - 4.d0 / 3.d0 * ecL0)* coef2 &
+      + 4.d0 / 3.d0 * ecL0 * coef1 )
+    s1 = dcmplx( - 2.d0 * b1 * ( mt(2,2) + mt(3,3) ) / r03 ) + dcmplx( 4.d0 * b1 * mt(1,1) / r03 ) * xtmp
+    s2 = dcmplx( b1 * lsq * ( mt(2,2) + mt(3,3) ) / r03 ) - dcmplx( 2.d0 * b1 * lsq * mt(1,1) / r03 ) * xtmp
+  end if
+  if ( iabs(m).eq.1 ) then
+    s1 = dcmplx( 0.d0 )
+    s2 = dcmplx( 0.d0 )
+  end if
+  if ( iabs(m).eq.2 ) then
+    r03 = r0 * r0 * r0
+    s1 = dcmplx( 0.d0 )
+    s2 = dcmplx( - b2 * ( mt(2,2) - mt(3,3) ) / r03 , sgn * 2.d0 * b2 * mt(2,3) / r03 )
+  end if
+
+  s(1) = dd
+  s(2) = s1
+  if ( l.ne.0 ) then
+    s(3) = dcmplx( dble(ee)/lsq, dimag(ee)/lsq )
+    s(4) = dcmplx( dble(s2)/lsq, dimag(s2)/lsq )
+  else
+    s(3) = dcmplx( 0.d0 )
+    s(4) = dcmplx( 0.d0 )
+  end if
+! consideration of the boundary conditions
+! determination of the analytical solution
+  if ( l.ne.0 ) then
+    call sab1( ya,yb,yc,yd,s,a,b )
+    call glu(a,4,4,b,eps,wk,ip,ier)
+  else
+    call sab2( ya,yc,s,a,b )
+    call glu(a,2,4,b,eps,wk,ip,ier)
+    b(3) = b(2)
+    b(2) = dcmplx( 0.d0 )
+    b(4) = dcmplx( 0.d0 )
+  end if
+! computation of the excitation vector
+  dtmp(1) = - ra(1) * ra(1)
+  dtmp(2) = dtmp(1) * lsq
+  dtmp(3) = ra(2) * ra(2)
+  dtmp(4) = dtmp(3) * lsq
+  do i=1,4
+    xtmp = b(i)
+    g(i) = dcmplx( dble(xtmp)*dtmp(i), dimag(xtmp)*dtmp(i) )
+  end do
+
+end subroutine
+
+
+! Equation of the motion of the solid medium.
+subroutine eqmotion1(r, y, f)
+  common a, b, l2, itmp
+
+  real(8), intent(in) :: r
+  complex(8), intent(in) :: y(4)
+  complex(8), intent(out) :: f(4)
+  integer :: i, j, itmp, mtmp
+  real(8) :: l2
+  complex(8) :: a(64), b(64), c(4,4)
+
+  itmp = itmp + 1
+
+  ! Computation of the differential coefficients
+  mtmp = 16 * (itmp - 1)
+  do j = 1, 4
+    do i = 1, 4
+      mtmp = mtmp + 1
+      c(i, j) = a(mtmp) + dcmplx(l2 * dble(b(mtmp)), l2 * dimag(b(mtmp)))
+    end do
+  end do
+
+  ! Compute function values
+  do i = 1, 4
+    f(i) = dcmplx(0.d0)
+    do j = 1, 4
+      f(i) = f(i) + c(i, j) * y(j)
+    end do
+  end do
+
+end subroutine
+
+
+! Determination of the matrix imposing the boundary conditions.
+subroutine sab1(ya, yb, yc, yd, s, a, b)
+  implicit none
+
+  complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4), s(4)
+  complex(8), intent(out) :: a(4,4), b(4)
+  integer :: i
+
+  do i = 1, 4
+    a(i, 1) = -ya(i)
+    a(i, 2) = -yb(i)
+    a(i, 3) =  yc(i)
+    a(i, 4) =  yd(i)
+    b(i) = s(i)
+  end do
+
+end subroutine
+
+
+! Determination of the matrix imposing the boundary conditions.
+! Only the first two elements of the arrays are used.
+subroutine sab2(ya, yc, s, a, b)
+  implicit none
+
+  complex(8), intent(in) :: ya(4), yc(4), s(4)
+  complex(8), intent(out) :: a(4,4), b(4)
+  integer :: i
+
+  do i = 1, 2
+    a(i, 1) = -ya(i)
+    a(i, 2) =  yc(i)
+    b(i) = s(i)
+  end do
+
+end subroutine
+
 
 
 !------------------------------------------------------------------------

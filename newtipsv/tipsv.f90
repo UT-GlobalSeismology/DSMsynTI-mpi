@@ -140,13 +140,19 @@ program tipsv
   complex(8) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
-  complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
+  complex(8) :: g_or_c(2 * maxNGridSolid + maxNGridFluid)
+  !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer :: oColumnOfZone(maxNZone + 1)  ! Index of the first column in the band matrix for each zone.
   integer :: nColumn  ! Total number of columns in the band matrix.
   integer :: oR, oElement, oColumn
+
+  !!TODO ???
+  complex(8) :: anum(4, 4, 10), bnum(4, 4, 10)
+  complex(8) :: ya(4), yb(4), yc(4), yd(4)
+  integer :: iColumnOfSource
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -349,11 +355,12 @@ program tipsv
     ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
-
     ! call calabnum
-    !!TODO
-
-
+    !!TODO organize
+    call calabnum(omega, omegaI, rmax, &
+      rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
+      vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
+      gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     iSolid = 0
@@ -392,10 +399,10 @@ program tipsv
 
         ! All parts of A0 are either unmodified or already modified using lumped matrix.
         call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oR:), p3(oR:), coefQfluid(i), cwork(oElement:))
-        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:,oColumn:))
+        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
         ! All parts of A2 are either unmodified or already modified using lumped matrix.
         call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oR:), cwork(oElement:))
-        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
+        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:, oColumn:))
 
       end if
     end do
@@ -414,7 +421,7 @@ program tipsv
       ! L^2 and L. (See the part after eq. 12 of Kawai et al. 2006.)
       ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
       largeL2 = dble(l) * dble(l + 1)
-!      largeL = sqrt(largeL2)
+      largeL = sqrt(largeL2)
 
       ! Initialize matrices.
       a(:, :nColumn) = dcmplx(0.d0, 0.d0)
@@ -429,21 +436,28 @@ program tipsv
 
       ! Assemble A matrix from parts that have already been computed.
       call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))
+      ! Set boundary condition elements
+      call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
 
-
-
-
-
-
+      !!TODO organize
+      call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource), r0, ya(:), yb(:), yc(:), yd(:))
+      iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - (oValueOfZone(iZoneOfSource) - iZoneOfSource + 1))
 
       do m = -2, 2  ! m-loop
         if (abs(m) > abs(l)) cycle
 
+        ! Computing the excitation vector
+        call calg(l, m, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), largeL, ecC0, ecF0, ecL0, &
+          ya(:), yb(:), yc(:), yd(:), gridRadii(iLayerOfSource), r0, mt(:,:), g_or_c(iColumnOfSource))
+
+        if (l .eq. 0) then
+
+
+        else
 
 
 
-
-
+        end if
 
       end do  ! m-loop
 
