@@ -3,8 +3,8 @@
 !------------------------------------------------------------------------
 subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
-  kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
-  iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
+  kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
+  iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
   nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
   t, h1, h2sum, h3, h4, gt, gh1, gh2sum, gh3, gh4, work)
 !------------------------------------------------------------------------
@@ -26,10 +26,10 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   real(8), intent(out) :: gridRadii(maxNGrid)  ! Radius at each grid point [km].
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
-  integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
+  integer, intent(out) :: oPairOfZone(nZone)  ! Index of the first (iLayer, k', k)-pair in each zone.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
-  integer, intent(out) :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the source layer.
+  integer, intent(out) :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   real(8), intent(out) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(maxNGrid+nZone-1)  ! Radii corresponding to each variable value [km].
@@ -41,7 +41,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   real(8), intent(out) :: t(4*maxNGrid-4), h1(4*maxNGrid-4), h2sum(4*maxNGrid-4), h3(4*maxNGrid-4), h4(4*maxNGrid-4)
   real(8), intent(out) :: gt(8), gh1(8), gh2sum(8), gh3(8), gh4(8)
   real(8), intent(out) :: work(4*maxNGrid-4)  ! Working matrix.
-  integer :: i, oV, oR
+  integer :: i, oV, oP
 
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
@@ -49,10 +49,10 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   call computeGridRadii(maxNGrid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.
-  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oRowOfZone(:))
+  call computeFirstIndices(nZone, nLayerInZone(:), oGridOfZone(:), oValueOfZone(:), oPairOfZone(:))
 
   ! Compute the source position.
-  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+  call computeSourcePosition(nGrid, rmaxOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oPairOfSource)
 
   ! Design grids for source computations.
   call computeSourceGrid(gridRadii(:), r0, iLayerOfSource, gridRadiiForSource(:))
@@ -68,21 +68,21 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   ! Compute mass and rigitidy matrices.
   do i = 1, nZone
     oV = oValueOfZone(i)
-    oR = oRowOfZone(i)
+    oP = oPairOfZone(i)
     ! Compute unmodified matrices.
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oR:))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 2, 1, 1, h1(oR:))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 1, 1, 0, work(oR:))
-    call addTranspose(nLayerInZone(i), work(oR:), h2sum(oR:))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 0, 0, 0, h3(oR:))
-    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 0, 0, 0, h4(oR:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), 2, 0, 0, t(oP:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 2, 1, 1, h1(oP:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 1, 1, 0, work(oP:))
+    call addTranspose(nLayerInZone(i), work(oP:), h2sum(oP:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), 0, 0, 0, h3(oP:))
+    call computeIntermediateIntegral(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), 0, 0, 0, h4(oP:))
     ! Modify matrices for I^(0) using lumped matrices.
-    call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), work(oR:))
-    call averageMatrix(nLayerInZone(i), t(oR:), work(oR:), t(oR:))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oR:))
-    call averageMatrix(nLayerInZone(i), h3(oR:), work(oR:), h3(oR:))
-    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oR:))
-    call averageMatrix(nLayerInZone(i), h4(oR:), work(oR:), h4(oR:))
+    call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), rhoValues(oV:), work(oP:))
+    call averageMatrix(nLayerInZone(i), t(oP:), work(oP:), t(oP:))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecLValues(oV:), work(oP:))
+    call averageMatrix(nLayerInZone(i), h3(oP:), work(oP:), h3(oP:))
+    call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), ecNValues(oV:), work(oP:))
+    call averageMatrix(nLayerInZone(i), h4(oP:), work(oP:), h4(oP:))
   end do
 
   ! Compute mass and rigitidy matrices near source.

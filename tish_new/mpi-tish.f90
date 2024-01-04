@@ -111,15 +111,15 @@ program tish
   real(8) :: t(4 * maxNGrid - 4)
   real(8) :: h1(4 * maxNGrid - 4), h2sum(4 * maxNGrid - 4), h3(4 * maxNGrid - 4), h4(4 * maxNGrid - 4)
   real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
-  integer :: oRowOfZone(maxNZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
-  integer :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the layer with the source.
+  integer :: oPairOfZone(maxNZone)  ! Index of the first (iLayer, k', k)-pair in each zone.
+  integer :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   complex(8) :: a0(2, maxNGrid), a2(2, maxNGrid)
   complex(8) :: a(2, maxNGrid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
-  integer :: oR
+  integer :: oP
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -243,8 +243,8 @@ program tish
     ! ******************* Computing the matrix elements *******************
     call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
       nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
-      kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
-      iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
+      kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
+      iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
       nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
       t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
@@ -271,11 +271,11 @@ program tish
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
-        oR = oRowOfZone(i)
-        call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
-        call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
-        call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
-        call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
+        oP = oPairOfZone(i)
+        call computeA0(nLayerInZone(i), omega, omegaI, t(oP:), h1(oP:), h2sum(oP:), h3(oP:), h4(oP:), coefQmu(i), cwork(oP:))
+        call overlapA(nLayerInZone(i), cwork(oP:), a0(:, oGridOfZone(i):))
+        call computeA2(nLayerInZone(i), h4(oP:), coefQmu(i), cwork(oP:))
+        call overlapA(nLayerInZone(i), cwork(oP:), a2(:, oGridOfZone(i):))
       end do
 
       ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -304,8 +304,8 @@ program tish
 
         ! Compute UNASSEMBLED A matrix in layer with source.
         ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
-        call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-          h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coefQmu(iZoneOfSource), aaParts(:))
+        call computeA(1, omega, omegaI, largeL2, t(oPairOfSource:), &
+          h1(oPairOfSource:), h2sum(oPairOfSource:), h3(oPairOfSource:), h4(oPairOfSource:), coefQmu(iZoneOfSource), aaParts(:))
 
         ! Compute A matrix near source.
         call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
@@ -345,8 +345,8 @@ program tish
   ! ******************* Computing the matrix elements *******************
   call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
     nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
-    kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oRowOfZone, &
-    iZoneOfSource, iLayerOfSource, oRowOfSource, gridRadiiForSource, &
+    kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
+    iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
     nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
     t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
@@ -375,11 +375,11 @@ program tish
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
-      oR = oRowOfZone(i)
-      call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
-      call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
-      call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
-      call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
+      oP = oPairOfZone(i)
+      call computeA0(nLayerInZone(i), omega, omegaI, t(oP:), h1(oP:), h2sum(oP:), h3(oP:), h4(oP:), coefQmu(i), cwork(oP:))
+      call overlapA(nLayerInZone(i), cwork(oP:), a0(:, oGridOfZone(i):))
+      call computeA2(nLayerInZone(i), h4(oP:), coefQmu(i), cwork(oP:))
+      call overlapA(nLayerInZone(i), cwork(oP:), a2(:, oGridOfZone(i):))
     end do
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -413,8 +413,8 @@ program tish
 
       ! Compute UNASSEMBLED A matrix in layer with source.
       ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
-      call computeA(1, omega, omegaI, largeL2, t(oRowOfSource:), &
-        h1(oRowOfSource:), h2sum(oRowOfSource:), h3(oRowOfSource:), h4(oRowOfSource:), coefQmu(iZoneOfSource), aaParts(:))
+      call computeA(1, omega, omegaI, largeL2, t(oPairOfSource:), &
+        h1(oPairOfSource:), h2sum(oPairOfSource:), h3(oPairOfSource:), h4(oPairOfSource:), coefQmu(iZoneOfSource), aaParts(:))
 
       ! Compute A matrix near source.
       call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))

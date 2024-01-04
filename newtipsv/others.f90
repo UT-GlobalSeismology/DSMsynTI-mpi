@@ -355,7 +355,7 @@ end subroutine
 ! Computing the first indices of each zone for vectors and matrices used later in the program.
 !------------------------------------------------------------------------
 subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, oValueOfZoneSolid, &
-  oRowOfZoneSolid, oRowOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn)
+  oPairOfZoneSolid, oPairOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn)
 !------------------------------------------------------------------------
   implicit none
 
@@ -364,8 +364,8 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
-  integer, intent(out) :: oRowOfZoneSolid(nZone), oRowOfZoneFluid(nZone)
-  !:: Index of the first row in the vector of (iLayer, k', k)-pairs in each zone. Vectors are separate for solid and fluid zones.
+  integer, intent(out) :: oPairOfZoneSolid(nZone), oPairOfZoneFluid(nZone)
+  !::::::::::::::::::::: Index of the first (iLayer, k', k)-pair in each zone, counted separately for solid and fluid zones.
   integer, intent(out) :: oElementOfZone(nZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer, intent(out) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
   integer, intent(out) :: nColumn  ! Total number of columns in the band matrix.
@@ -374,8 +374,8 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
   ! Set first index.
   oValueOfZone(1) = 1
   oValueOfZoneSolid(1) = 1
-  oRowOfZoneSolid(1) = 1
-  oRowOfZoneFluid(1) = 1
+  oPairOfZoneSolid(1) = 1
+  oPairOfZoneFluid(1) = 1
   oElementOfZone(1) = 1
   oColumnOfZone(1) = 1
 
@@ -388,7 +388,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
     if (phaseOfZone(iZone) == 1) then
       ! solid
       iSolid = iSolid + 1
-      oRowOfZoneSolid(iSolid + 1) = oRowOfZoneSolid(iSolid) + 4 * nLayerInZone(iZone)
+      oPairOfZoneSolid(iSolid + 1) = oPairOfZoneSolid(iSolid) + 4 * nLayerInZone(iZone)
       oValueOfZoneSolid(iSolid + 1) = oValueOfZoneSolid(iSolid) + nLayerInZone(iZone) + 1
       oElementOfZone(iZone + 1) = oElementOfZone(iZone) + 16 * nLayerInZone(iZone)
       if (phaseOfZone(iZone + 1) == 1) then
@@ -400,7 +400,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
     else
       ! fluid
       iFluid = iFluid + 1
-      oRowOfZoneFluid(iFluid + 1) = oRowOfZoneFluid(iFluid) + 4 * nLayerInZone(iZone)
+      oPairOfZoneFluid(iFluid + 1) = oPairOfZoneFluid(iFluid) + 4 * nLayerInZone(iZone)
       oElementOfZone(iZone + 1) = oElementOfZone(iZone) + 4 * nLayerInZone(iZone)
       if (phaseOfZone(iZone + 1) == 1) then
         oColumnOfZone(iZone + 1) = oColumnOfZone(iZone) + nLayerInZone(iZone) + 1
@@ -427,7 +427,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the source position.
 !------------------------------------------------------------------------
-subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oPairOfSource)
 !------------------------------------------------------------------------
   implicit none
 
@@ -438,7 +438,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
-  integer, intent(out) :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the source layer.
+  integer, intent(out) :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
 
@@ -480,7 +480,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
   ! Find the layer that the source is in.
   iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
   ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
-  oRowOfSource = 4 * iLayerOfSource - 3
+  oPairOfSource = 4 * iLayerOfSource - 3
 
 end subroutine
 

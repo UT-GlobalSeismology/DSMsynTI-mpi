@@ -298,7 +298,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the indices of the first grid point and the first (iLayer, k', k)-pair in each zone.
 !------------------------------------------------------------------------
-subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oValueOfZone, oRowOfZone)
+subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oValueOfZone, oPairOfZone)
 !------------------------------------------------------------------------
   implicit none
 
@@ -306,16 +306,16 @@ subroutine computeFirstIndices(nZone, nLayerInZone, oGridOfZone, oValueOfZone, o
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
-  integer, intent(out) :: oRowOfZone(nZone)  ! Index of the first row in the vector of (iLayer, k', k)-pairs in each zone.
+  integer, intent(out) :: oPairOfZone(nZone)  ! Index of the first (iLayer, k', k)-pair in each zone.
   integer :: iZone
 
   oGridOfZone(1) = 1
   oValueOfZone(1) = 1
-  oRowOfZone(1) = 1
+  oPairOfZone(1) = 1
   do iZone = 1, nZone - 1
     oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
     oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
-    oRowOfZone(iZone + 1) = oRowOfZone(iZone) + 4 * nLayerInZone(iZone)
+    oPairOfZone(iZone + 1) = oPairOfZone(iZone) + 4 * nLayerInZone(iZone)
   end do
 
 end subroutine
@@ -324,7 +324,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the source position.
 !------------------------------------------------------------------------
-subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oRowOfSource)
+subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oPairOfSource)
 !------------------------------------------------------------------------
   implicit none
 
@@ -334,7 +334,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
-  integer, intent(out) :: oRowOfSource  ! Index of the first row in the vector of (iLayer, k', k)-pairs for the source layer.
+  integer, intent(out) :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
 
@@ -375,7 +375,7 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, gridRadii, r0, iZoneOfSource
   ! Find the layer that the source is in.
   iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
   ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
-  oRowOfSource = 4 * iLayerOfSource - 3
+  oPairOfSource = 4 * iLayerOfSource - 3
 
 end subroutine
 
