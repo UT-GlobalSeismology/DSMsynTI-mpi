@@ -363,7 +363,6 @@ program tipsv
     ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
-    ! call calabnum
     !!TODO organize
     call calabnum(omega, omegaI, rmax, &
       rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
@@ -485,10 +484,10 @@ program tipsv
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
             if (m == -2 .or. m == -l) then
-              call decomposeA(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+              call decomposeAByGauss(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
             end if
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveWholeC(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, z(itmp:))  !!TODO
+            call solveWholeCAfterGauss(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, z(itmp:))  !!TODO
 
             ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
             !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
@@ -505,10 +504,10 @@ program tipsv
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
             if (m == -2 .or. m == -l) then
-              call decomposeA(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+              call decomposeAByGauss(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
             end if
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveSurfaceC(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, ns - itmp + 1, z(itmp:))  !!TODO
+            call solveSurfaceCAfterGauss(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, ns - itmp + 1, z(itmp:))  !!TODO
 
           end if
 

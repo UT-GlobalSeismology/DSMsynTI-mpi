@@ -141,14 +141,13 @@ subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL
     ! Once in a while, compute for all grids to decide the cut-off depth.
     ! CAUTION: In this case, all values of g_or_c(:) are computed.
 
-    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+    ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
     if (m == -2 .or. m == -l) then
-      ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-      call solveWholeCFromStart(a(:,:), nGrid, 1, 2, g_or_c(:), eps, dr, z, ier)
-    else
-      ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-      call solveWholeCFromMiddle(a(:,:), nGrid, 1, 2, g_or_c(:), eps, dr, z, ier)
+      call decomposeAByCholesky(a(:,:), nGrid, 1, 2, eps, dr, ier)
     end if
+    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    call solveWholeCAfterCholesky(a(:,:), nGrid, 1, 2, g_or_c(:), dr, z)
 
     ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
     !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
@@ -158,16 +157,15 @@ subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL
     ! Otherwise, compute for just the grids above the cut-off depth.
     ! CAUTION: In this case, only g_or_c(nGrid) is computed. Other values of g_or_c(:nGrid-1) still hold values of g!!!
 
-    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+    ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
     if (m == -2 .or. m == -l) then
-      ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-      call solveC0FromStart(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, iLayerOfSource - cutoffGrid + 1, &
-        g_or_c(cutoffGrid:), eps, dr, z, ier)
-    else
-      ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-      call solveC0FromMiddle(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, iLayerOfSource - cutoffGrid + 1, &
-        g_or_c(cutoffGrid:), eps, dr, z, ier)
+      call decomposeAByCholesky(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, eps, dr, ier)
     end if
+    ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+    call solveSurfaceCAfterCholesky(a(:, cutoffGrid:), nGrid - cutoffGrid + 1, 1, 2, iLayerOfSource - cutoffGrid + 1, &
+      g_or_c(cutoffGrid:), dr, z)
+
   end if
 
 end subroutine

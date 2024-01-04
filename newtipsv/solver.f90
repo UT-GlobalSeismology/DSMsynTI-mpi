@@ -1,13 +1,15 @@
 
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! Program to solve the simultaneous linear equation Ac=g using the Gauss method.
 ! This code is written based on dcsymbdl.f created by Fumiko Nagahori in 1991.
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !------------------------------------------------------------------------
 ! Conducts LU decomposition of matrix A.
-! For the first time using a matrix A, this subroutine must be called to conduct LU decomposition.
+! This subroutine must be called when using a matrix A for the first time.
 ! In subsequent usages, this decomposition can be skipped.
 !------------------------------------------------------------------------
-subroutine decomposeA(A, M, N, NN, EPS, Z, W, L, LI, LJ, IER)
+subroutine decomposeAByGauss(A, M, N, NN, EPS, Z, W, L, LI, LJ, IER)
 !------------------------------------------------------------------------
   implicit none
 
@@ -86,7 +88,7 @@ end subroutine
 ! All values of c are computed. Cut-off grid is not used.
 ! Matrix A must be decomposed beforehand.
 !------------------------------------------------------------------------
-subroutine solveWholeC(A, B, M, N, Z)
+subroutine solveWholeCAfterGauss(A, B, M, N, Z)
   implicit none
 
   complex(8), intent(in) :: A(M+1,N)
@@ -155,7 +157,7 @@ end subroutine
 ! Computation can be sped-up by only considering parts above a certain cut-off grid.
 ! Matrix A must be decomposed beforehand.
 !------------------------------------------------------------------------
-subroutine solveSurfaceC(A, B, M, N, NP, Z)
+subroutine solveSurfaceCAfterGauss(A, B, M, N, NP, Z)
   implicit none
 
   complex(8), intent(in) :: A(M+1,N)
