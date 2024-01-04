@@ -531,14 +531,13 @@ subroutine computeG(l, m, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourc
     gS_or_cS(2) = dcmplx(b / r0) * dcmplx(2.d0 * mt(2, 3), sgnM * (mt(2, 2) - mt(3, 3)))
   end if
 
-  ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
+  ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+  ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
   if ((m == -2) .or. (m == -l)) then
-    ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-    call solveWholeCFromStart(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, gdr, z, ier)
-  else
-    ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-    call solveWholeCFromMiddle(aSource(:,:), 3, 1, 2, gS_or_cS(:), eps, gdr, z, ier)
+    call decomposeAByCholesky(aSource(:,:), 3, 1, 2,eps, gdr, ier)
   end if
+  ! Solve Ac=g (i.e. (omega^2 T - H) c = -g) for grids near source.
+  call solveWholeCAfterCholesky(aSource(:,:), 3, 1, 2, gS_or_cS(:), gdr, z)
 
   ! Add displacement to c.
   gS_or_cS(3) = gS_or_cS(3) + dd

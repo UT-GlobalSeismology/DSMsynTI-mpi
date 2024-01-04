@@ -222,7 +222,7 @@ program tish
       ! Compute the angular order that is sufficient to compute the slowest phase velocity.
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
-      ! Compute coefficient related to attenuation.
+      ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
       call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)

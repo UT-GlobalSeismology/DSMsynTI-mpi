@@ -97,7 +97,7 @@ program tish
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
-  complex(8) :: coefQmu(maxNZone)  ! Coefficient to multiply to elastic moduli for attenuation at each zone.
+  complex(8) :: coefQmu(maxNZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
 
   ! Variables for the trial function
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
@@ -119,6 +119,7 @@ program tish
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
+  integer :: oR
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -129,7 +130,6 @@ program tish
   complex(8) :: dr(maxNGrid), z(maxNGrid), gdr(3)  ! Working arrays used when solving linear equations.
 
   ! Constants
-  integer :: lda = 2
   real(8) :: eps = -1.d0
 
   ! Efficiency improvement variables
@@ -260,23 +260,22 @@ program tish
       omega = 2.d0 * pi * dble(iFreq) / tlen
 
       ! Initialize matrices.
-      a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-      a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+      a0(:, :nGrid) = dcmplx(0.d0, 0.d0)
+      a2(:, :nGrid) = dcmplx(0.d0, 0.d0)
 
       ! Compute the angular order that is sufficient to compute the slowest phase velocity.
       call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
-      ! Compute coefficient related to attenuation.
+      ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
       call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
 
       ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
       do i = 1, nZone
-        call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-          h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
-
-        call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-        call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
+        oR = oRowOfZone(i)
+        call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
+        call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
+        call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
+        call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
       end do
 
       ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -295,8 +294,8 @@ program tish
         largeL2 = dble(l) * dble(l + 1)
 
         ! Initialize matrices.
-        a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-        aSource(:lda, :) = dcmplx(0.d0, 0.d0)
+        a(:, :nGrid) = dcmplx(0.d0, 0.d0)
+        aSource(:, :) = dcmplx(0.d0, 0.d0)
         ! Clear the amplitude accumulated for all m's.
         if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
@@ -310,7 +309,7 @@ program tish
 
         ! Compute A matrix near source.
         call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-        call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
+        call overlapA(2, aSourceParts(:), aSource(:,:))
 
         do m = -2, 2  ! m-loop
           if (m == 0 .or. abs(m) > abs(l)) cycle
@@ -362,8 +361,8 @@ program tish
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     ! Initialize matrices.
-    a0(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-    a2(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
+    a0(:, :nGrid) = dcmplx(0.d0, 0.d0)
+    a2(:, :nGrid) = dcmplx(0.d0, 0.d0)
     u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
     ! Plm must be cleared for each omega.  !!! difference from shallow-source section
     plm(:, :, :nReceiver) = 0.d0
@@ -371,17 +370,16 @@ program tish
     ! Compute the angular order that is sufficient to compute the slowest phase velocity.
     call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
-    ! Compute coefficient related to attenuation.
+    ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
     call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
 
     ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
     do i = 1, nZone
-      call computeA0(nLayerInZone(i), omega, omegaI, t(oRowOfZone(i):), &
-        h1(oRowOfZone(i):), h2sum(oRowOfZone(i):), h3(oRowOfZone(i):), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a0(:, oGridOfZone(i):))
-
-      call computeA2(nLayerInZone(i), h4(oRowOfZone(i):), coefQmu(i), cwork(oRowOfZone(i):))
-      call overlapMatrixBlocks(nLayerInZone(i), cwork(oRowOfZone(i):), a2(:, oGridOfZone(i):))
+      oR = oRowOfZone(i)
+      call computeA0(nLayerInZone(i), omega, omegaI, t(oR:), h1(oR:), h2sum(oR:), h3(oR:), h4(oR:), coefQmu(i), cwork(oR:))
+      call overlapA(nLayerInZone(i), cwork(oR:), a0(:, oGridOfZone(i):))
+      call computeA2(nLayerInZone(i), h4(oR:), coefQmu(i), cwork(oR:))
+      call overlapA(nLayerInZone(i), cwork(oR:), a2(:, oGridOfZone(i):))
     end do
 
     ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
@@ -400,8 +398,8 @@ program tish
       largeL2 = dble(l) * dble(l + 1)
 
       ! Initialize matrices.
-      a(:lda, :nGrid) = dcmplx(0.d0, 0.d0)
-      aSource(:lda, :) = dcmplx(0.d0, 0.d0)
+      a(:, :nGrid) = dcmplx(0.d0, 0.d0)
+      aSource(:, :) = dcmplx(0.d0, 0.d0)
       ! Clear the amplitude accumulated for all m's.
       if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
 
@@ -420,7 +418,7 @@ program tish
 
       ! Compute A matrix near source.
       call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-      call overlapMatrixBlocks(2, aSourceParts(:), aSource(:,:))
+      call overlapA(2, aSourceParts(:), aSource(:,:))
 
       do m = -2, 2  ! m-loop
         if (m == 0 .or. abs(m) > abs(l)) cycle
