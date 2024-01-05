@@ -910,8 +910,98 @@ end subroutine
 
 
 !------------------------------------------------------------------------
+! Rearranging the elements of matrix A for the case of l=0.
+! When l=0, only the vertical component can exist, so we extract the matrix elements for gamma'=gamma=1.
+!------------------------------------------------------------------------
+subroutine rearrangeAForL0(nZone, phaseOfZone, oColumnOfZone, iZoneOfSource, aIn, gIn, &
+  aSmall, gSmall, oQuasiColumnOfZoneWithSource, nQuasiColumn)
+!------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
+  integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
+  complex(8), intent(in) :: aIn(4,*), gIn(*)  ! Input A matrix and g vector.
+  complex(8), intent(out) :: aSmall(2,*), gSmall(*)  ! Rearranged A matrix and g vector.
+  integer, intent(out) :: oQuasiColumnOfZoneWithSource  ! Index of the first column in rearraged matrix for the zone with source.
+  integer, intent(out) :: nQuasiColumn  ! Number of columns in rearranged A matrix.
+  integer :: iZone, firstQuasiColumn, lastQuasiColumn, iColumn, iQuasiColumn
+
+  lastQuasiColumn = 0
+  do iZone = 1, nZone
+
+    if (phaseOfZone(iZone) == 1) then
+      ! solid
+      if (iZone == iZoneOfSource) then
+        oQuasiColumnOfZoneWithSource = lastQuasiColumn + 1
+      endif
+      firstQuasiColumn = lastQuasiColumn + 1
+      lastQuasiColumn = firstQuasiColumn + (oColumnOfZone(iZone + 1) - oColumnOfZone(iZone)) / 2 - 1
+
+      gSmall(firstQuasiColumn) = gIn(oColumnOfZone(iZone))
+      ! When previous zone exists, get the element above the top corner of the block for this zone.
+      if (iZone /= 1) then
+        if (phaseOfZone(iZone - 1) == 1) then
+          ! If previous zone is solid, get gamma'=gamma=1 element as usual.
+          aSmall(1, firstQuasiColumn) = aIn(2, oColumnOfZone(iZone))
+        else
+          ! If previous zone is fluid, get the continuity condition at subdiagonal.
+          aSmall(1, firstQuasiColumn) = aIn(3, oColumnOfZone(iZone))
+        endif
+      endif
+      ! First diagonal element.
+      aSmall(2, firstQuasiColumn) = aIn(4, oColumnOfZone(iZone))
+
+      ! Loop for the rest of the columns in zone.
+      do iQuasiColumn = firstQuasiColumn + 1, lastQuasiColumn
+        iColumn = oColumnOfZone(iZone) + 2 * (iQuasiColumn - firstQuasiColumn)
+        gSmall(iQuasiColumn) = gIn(iColumn)
+        ! Get gamma'=gamma=1 elements.
+        aSmall(1, iQuasiColumn) = aIn(2, iColumn)
+        aSmall(2, iQuasiColumn) = aIn(4, iColumn)
+      end do
+
+    else
+      ! fluid
+      firstQuasiColumn = lastQuasiColumn + 1
+      lastQuasiColumn = firstQuasiColumn + (oColumnOfZone(iZone + 1) - oColumnOfZone(iZone)) - 1
+
+      gSmall(firstQuasiColumn) = gIn(oColumnOfZone(iZone))
+      ! When previous zone exists, get the element above the top corner of the block for this zone.
+      if (iZone /= 1) then
+        if (phaseOfZone(iZone - 1) == 1) then
+          ! If previous zone is solid, get the continuity condition at subdiagonal.
+          aSmall(1, firstQuasiColumn) = aIn(2, oColumnOfZone(iZone))
+        else
+          ! If previous zone is fluid, get subdiagonal element as usual.
+          aSmall(1, firstQuasiColumn) = aIn(3, oColumnOfZone(iZone))
+        endif
+      endif
+      ! First diagonal element.
+      aSmall(2, firstQuasiColumn) = aIn(4, oColumnOfZone(iZone))
+
+      ! Loop for the rest of the columns in zone.
+      do iQuasiColumn = firstQuasiColumn + 1, lastQuasiColumn
+        iColumn = oColumnOfZone(iZone) + (iQuasiColumn - firstQuasiColumn)
+        gSmall(iQuasiColumn) = gIn(iColumn)
+        ! Get subdiagonal and diagonal elements.
+        aSmall(1, iQuasiColumn) = aIn(3, iColumn)
+        aSmall(2, iQuasiColumn) = aIn(4, iColumn)
+      end do
+
+    endif
+  end do
+  nQuasiColumn = lastQuasiColumn
+
+end subroutine
+
+
 !------------------------------------------------------------------------
 !------------------------------------------------------------------------
+!------------------------------------------------------------------------
+
+
 
 ! Computes numerical values for matrices anum and bnum.
 subroutine calabnum(omega, omegai, rmax, rrho, vpv, vph, vsv, vsh, eta, ra, r0, coef1, coef2, anum, bnum)

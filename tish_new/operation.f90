@@ -130,10 +130,8 @@ subroutine formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL
   complex(8), intent(inout) :: dr(nGrid), z(nGrid), gdr(3)  ! Working arrays used when solving linear equations.
   integer :: ier  ! Error code from subroutine solving linear equations.
 
-  ! Initialize vector.
-  g_or_c(:) = dcmplx(0.d0, 0.d0)
-
   ! Compute excitation vector g.
+  g_or_c(:) = dcmplx(0.d0, 0.d0)
   call computeG(l, m, iLayerOfSource, r0, mt, ecL0, coefQmu(iZoneOfSource), aaParts(:), aSourceParts(:), aSource(:,:), &
     gdr(:), g_or_c(:))
 

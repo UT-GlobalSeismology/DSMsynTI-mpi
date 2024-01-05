@@ -140,14 +140,18 @@ program tipsv
   complex(8) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid)
+  complex(8) :: aSmall(2, maxNGridSolid + maxNGridFluid)
   complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(2 * maxNGridSolid + maxNGridFluid)
+  !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
+  complex(8) :: g_or_c_Small(maxNGridSolid + maxNGridFluid)
   !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer :: oColumnOfZone(maxNZone + 1)  ! Index of the first column in the band matrix for each zone.
-  integer :: nColumn  ! Total number of columns in the band matrix.
+  integer :: oQuasiColumnOfZoneWithSource  ! Index of the first column in rearraged matrix for the zone with source.
+  integer :: nColumn, nQuasiColumn  ! Total number of columns in the band matrix.
   integer :: cutoffColumn  ! Index of column at cut-off depth.
   integer :: oP, oElement, oColumn
 
@@ -166,7 +170,7 @@ program tipsv
   complex(8) :: z(2 * maxNGridSolid + maxNGridFluid), w(2 * maxNGridSolid + maxNGridFluid)
   !::::::::::::::::::::::::::::::::::: Working arrays used when solving linear equations.
   integer :: ier  ! Error code from subroutine solving linear equations.
-  integer :: ns
+  integer :: iColumnBeforeSource
 
   ! Constants
   real(8) :: eps = -1.d0
@@ -450,19 +454,22 @@ program tipsv
 
       !!TODO organize
       call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource), r0, ya(:), yb(:), yc(:), yd(:))
-      iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - (oValueOfZone(iZoneOfSource) - iZoneOfSource + 1))
+      iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - oGridOfZone(iZoneOfSource))
 
       do m = -2, 2  ! m-loop
         if (abs(m) > abs(l)) cycle
 
         !<<< operation from here >>>>
 
-        ! Computing the excitation vector
+        ! Compute excitation vector g.
+        g_or_c(:) = dcmplx(0.d0, 0.d0)
         call calg(l, m, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), largeL, ecC0, ecF0, ecL0, &
-          ya(:), yb(:), yc(:), yd(:), gridRadii(iLayerOfSource), r0, mt(:,:), g_or_c(iColumnOfSource))
+          ya(:), yb(:), yc(:), yd(:), gridRadii(iLayerOfSource:), r0, mt(:,:), g_or_c(iColumnOfSource:))
 
         if (l == 0) then
-          ! rearranging the matrix elements for l=0   !!TODO
+          ! Rearrange matrix elements that are used in l=0 case.
+          call rearrangeAForL0(nZone, phaseOfZone(:), oColumnOfZone(:), iZoneOfSource, a(:,:), g_or_c(:), &
+            aSmall(:,:), g_or_c_Small(:), oQuasiColumnOfZoneWithSource, nQuasiColumn)
 
           ! Use all columns, except for those at planet center to impose essential boundary condition u=0.
           if (rmin > 0.d0) then
@@ -471,71 +478,75 @@ program tipsv
             startColumn = 2
           end if
 
-          ! ns = TODO
+          iColumnBeforeSource = oQuasiColumnOfZoneWithSource + (iLayerOfSource - oGridOfZone(iZoneOfSource)) - 1
 
+          ! Decompose matrix A.
+          call decomposeAByGauss(aSmall(:, startColumn:), 1, nQuasiColumn - startColumn + 1, 1, eps, z(startColumn:), &
+            w(startColumn:), ll, lli, llj, ier)  !!TODO
+          ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+          call solveSurfaceCAfterGauss(aSmall(:, startColumn:), g_or_c_Small(startColumn:), 1, nQuasiColumn - startColumn + 1, &
+            iColumnBeforeSource - startColumn + 1, z(startColumn:))  !!TODO
 
-          !!TODO
+          ! Record u.  !!! difference from shallow-source section
+          do ir = 1, nReceiver
+            u(1, ir) = g_or_c_Small(nQuasiColumn) * harmonicsValues(1, m, ir)
+          end do
+
+        else if (mod(l, 100) == 0) then
+          ! Once in a while, compute for all grids to decide the cut-off depth.
+          ! CAUTION: In this case, all values of g_or_c(:) are computed.
+
+          ! Use all columns, except for those at planet center to impose essential boundary condition u=0.
+          if (rmin > 0.d0) then
+            startColumn = 1
+          else if (phaseOfZone(1) == 1) then
+            ! solid
+            startColumn = 3
+          else
+            ! liquid
+            startColumn = 2
+          end if
+
+          ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+          ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+          if (m == -2 .or. m == -l) then
+            call decomposeAByGauss(a(:, startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
+              w(startColumn:), ll, lli, llj, ier)  !!TODO
+          end if
+          ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+          call solveWholeCAfterGauss(a(:, startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, z(startColumn:))  !!TODO
+
+          ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
+          !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
+          amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + g_or_c(1:nColumn)         !!TODO  + abs(g_or_c(1:nColumn))
 
         else
+          ! Otherwise, compute for just the grids above the cut-off depth.
+          ! CAUTION: In this case, only g_or_c(nColumn-1:nColumn) is computed.
+          !   Other values of g_or_c(:nColumn-2) still hold values of g!!!
 
-
-          ! ns = TODO
-
-          if (mod(l, 100) == 0) then
-            ! Once in a while, compute for all grids to decide the cut-off depth.
-            ! CAUTION: In this case, all values of g_or_c(:) are computed.
-
-            ! Use all columns, except for those at planet center to impose essential boundary condition u=0.
-            if (rmin > 0.d0) then
-              startColumn = 1
-            else if (phaseOfZone(1) == 1) then
-              ! solid
-              startColumn = 3
-            else
-              ! liquid
-              startColumn = 2
-            end if
-
-            ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-            ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-            if (m == -2 .or. m == -l) then
-              call decomposeAByGauss(a(:,startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
-                w(startColumn:), ll, lli, llj, ier)  !!TODO
-            end if
-            ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveWholeCAfterGauss(a(:,startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, z(startColumn:))  !!TODO
-
-            ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
-            !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
-            amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + g_or_c(1:nColumn)         !!TODO  + abs(g_or_c(1:nColumn))
-
+          ! Consider cutoff + exclude columns at planet center to impose essential boundary condition u=0.
+          if (rmin > 0.d0 .or. cutoffColumn > 1) then
+            startColumn = cutoffColumn
+          else if (phaseOfZone(1) == 1) then
+            ! solid
+            startColumn = 3
           else
-            ! Otherwise, compute for just the grids above the cut-off depth.
-            ! CAUTION: In this case, only g_or_c(nColumn-1:nColumn) is computed.
-            !   Other values of g_or_c(:nColumn-2) still hold values of g!!!
-
-            ! Consider cutoff + exclude columns at planet center to impose essential boundary condition u=0.
-            if (rmin > 0.d0 .or. cutoffColumn > 1) then
-              startColumn = cutoffColumn
-            else if (phaseOfZone(1) == 1) then
-              ! solid
-              startColumn = 3
-            else
-              ! liquid
-              startColumn = 2
-            end if
-
-            ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
-            ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
-            if (m == -2 .or. m == -l) then
-              call decomposeAByGauss(a(:,startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
-                w(startColumn:), ll, lli, llj, ier)  !!TODO
-            end if
-            ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveSurfaceCAfterGauss(a(:,startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, &
-              ns - startColumn + 1, z(startColumn:))  !!TODO
-
+            ! liquid
+            startColumn = 2
           end if
+
+          iColumnBeforeSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - oGridOfZone(iZoneOfSource)) - 2
+
+          ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
+          ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
+          if (m == -2 .or. m == -l) then
+            call decomposeAByGauss(a(:, startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
+              w(startColumn:), ll, lli, llj, ier)  !!TODO
+          end if
+          ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
+          call solveSurfaceCAfterGauss(a(:, startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, &
+            iColumnBeforeSource - startColumn + 1, z(startColumn:))  !!TODO
 
         end if
 
