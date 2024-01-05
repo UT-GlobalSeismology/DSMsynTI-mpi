@@ -354,7 +354,7 @@ end subroutine
 !------------------------------------------------------------------------
 ! Computing the first indices of each zone for vectors and matrices used later in the program.
 !------------------------------------------------------------------------
-subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, oValueOfZoneSolid, &
+subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
   oPairOfZoneSolid, oPairOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn)
 !------------------------------------------------------------------------
   implicit none
@@ -362,6 +362,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
   integer, intent(in) :: nZone  ! Number of zones.
   integer, intent(in) :: nLayerInZone(nZone)  ! Number of layers in each zone.
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(out) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(out) :: oValueOfZone(nZone)  ! Index of the first value in each zone.
   integer, intent(out) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
   integer, intent(out) :: oPairOfZoneSolid(nZone), oPairOfZoneFluid(nZone)
@@ -372,6 +373,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
   integer :: iZone, iSolid, iFluid
 
   ! Set first index.
+  oGridOfZone(1) = 1
   oValueOfZone(1) = 1
   oValueOfZoneSolid(1) = 1
   oPairOfZoneSolid(1) = 1
@@ -383,6 +385,7 @@ subroutine computeFirstIndices(nZone, nLayerInZone, phaseOfZone, oValueOfZone, o
   iSolid = 0
   iFluid = 0
   do iZone = 1, nZone - 1
+    oGridOfZone(iZone + 1) = oGridOfZone(iZone) + nLayerInZone(iZone)
     oValueOfZone(iZone + 1) = oValueOfZone(iZone) + nLayerInZone(iZone) + 1
 
     if (phaseOfZone(iZone) == 1) then
@@ -693,11 +696,87 @@ end subroutine
 ! Evaluate the cut-off depth based on the relative amplitude at each depth.
 ! (See the end of section 3.2 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeCutoffDepth()
+subroutine computeCutoffColumn(nZone, phaseOfZone, nGrid, oGridOfZone, nColumn, oColumnOfZone, &
+  amplitudeAtColumn, ratc, cutoffColumn)
 !------------------------------------------------------------------------
   implicit none
 
-  !!TODO
+  integer, intent(in) :: nZone  ! Number of zones.
+  integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
+  integer, intent(in) :: nGrid  ! Total number of grid points.
+  integer, intent(in) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
+  integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
+  integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
+  complex(8), intent(in) :: amplitudeAtColumn(nColumn)  ! Estimate of the amplitude at each c vector component [km].  TODO make real
+  real(8), intent(in) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
+  integer, intent(out) :: cutoffColumn  ! Index of column at cut-off depth.
+  real(8) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point [km].
+  real(8) :: amplitudeThreshold  ! Threshold to decide at which grid to cut off.
+  integer :: cutoffGrid  ! Index of grid at cut-off depth.
+  integer :: iZone, iGrid, iColumn, iZoneOfCutoff
+
+  ! Transplant amplitudeAtColumn(:) into amplitudeAtGrid(:), picking only the vertical component for solid zones.
+  iZone = 1
+  iGrid = 1
+  do iColumn = 1, nColumn
+
+    ! When next zone starts.
+    if (iColumn == oColumnOfZone(iZone + 1)) then
+      ! At solid-fluid boundary, the same grid is referenced in both zones, so ignore one of them.
+      if (phaseOfZone(iZone + 1) /= phaseOfZone(iZone)) iGrid = iGrid - 1
+      ! Increment.
+      iZone = iZone + 1
+    end if
+
+    if (phaseOfZone(iZone) == 1) then
+      ! solid
+      ! Use only the vertical component.
+      if (mod((iColumn - oColumnOfZone(iZone)), 2) == 1) then
+        amplitudeAtGrid(iGrid) = abs(amplitudeAtColumn(iColumn))                           !!TODO remove abs
+        iGrid = iGrid + 1
+      end if
+    else
+      ! fluid
+      amplitudeAtGrid(iGrid) = abs(amplitudeAtColumn(iColumn))                           !!TODO remove abs
+      iGrid = iGrid + 1
+    end if
+  end do
+
+  if (iGrid - 1 /= nGrid) stop 'Computation error: nGrid does not match. (computeCutoffDepth)'
+
+  ! Set the threshold amplitude as ratc * the maximum amplitude.
+  amplitudeThreshold = maxval(amplitudeAtGrid(1:nGrid)) * ratc
+
+  ! If maxamp is zero, set cutoffColumn to 1 and return.
+  if (amplitudeThreshold == 0.d0) then
+    cutoffColumn = 1
+    return
+  end if
+
+  ! Identify the first grid with amplitude greater than threshold value.
+  do iGrid = 1, nGrid
+    if (amplitudeAtGrid(iGrid) > amplitudeThreshold) then
+      cutoffGrid = iGrid
+      exit
+    end if
+  end do
+
+  ! Find the zone that cutoff grid is in.
+  do iZone = 1, nZone - 1
+    if (oGridOfZone(iZone + 1) > cutoffGrid) then
+      iZoneOfCutoff = iZone
+      exit
+    end if
+  end do
+
+  ! Find the column corresponding to the cutoff grid.
+  if (phaseOfZone(iZoneOfCutoff) == 1) then
+    ! solid
+    cutoffColumn = oColumnOfZone(iZoneOfCutoff) + 2 * (cutoffGrid - oGridOfZone(iZoneOfCutoff))
+  else if (phaseOfZone(iZoneOfCutoff) == 2) then
+    ! fluid
+    cutoffColumn = oColumnOfZone(iZoneOfCutoff) + cutoffGrid - oGridOfZone(iZoneOfCutoff)
+  end if
 
 end subroutine
 

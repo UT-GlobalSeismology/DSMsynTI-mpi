@@ -548,7 +548,7 @@ end subroutine
 ! Evaluate the cut-off depth based on the relative amplitude at each depth.
 ! (See the end of section 3.2 of Kawai et al. 2006.)
 !------------------------------------------------------------------------
-subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
+subroutine computeCutoffGrid(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
 !------------------------------------------------------------------------
   implicit none
 
@@ -556,7 +556,7 @@ subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
   real(8), intent(in) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point [km].
   real(8), intent(in) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   integer, intent(out) :: cutoffGrid  ! Index of grid at cut-off depth.
-  real(8) :: amplitudeThreshold
+  real(8) :: amplitudeThreshold  ! Threshold to decide at which grid to cut off.
   integer :: iGrid
 
   ! Set the threshold amplitude as ratc * the maximum amplitude.
@@ -566,14 +566,14 @@ subroutine computeCutoffDepth(nGrid, amplitudeAtGrid, ratc, cutoffGrid)
   if (amplitudeThreshold == 0.d0) then
     cutoffGrid = 1
     return
-  endif
+  end if
 
   ! Identify the first grid with amplitude greater than threshold value.
   do iGrid = 1, nGrid
     if (amplitudeAtGrid(iGrid) > amplitudeThreshold) then
       cutoffGrid = iGrid
       exit
-    endif
+    end if
   end do
 
 end subroutine
@@ -606,7 +606,7 @@ subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
   ampratio = 0.d0
   if (amp /= 0.d0 .and. recordAmplitude /= 0.d0) then
     ampratio = amp / recordAmplitude
-  endif
+  end if
 
   ! Increment the counter if amplitude ratio is smaller than its threshold and l has surpassed the accuracy threshold.
   !  Reset the counter otherwise.
@@ -614,7 +614,7 @@ subroutine checkAmplitudeDecay(c0, l, lsuf, ratl, recordAmplitude, decayCounter)
     decayCounter = decayCounter + 1
   else
     decayCounter = 0
-  endif
+  end if
 
 end subroutine
 

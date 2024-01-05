@@ -78,9 +78,8 @@ program tipsv
   real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
   real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  real(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)
+  complex(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)                                             !!TODO make real
   !:::::::::::::::::::::::::::: Estimate of the amplitude at each column [km], used for vertical grid cut-off.
-  integer :: cutoffGrid  ! Index of grid at cut-off depth.
   integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
   real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
   integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
@@ -90,6 +89,7 @@ program tipsv
   integer :: nGrid  ! Total number of grid points.
   real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
+  integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
   real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer :: iZoneOfSource  ! Which zone the source is in.
   integer :: iLayerOfSource  ! Index of layer that the source is in.
@@ -148,6 +148,7 @@ program tipsv
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer :: oColumnOfZone(maxNZone + 1)  ! Index of the first column in the band matrix for each zone.
   integer :: nColumn  ! Total number of columns in the band matrix.
+  integer :: cutoffColumn  ! Index of column at cut-off depth.
   integer :: oP, oElement, oColumn
 
   !!TODO ???
@@ -161,7 +162,7 @@ program tipsv
   ! Other variables
   real(8) :: work(4 * maxNGrid - 4)  ! Working array for matrix computations.
   complex(8) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
-  integer :: ll(12), lli(12), llj(12), itmp
+  integer :: ll(12), lli(12), llj(12), startColumn
   complex(8) :: z(2 * maxNGridSolid + maxNGridFluid), w(2 * maxNGridSolid + maxNGridFluid)
   !::::::::::::::::::::::::::::::::::: Working arrays used when solving linear equations.
   integer :: ier  ! Error code from subroutine solving linear equations.
@@ -253,7 +254,7 @@ program tipsv
     rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.
-  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
+  call computeFirstIndices(nZone, nLayerInZone(:), phaseOfZone(:), oGridOfZone(:), oValueOfZone(:), oValueOfZoneSolid(:), &
     oPairOfZoneSolid(:), oPairOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:), nColumn)
 
   ! Compute the source position.
@@ -415,8 +416,8 @@ program tipsv
       end if
     end do
 
-    ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
-    cutoffGrid = 1
+    ! Initially, no depth cut-off, so set to the column of deepest grid, which is 1.
+    cutoffColumn = 1
     ! Clear counter.
     decayCounter = 0
     ! Clear amplitude record.
@@ -463,8 +464,12 @@ program tipsv
         if (l == 0) then
           ! rearranging the matrix elements for l=0   !!TODO
 
-          itmp = 1
-          if (rmin == 0.d0) itmp = 2
+          ! Use all columns, except for those at planet center to impose essential boundary condition u=0.
+          if (rmin > 0.d0) then
+            startColumn = 1
+          else
+            startColumn = 2
+          end if
 
           ! ns = TODO
 
@@ -473,8 +478,6 @@ program tipsv
 
         else
 
-          itmp = 1
-          if (rmin == 0.d0) itmp = 3
 
           ! ns = TODO
 
@@ -482,33 +485,55 @@ program tipsv
             ! Once in a while, compute for all grids to decide the cut-off depth.
             ! CAUTION: In this case, all values of g_or_c(:) are computed.
 
+            ! Use all columns, except for those at planet center to impose essential boundary condition u=0.
+            if (rmin > 0.d0) then
+              startColumn = 1
+            else if (phaseOfZone(1) == 1) then
+              ! solid
+              startColumn = 3
+            else
+              ! liquid
+              startColumn = 2
+            end if
+
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
             if (m == -2 .or. m == -l) then
-              call decomposeAByGauss(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+              call decomposeAByGauss(a(:,startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
+                w(startColumn:), ll, lli, llj, ier)  !!TODO
             end if
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveWholeCAfterGauss(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, z(itmp:))  !!TODO
+            call solveWholeCAfterGauss(a(:,startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, z(startColumn:))  !!TODO
 
             ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
             !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
-            amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + abs(g_or_c(1:nColumn))
+            amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + g_or_c(1:nColumn)         !!TODO  + abs(g_or_c(1:nColumn))
 
           else
             ! Otherwise, compute for just the grids above the cut-off depth.
             ! CAUTION: In this case, only g_or_c(nColumn-1:nColumn) is computed.
             !   Other values of g_or_c(:nColumn-2) still hold values of g!!!
 
-            if (cutoffGrid < 3) cutoffGrid = 3
-            itmp = cutoffGrid
+            ! Consider cutoff + exclude columns at planet center to impose essential boundary condition u=0.
+            if (rmin > 0.d0 .or. cutoffColumn > 1) then
+              startColumn = cutoffColumn
+            else if (phaseOfZone(1) == 1) then
+              ! solid
+              startColumn = 3
+            else
+              ! liquid
+              startColumn = 2
+            end if
 
             ! In the first m-loop (m=-1 for l=1; m=-2 otherwise), matrix A must be decomposed.
             ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
             if (m == -2 .or. m == -l) then
-              call decomposeAByGauss(a(:,itmp:), 3, nColumn - itmp + 1, 6, eps, z(itmp:), w(itmp:), ll, lli, llj, ier)  !!TODO
+              call decomposeAByGauss(a(:,startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
+                w(startColumn:), ll, lli, llj, ier)  !!TODO
             end if
             ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-            call solveSurfaceCAfterGauss(a(:,itmp:), g_or_c(itmp:), 3, nColumn - itmp + 1, ns - itmp + 1, z(itmp:))  !!TODO
+            call solveSurfaceCAfterGauss(a(:,startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, &
+              ns - startColumn + 1, z(startColumn:))  !!TODO
 
           end if
 
@@ -533,7 +558,8 @@ program tipsv
 
       ! Decide cut-off depth (at a certain interval of l).
       if (mod(l, 100) == 0) then
-        call computeCutoffDepth(nGrid, amplitudeAtColumn(:), ratc, cutoffGrid)  !!TODO
+        call computeCutoffColumn(nZone, phaseOfZone(:), nGrid, oGridOfZone(:), nColumn, oColumnOfZone(:), &
+          amplitudeAtColumn(:), ratc, cutoffColumn)
       end if
 
     end do  ! l-loop
