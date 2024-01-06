@@ -3,7 +3,7 @@
 PROGS = mpi-tipsv tipsv
 FC = mpif90
 FC2 = ifort
-FFLAGS = -O -no-pie
+FFLAGS = -O #-no-pie
 
 SRC = calmat.f trialf.f others.f rk3.f glu2.f dcsymbdl0.f dcsymbdl.f mpi-tipsv.f formpi.f
 SRC2 = calmat.f trialf.f others.f rk3.f glu2.f dcsymbdl0.f dcsymbdl.f tipsv.f

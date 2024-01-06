@@ -482,10 +482,10 @@ program tipsv
 
           ! Decompose matrix A.
           call decomposeAByGauss(aSmall(:, startColumn:), 1, nQuasiColumn - startColumn + 1, 1, eps, z(startColumn:), &
-            w(startColumn:), ll, lli, llj, ier)  !!TODO
+            w(startColumn:), ll, lli, llj, ier)
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           call solveSurfaceCAfterGauss(aSmall(:, startColumn:), g_or_c_Small(startColumn:), 1, nQuasiColumn - startColumn + 1, &
-            iColumnBeforeSource - startColumn + 1, z(startColumn:))  !!TODO
+            iColumnBeforeSource - startColumn + 1, z(startColumn:))
 
           ! Record u.  !!! difference from shallow-source section
           do ir = 1, nReceiver
@@ -511,10 +511,10 @@ program tipsv
           ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
           if (m == -2 .or. m == -l) then
             call decomposeAByGauss(a(:, startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
-              w(startColumn:), ll, lli, llj, ier)  !!TODO
+              w(startColumn:), ll, lli, llj, ier)
           end if
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
-          call solveWholeCAfterGauss(a(:, startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, z(startColumn:))  !!TODO
+          call solveWholeCAfterGauss(a(:, startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, z(startColumn:))
 
           ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
           !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
@@ -542,11 +542,11 @@ program tipsv
           ! In consecutive m-loops, start from forward substitution (decomposition is skipped).
           if (m == -2 .or. m == -l) then
             call decomposeAByGauss(a(:, startColumn:), 3, nColumn - startColumn + 1, 6, eps, z(startColumn:), &
-              w(startColumn:), ll, lli, llj, ier)  !!TODO
+              w(startColumn:), ll, lli, llj, ier)
           end if
           ! Solve Ac=g (i.e. (omega^2 T - H) c = -g).
           call solveSurfaceCAfterGauss(a(:, startColumn:), g_or_c(startColumn:), 3, nColumn - startColumn + 1, &
-            iColumnBeforeSource - startColumn + 1, z(startColumn:))  !!TODO
+            iColumnBeforeSource - startColumn + 1, z(startColumn:))
 
         end if
 
