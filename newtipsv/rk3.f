@@ -26,9 +26,9 @@
 **********************************************************************
         EXTERNAL FUNC
         INTEGER NEQ,N,I,J,N1
-        REAL*8 X0,XE
-        COMPLEX*16 Y0(NEQ),YN(NEQ),WORK(N1,2)
-        REAL*8 H
+        REAL(8) X0,XE
+        COMPLEX(8) Y0(NEQ),YN(NEQ),WORK(N1,2)
+        REAL(8) H
         H = (XE - X0) / DBLE(N)
         DO 10 I = 1,N
           CALL RKSTEP(NEQ,FUNC,X0,H,Y0,YN,WORK(1,1),WORK(1,2))
@@ -42,13 +42,13 @@
       END
 C
       SUBROUTINE RKSTEP(NEQ,FUNC,X,H,Y0,YN,AK,W)
-        REAL*8 A2,A3,B2,B3,C1,C2,C3,C4
+        REAL(8) A2,A3,B2,B3,C1,C2,C3,C4
         PARAMETER(A2 = 0.5D0, A3 = A2)
         PARAMETER(B2 = 0.5D0, B3 = B2)
         PARAMETER(C1 = 1.D0/6.D0, C2 = 1.D0/3.D0, C3 = C2, C4 = C1)
         INTEGER NEQ,I
-        REAL*8 X,H
-        COMPLEX*16 Y0(NEQ),YN(NEQ),AK(NEQ),W(NEQ)
+        REAL(8) X,H
+        COMPLEX(8) Y0(NEQ),YN(NEQ),AK(NEQ),W(NEQ)
         EXTERNAL FUNC
         CALL FUNC(X,Y0,AK)
         DO 10 I = 1,NEQ

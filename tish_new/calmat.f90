@@ -1,6 +1,6 @@
 
 !------------------------------------------------------------------------
-! Computing \int dr con r^rpow X_k1^(dot1) X_k2^(dot2). (See eq. 16 of Kawai et al. 2006.)
+! Computing \int var r^rpow X_k1^(dot1) X_k2^(dot2) dr. (See eq. 16 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
@@ -136,11 +136,11 @@ end subroutine
 
 
 !------------------------------------------------------------------------
-! Evaluating the integrated value of p(r)*con(r) from 'lowerRadius' to 'upperRadius'.
-! Here, p(r) is an (n-1)-degree polynomial, and con(r) is the profile of a variable.
+! Evaluating the integrated value of p(r)*var(r) from 'lowerRadius' to 'upperRadius'.
+! Here, p(r) is an (n-1)-degree polynomial, and var(r) is the profile of a variable.
 ! The range [lowerRadius, upperRadius] must be within a certain layer [valuedRadii(1), valuedRadii(2)].
 !------------------------------------------------------------------------
-subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, con, result)
+subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, values, result)
 !------------------------------------------------------------------------
   implicit none
   integer, parameter :: maxn = 5  ! Maximum number of polynomial degrees.
@@ -149,17 +149,17 @@ subroutine integrateProduct(n, p, lowerRadius, upperRadius, valuedRadii, con, re
   real(8), intent(in) :: p(n)  ! Coefficients of the polynimial in ascending order (p(r) = p1 + p2 r + p3 r^2 + ...).
   real(8), intent(in) :: lowerRadius, upperRadius  ! Radius range to integrate [km].
   real(8), intent(in) :: valuedRadii(2)  ! Radii at both ends of an interval containing integration range [km].
-  real(8), intent(in) :: con(2)  ! Values of a variable at both ends of an interval containing integration range.
+  real(8), intent(in) :: values(2)  ! Values of a variable at both ends of an interval containing integration range.
   real(8), intent(out) :: result
   real(8) :: q(2), pq(maxn+1)
 
   ! Check input validity.
   if (n > maxn) stop 'Degree of polynomial is too large. (integrateProduct)'
 
-  ! Express con(r) as a polynomial (linear) function q1+q2*r.
-  q(2) = (con(2) - con(1)) / (valuedRadii(2) - valuedRadii(1))  ! slope
-  q(1) = con(1) - q(2) * valuedRadii(1)  ! intercept
-  ! Compute p(r)*con(r).
+  ! Express var(r) as a polynomial (linear) function q1+q2*r.
+  q(2) = (values(2) - values(1)) / (valuedRadii(2) - valuedRadii(1))  ! slope
+  q(1) = values(1) - q(2) * valuedRadii(1)  ! intercept
+  ! Compute p(r)*var(r).
   call multiplyPolynomials(n, p(:), 2, q(:), n + 1, pq(:))
   ! Evaluate integrated value within subrange [lowerRadius, upperRadius].
   call integratePolynomial(n + 1, pq(:), lowerRadius, upperRadius, result)
@@ -213,18 +213,18 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing the lumped mass matrix for a certain zone. (See eqs. 15-17 of Cummins et al. 1994.)
-!  T_kk^lumped = m_k r_k^2.
-!  T_k'k^lumped = 0 when k' /= k.
+!  T_kk^lumped = m_k r_k^2 = \int var r^2 dr,
+!  T_k'k^lumped = 0 (when k' /= k).
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, tl)
+subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, tl)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
-  real(8), intent(in) :: rhoValuesInZoneI(nLayerInZoneI+1)  ! Rho values at each point (with 2 values at boundaries) [g/cm^3].
+  real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg].
   integer :: i, nn
   real(8) :: c(3), lowerRadius, upperRadius
@@ -238,7 +238,7 @@ subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, t
     ! Right side of m_k r_k^2 for k=i. Integrate rho*r^2.
     lowerRadius = valuedRadiiInZoneI(i)
     upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
-    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 1))
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), valuesInZoneI(i:), tl(nn + 1))
 
     tl(nn + 2) = 0.d0
     tl(nn + 3) = 0.d0
@@ -246,7 +246,7 @@ subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, rhoValuesInZoneI, t
     ! Left side of m_k r_k^2 for k=i+1. Integrate rho*r^2.
     lowerRadius = upperRadius
     upperRadius = valuedRadiiInZoneI(i + 1)
-    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), rhoValuesInZoneI(i:), tl(nn + 4))
+    call integrateProduct(3, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), valuesInZoneI(i:), tl(nn + 4))
   end do
 
 end subroutine
@@ -254,18 +254,18 @@ end subroutine
 
 !------------------------------------------------------------------------
 ! Computing the lumped rigidity matrix for a certain zone. (See eqs. 15-17 of Cummins et al. 1994.)
-!  H_kk^lumped = s_k.
-!  H_k'k^lumped = 0 when k' /= k.
+!  H_kk^lumped = s_k = \int var dr,
+!  H_k'k^lumped = 0 (when k' /= k).
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !------------------------------------------------------------------------
-subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, hl)
+subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, hl)
 !------------------------------------------------------------------------
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
-  real(8), intent(in) :: ecValuesInZoneI(nLayerInZoneI+1)  ! Modulus values at each point (with 2 values at boundaries) [GPa].
+  real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
   real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
   integer :: i, nn
   real(8) :: c(1), lowerRadius, upperRadius
@@ -279,7 +279,7 @@ subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, hl
     ! Right side of s_k for k=i. Integrate elastic modulus.
     lowerRadius = valuedRadiiInZoneI(i)
     upperRadius = (valuedRadiiInZoneI(i) + valuedRadiiInZoneI(i + 1)) / 2.d0
-    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), ecValuesInZoneI(i:), hl(nn + 1))
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), valuesInZoneI(i:), hl(nn + 1))
 
     hl(nn + 2) = 0.d0
     hl(nn + 3) = 0.d0
@@ -287,7 +287,7 @@ subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, ecValuesInZoneI, hl
     ! Left side of s_k for k=i+1. Integrate elastic modulus.
     lowerRadius = upperRadius
     upperRadius = valuedRadiiInZoneI(i + 1)
-    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), ecValuesInZoneI(i:), hl(nn + 4))
+    call integrateProduct(1, c(:), lowerRadius, upperRadius, valuedRadiiInZoneI(i:), valuesInZoneI(i:), hl(nn + 4))
   end do
 
 end subroutine

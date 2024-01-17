@@ -28,10 +28,10 @@
 *
         INTEGER N,N1
         INTEGER IP(N),IER
-        REAL*8 EPS
-        COMPLEX*16 A(N1,N),B(N),WK(N)
+        REAL(8) EPS
+        COMPLEX(8) A(N1,N),B(N),WK(N)
         INTEGER I,J,K,IPK
-        COMPLEX*16 AMAX,AIK,W,T
+        COMPLEX(8) AMAX,AIK,W,T
 *             LEFT-HAND SIDE
         IF( EPS.LT.0.0D0 )  EPS = 3.52D-15
         IF( ( N1.LT.N ).OR.( N.LE.0 ) )  THEN

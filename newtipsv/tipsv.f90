@@ -341,7 +341,7 @@ program tipsv
       ! Modify matrices for I^(0) using lumped matrices.
       call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), rhoReciprocals(oV:), work(oP:))
       call averageMatrix(nLayerInZone(i), p2(oP:), work(oP:), p2(oP:))
-      call computeLumpedH(nLayerInZone(i), valuedRadii(oV:), kappaReciprocals(oV:), work(oP:))
+      call computeLumpedT(nLayerInZone(i), valuedRadii(oV:), kappaReciprocals(oV:), work(oP:))
       call averageMatrix(nLayerInZone(i), p3(oP:), work(oP:), p3(oP:))
 
     end if
@@ -453,7 +453,7 @@ program tipsv
       call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
 
       !!TODO organize
-      call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource), r0, ya(:), yb(:), yc(:), yd(:))
+      call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
       iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - oGridOfZone(iZoneOfSource))
 
       do m = -2, 2  ! m-loop
