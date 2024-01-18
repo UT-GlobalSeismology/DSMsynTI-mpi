@@ -1,5 +1,137 @@
 
 !----------------------------------------------------------------------------------------------------------------------------
+! Converts geodetic latitude to geocentric latitude.
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine transformLatitude(geodetic, geocentric)
+!----------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: flattening = 1.d0 / 298.25d0
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  real(8), intent(in) :: geodetic  ! Input geodetic latitude [deg].
+  real(8), intent(out) :: geocentric  ! Output geocentric latitude [deg].
+  real(8) :: latitude  ! Latitude variable for use in computation.
+
+  if (geodetic < -90.d0 .or. 90.d0 < geodetic) stop 'Latitude is out of range. (transformLatitude)'
+
+  ! degrees to radians
+  latitude = geodetic / 180.d0 * pi
+  ! gedetic to geocentric
+  latitude = atan((1.d0 - flattening) * (1.d0 - flattening) * tan(latitude))
+  ! radians to degrees
+  geocentric = latitude * 180.d0 / pi
+
+  return
+end subroutine
+
+
+!----------------------------------------------------------------------------------------------------------------------------
+! Computes the colatitude (theta) and longitude (phi) of a receiver
+! when the source is shifted to the north pole.
+! Note that the longitude of the original source is set as 0 after the shift,
+! so the shifted longitude of receiver [rad] is (pi - azimuth).
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
+!----------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  real(8), parameter :: pi = 3.1415926535897932d0
+
+  real(8), intent(in) :: iEvLat, iEvLon, iStLat, iStLon  ! Input latitudes and longitudes of source and receiver [deg].
+  real(8), intent(out) :: theta, phi  ! Colatitude and longitude of receiver with event at north pole [rad].
+  real(8) :: evColat, evLon, stColat, stLon  ! Colatitudes and longitudes of source and receiver [rad].
+  real(8) :: cosAlpha, sinAlpha
+  real(8) :: tmp
+
+  ! Transform geographic latitudes [deg] to geocentric colatitudes [rad].
+  call transformLatitude(iEvLat, tmp)
+  evColat = (90.d0 - tmp) / 180.d0 * pi
+  call transformLatitude(iStLat, tmp)
+  stColat = (90.d0 - tmp) / 180.d0 * pi
+
+  ! Transform longitudes from degrees to radians.
+  evLon = iEvLon / 180.d0 * pi
+  stLon = iStLon / 180.d0 * pi
+
+  ! Compute epicentral distance [rad], which will directly be the colatitude of receiver after shift.
+  cosAlpha = cos(evColat) * cos(stColat) + sin(evColat) * sin(stColat) * cos(evLon - stLon)
+  if (1.d0 < cosAlpha) cosAlpha = 1.d0
+  if (cosAlpha < -1.d0) cosAlpha = -1.d0
+  theta = acos(cosAlpha)
+
+  ! Compute shifted longitude of receiver [rad], which is (pi - azimuth).
+  if (sin(theta) == 0.d0) then
+    phi = 0.d0
+  else
+    cosAlpha = (cos(stColat) * sin(evColat) - sin(stColat) * cos(evColat) * cos(stLon - evLon)) / sin(theta)
+    if (1.d0 < cosAlpha) cosAlpha = 1.d0
+    if (cosAlpha < -1.d0) cosAlpha = -1.d0
+    sinAlpha = sin(stColat) * sin(stLon - evLon) / sin(theta)
+    ! pi - azimuth
+    if (sinAlpha >= 0.d0) then
+      phi = pi - acos(cosAlpha)
+    else
+      phi = pi + acos(cosAlpha)
+    end if
+  end if
+
+  return
+end subroutine
+
+
+!----------------------------------------------------------------------------------------------------------------------------
+! Function to compute a + bx + cx^2 + dx^3, where x = r/R.
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine valueAtRadius(coefficients, radius, rmax, result)
+!----------------------------------------------------------------------------------------------------------------------------
+  implicit none
+
+  real(8), intent(in) :: coefficients(4)  ! Coefficients of cubic function. [a, b, c, d] in a + bx + cx^2 + dx^3.
+  real(8), intent(in) :: radius  ! r : The radius to compute the value at [km].
+  real(8), intent(in) :: rmax  ! R: Maximum radius of region considered [km].
+  real(8), intent(out) :: result
+  integer :: j
+  real(8) :: x_n  ! Power of x = r/R.
+  real(8) :: accumulatedValue  ! Variable to store the temporary result of accumulation.
+
+  x_n = 1.d0
+  accumulatedValue = coefficients(1)
+  do j = 2, 4
+    x_n = x_n * (radius / rmax)
+    accumulatedValue = accumulatedValue + coefficients(j) * x_n
+  end do
+
+  result = accumulatedValue
+  return
+end subroutine
+
+
+!----------------------------------------------------------------------------------------------------------------------------
+! Computes the accuracy threshold of angular order that is sufficient to compute the slowest phase velocity.
+! (See eq. 29 of Kawai et al. 2006.)
+! This corresponds to l_d in Kawai et al. (2006).
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine computeLsuf(omega, nZone, rmaxOfZone, vsvPolynomials, lsuf)
+!----------------------------------------------------------------------------------------------------------------------------
+  implicit none
+
+  real(8), intent(in) :: omega  ! Angular frequency.
+  integer, intent(in) :: nZone  ! Number of zones.
+  real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radii of each zone [km].
+  real(8), intent(in) :: vsvPolynomials(4,nZone)  ! Polynomial functions of vsv structure [km/s].
+  integer, intent(out) :: lsuf  ! Accuracy threshold of angular order.
+  real(8) :: vsAtSurface
+
+  ! Compute Vs at planet surface [km/s].
+  call valueAtRadius(vsvPolynomials(:, nZone), 1.d0, 1.d0, vsAtSurface)
+
+  ! Compute lsuf. (See eq. 29 of Kawai et al. 2006.)
+  !  The slowest velocity (vs at surface) and largest radius (planet radius) is used to gain larger bound of angular order.
+  lsuf = int(omega * rmaxOfZone(nZone) / vsAtSurface - 0.5d0) + 1
+
+end subroutine
+
+
+!----------------------------------------------------------------------------------------------------------------------------
 ! Computing \int var r^rpow X_k1^(dot1) X_k2^(dot2) dr. (See eq. 16 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
@@ -282,7 +414,5 @@ subroutine averageMatrix(nLayerInZoneI, mat1, mat2, average)
   end do
 
 end subroutine
-
-
 
 

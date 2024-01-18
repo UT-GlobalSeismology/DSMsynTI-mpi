@@ -326,7 +326,7 @@ program tish
 
         ! Decide cut-off depth (at a certain interval of l).
         if (mod(l, 100) == 0) then
-          call computeCutoffDepth(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
+          call computeCutoffGrid(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
         end if
 
       end do  ! l-loop
@@ -440,7 +440,7 @@ program tish
 
       ! Decide cut-off depth (at a certain interval of l).
       if (mod(l, 100) == 0) then
-        call computeCutoffDepth(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
+        call computeCutoffGrid(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
       end if
 
     end do  ! l-loop
