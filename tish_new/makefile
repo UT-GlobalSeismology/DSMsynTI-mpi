@@ -5,8 +5,8 @@ FC1 = mpif90
 FC2 = ifort
 FFLAGS = -O #-no-pie
 
-SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 fileio.f90 mpi-tish.f90
-SRC2 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 fileio.f90 tish.f90
+SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 ../common/utils.f90 fileio.f90 mpi-tish.f90
+SRC2 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 ../common/utils.f90 fileio.f90 tish.f90
 OBJS1 = $(SRC1:.f90=.o)
 OBJS2 = $(SRC2:.f90=.o)
 
@@ -29,7 +29,7 @@ tish.o: fileio.mod
 
 # For .o files (excluding mpi-tish.o), compile when .f90 files are updated.
 %.o: %.f90
-	$(FC2) $(FFLAGS) -c $<
+	$(FC2) $(FFLAGS) -c $< -o $@
 
 # For .mod files, try to create the .o file.
 # When .f90 files are newer than .o files, they will be compiled, 
