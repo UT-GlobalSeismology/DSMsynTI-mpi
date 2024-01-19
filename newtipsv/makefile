@@ -5,20 +5,19 @@ FC1 = mpif90
 FC2 = ifort
 FFLAGS = -O #-no-pie
 
-SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 ../common/utils.f90 fileio.f90 mpi-tipsv.f90
-SRC2 = calmat.f90 solver.f90 trialf.f90 others.f90 ../common/utils.f90 fileio.f90 tipsv.f90
-OBJS1 = $(SRC1:.f90=.o) rk3.o glu2.o
-OBJS2 = $(SRC2:.f90=.o) rk3.o glu2.o
+OBJS0 = calmat.o solver.o trialf.o others.o rk3.o glu2.o utils.o fileio.o 
+OBJS1 = mpi-tipsv.o
+OBJS2 = tipsv.o
 
 
 .PHONY: all
 all: $(PROGS)
 
-mpi-tipsv: $(OBJS1)
-	$(FC1) $(FFLAGS) -o $@ $(OBJS1)
+mpi-tipsv: $(OBJS0) $(OBJS1)
+	$(FC1) $(FFLAGS) -o $@ $(OBJS0) $(OBJS1)
 
-tipsv: $(OBJS2)
-	$(FC2) $(FFLAGS) -o $@ $(OBJS2)
+tipsv: $(OBJS0) $(OBJS2)
+	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
 
 # For compiling mpi-tipsv.o, check fileio.mod and mpi-tipsv.f90.
 mpi-tipsv.o: mpi-tipsv.f90 fileio.mod
@@ -34,9 +33,13 @@ rk3.o: rk3.f
 glu2.o: glu2.f
 	$(FC2) $(FFLAGS) -c $< -o $@
 
+utils.o: ../common/utils.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
 
+fileio.o: ../common/fileio.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
 
-# For .o files (excluding mpi-tipsv.o), compile when .f90 files are updated.
+# For .o files (excluding mpi-tipsv.o and those in ../common/), compile when .f90 files are updated.
 %.o: %.f90
 	$(FC2) $(FFLAGS) -c $< -o $@
 
@@ -48,4 +51,4 @@ glu2.o: glu2.f
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS1) $(OBJS2) $(PROGS) fileio.mod
+	rm -f $(OBJS0) $(OBJS1) $(OBJS2) $(PROGS) fileio.mod

@@ -5,20 +5,19 @@ FC1 = mpif90
 FC2 = ifort
 FFLAGS = -O #-no-pie
 
-SRC1 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 ../common/utils.f90 fileio.f90 mpi-tish.f90
-SRC2 = calmat.f90 solver.f90 trialf.f90 others.f90 operation.f90 ../common/utils.f90 fileio.f90 tish.f90
-OBJS1 = $(SRC1:.f90=.o)
-OBJS2 = $(SRC2:.f90=.o)
+OBJS0 = calmat.o solver.o trialf.o others.o operation.o utils.o fileio.o 
+OBJS1 = mpi-tish.o
+OBJS2 = tish.o
 
 
 .PHONY: all
 all: $(PROGS)
 
-mpi-tish: $(OBJS1)
-	$(FC1) $(FFLAGS) -o $@ $(OBJS1)
+mpi-tish: $(OBJS0) $(OBJS1)
+	$(FC1) $(FFLAGS) -o $@ $(OBJS0) $(OBJS1)
 
-tish: $(OBJS2)
-	$(FC2) $(FFLAGS) -o $@ $(OBJS2)
+tish: $(OBJS0) $(OBJS2)
+	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
 
 # For compiling mpi-tish.o, check fileio.mod and mpi-tish.f90.
 mpi-tish.o: mpi-tish.f90 fileio.mod
@@ -27,7 +26,13 @@ mpi-tish.o: mpi-tish.f90 fileio.mod
 # For compiling tish.o, check fileio.mod in addition to tish.f90.
 tish.o: fileio.mod
 
-# For .o files (excluding mpi-tish.o), compile when .f90 files are updated.
+utils.o: ../common/utils.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
+
+fileio.o: ../common/fileio.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
+
+# For .o files (excluding mpi-tish.o and those in ../common/), compile when .f90 files are updated.
 %.o: %.f90
 	$(FC2) $(FFLAGS) -c $< -o $@
 
@@ -39,4 +44,4 @@ tish.o: fileio.mod
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS1) $(OBJS2) $(PROGS) fileio.mod
+	rm -f $(OBJS0) $(OBJS1) $(OBJS2) $(PROGS) fileio.mod
