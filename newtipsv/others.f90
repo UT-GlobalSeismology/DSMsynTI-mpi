@@ -563,7 +563,7 @@ subroutine computeCutoffColumn(nZone, phaseOfZone, nGrid, oGridOfZone, nColumn, 
   integer, intent(in) :: oGridOfZone(nZone)  ! Index of the first grid point in each zone.
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
   integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
-  complex(8), intent(in) :: amplitudeAtColumn(nColumn)  ! Estimate of the amplitude at each c vector component [km].  TODO make real
+  real(8), intent(in) :: amplitudeAtColumn(nColumn)  ! Estimate of the amplitude at each c vector component [km].
   real(8), intent(in) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   integer, intent(out) :: cutoffColumn  ! Index of column at cut-off depth.
   real(8) :: amplitudeAtGrid(nGrid)  ! Estimate of the amplitude at each grid point [km].
@@ -588,12 +588,12 @@ subroutine computeCutoffColumn(nZone, phaseOfZone, nGrid, oGridOfZone, nColumn, 
       ! solid
       ! Use only the vertical component.
       if (mod((iColumn - oColumnOfZone(iZone)), 2) == 1) then
-        amplitudeAtGrid(iGrid) = abs(amplitudeAtColumn(iColumn))                           !!TODO remove abs
+        amplitudeAtGrid(iGrid) = amplitudeAtColumn(iColumn)
         iGrid = iGrid + 1
       end if
     else
       ! fluid
-      amplitudeAtGrid(iGrid) = abs(amplitudeAtColumn(iColumn))                           !!TODO remove abs
+      amplitudeAtGrid(iGrid) = amplitudeAtColumn(iColumn)
       iGrid = iGrid + 1
     end if
   end do

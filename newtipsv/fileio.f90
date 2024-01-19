@@ -31,29 +31,29 @@ contains
     end if
   end subroutine
 
-!   subroutine openSPCFileMPI(fileName, unitNum, spcFormat)
-!     implicit none
-!     character(len=80), intent(in) :: fileName  ! Name of output spc file.
-!     integer, intent(in) :: unitNum  ! Unit number of output spc file.
-!     integer, intent(in) :: spcFormat  ! Format of output spc file (0:binary, 1:ascii).
-!     integer :: ierr
+  subroutine openSPCFileMPI(fileName, unitNum, spcFormat)
+    implicit none
+    character(len=80), intent(in) :: fileName  ! Name of output spc file.
+    integer, intent(in) :: unitNum  ! Unit number of output spc file.
+    integer, intent(in) :: spcFormat  ! Format of output spc file (0:binary, 1:ascii).
+    integer :: ierr
 
-!     do
-!       if (spcFormat == 0) then
-!         open(unit=unitNum, file=trim(fileName), position='append', status='unknown', &
-!           form='unformatted', access='stream', convert='big_endian', share='denyrw', iostat=ierr)
-!       else if (spcFormat == 1) then
-!         open(unit=unitNum, file=trim(fileName), position='append', status='unknown', share='denyrw', iostat=ierr)
-!       else
-!         stop 'spcFormat must be 0 or 1. (openSPCFile)'
-!       end if
+    do
+      if (spcFormat == 0) then
+        open(unit=unitNum, file=trim(fileName), position='append', status='unknown', &
+          form='unformatted', access='stream', convert='big_endian', share='denyrw', iostat=ierr)
+      else if (spcFormat == 1) then
+        open(unit=unitNum, file=trim(fileName), position='append', status='unknown', share='denyrw', iostat=ierr)
+      else
+        stop 'spcFormat must be 0 or 1. (openSPCFile)'
+      end if
 
-!       if (ierr == 0) exit
+      if (ierr == 0) exit
 
-!       call system("sleep 100")
-!     end do
+      call system("sleep 100")
+    end do
 
-!   end subroutine
+  end subroutine
 
   subroutine write1dble(unitNum, spcFormat, dble1)
     implicit none

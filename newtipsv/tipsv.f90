@@ -78,7 +78,7 @@ program tipsv
   real(8) :: re  ! Desired relative error due to vertical gridding. (See eqs. 6.1-6.3 of Geller & Takeuchi 1995.)
   real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
-  complex(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)                                             !!TODO make real
+  real(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)
   !:::::::::::::::::::::::::::: Estimate of the amplitude at each column [km], used for vertical grid cut-off.
   integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
   real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
@@ -518,7 +518,7 @@ program tipsv
 
           ! Accumulate the absolute values of expansion coefficent c for all m's at each grid point.
           !  This is to be used as an estimate of the amplitude at each depth when deciding the cut-off depth.
-          amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + g_or_c(1:nColumn)         !!TODO  + abs(g_or_c(1:nColumn))
+          amplitudeAtColumn(1:nColumn) = amplitudeAtColumn(1:nColumn) + abs(g_or_c(1:nColumn))
 
         else
           ! Otherwise, compute for just the grids above the cut-off depth.
