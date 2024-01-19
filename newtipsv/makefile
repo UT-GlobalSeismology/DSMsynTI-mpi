@@ -33,6 +33,9 @@ rk3.o: rk3.f
 glu2.o: glu2.f
 	$(FC2) $(FFLAGS) -c $< -o $@
 
+trialf.o: ../common/trialf.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
+
 utils.o: ../common/utils.f90
 	$(FC2) $(FFLAGS) -c $< -o $@
 

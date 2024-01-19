@@ -26,6 +26,9 @@ mpi-tish.o: mpi-tish.f90 fileio.mod
 # For compiling tish.o, check fileio.mod in addition to tish.f90.
 tish.o: fileio.mod
 
+trialf.o: ../common/trialf.f90
+	$(FC2) $(FFLAGS) -c $< -o $@
+
 utils.o: ../common/utils.f90
 	$(FC2) $(FFLAGS) -c $< -o $@
 
