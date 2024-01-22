@@ -225,14 +225,160 @@ program tipsv
 
   ! ########################## Option for shallow events ##########################
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
+  if ((rmax - r0) < shallowdepth) then
+
+    write(*, *) 'Shallow event!'  !TODO erase
+
+    ! Set a large value so that we can compute using fine grids for this process.
+    imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
 
+    ! ******************* Computing the matrix elements *******************
+    call computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, re, imaxFixed, r0, &
+      nZone, rmin, rmax, rminOfZone, rmaxOfZone, phaseOfZone, &
+      rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, &
+      kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
+      oPairOfZoneSolid, oPairOfZoneFluid, oElementOfZone, oColumnOfZone, nColumn, &
+      iZoneOfSource, iLayerOfSource, oColumnOfSource, &
+      nValue, valuedRadii, rhoValues, kappaValues, ecKxValues, ecKyValues, ecKzValues, ecLValues, ecNValues, ecC0, ecF0, ecL0, &
+      rhoReciprocals, kappaReciprocals, &
+      t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
+      hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, work)
 
 
+    ! ******************** Computing the expansion coefficients *********************
+    ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
+    do iCount = 1, 2  ! omega-loop
+      if (iCount == 1) then  !!! difference from main section
+        iFreq = imin
+      else
+        iFreq = imax
+      end if
+      omega = 2.d0 * pi * dble(iFreq) / tlen
 
+      ! Initialize matrices.
+      a0(:, :nColumn) = dcmplx(0.d0, 0.d0)
+      a1(:, :nColumn) = dcmplx(0.d0, 0.d0)
+      a2(:, :nColumn) = dcmplx(0.d0, 0.d0)
 
+      ! Compute the angular order that is sufficient to compute the slowest phase velocity.
+      call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
 
+      ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
+      call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
+      !!TODO organize
+      call calabnum(omega, omegaI, rmax, &
+        rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
+        vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
+        gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
+
+      ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
+      iSolid = 0
+      iFluid = 0
+      do i = 1, nZone
+        oElement = oElementOfZone(i)
+        oColumn = oColumnOfZone(i)
+
+        if (phaseOfZone(i) == 1) then
+          ! solid
+          iSolid = iSolid + 1
+          oP = oPairOfZoneSolid(iSolid)
+          oVS = oValueOfZoneSolid(iSolid)
+
+          ! All parts of A0 are either unmodified or already modified using lumped matrix.
+          call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oP:), h1x(oP:), h2L(oP:), h2N(oP:), &
+            hUn3y(oP:), hUn4L(oP:), hUn4N(oP:), hUn5y(oP:), hUn6L(oP:), hUn6N(oP:), h7y(oP:), h7z(oP:), h8L(oP:), h8N(oP:), &
+            coefQmu(i), coefQkappa(i), cwork(oElement:))
+          call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
+          ! All parts of A2 are either unmodified or already modified using lumped matrix.
+          call computeA2Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
+          call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
+          ! Unmodified residual part of A1.
+          call computeA1Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), hResid3y(oP:), hResid4L(oP:), hResid4N(oP:), &
+            hResid5y(oP:), hResid6L(oP:), hResid6N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
+          call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:, oColumn:))
+          ! Modified step part of A1.
+          call addModifiedHToA1(nLayerInZone(i), coefQmu(i), coefQkappa(i), &
+            hModL3y(-2:1, oVS:), hModR4L(-1:2, oVS:), hModL4N(-2:1, oVS:), &
+            hModR5y(-1:2, oVS:), hModL6L(-2:1, oVS:), hModR6N(-1:2, oVS:), a1(:, oColumn:))
+
+        else
+          ! fluid
+          iFluid = iFluid + 1
+          oP = oPairOfZoneFluid(iFluid)
+
+          ! All parts of A0 are either unmodified or already modified using lumped matrix.
+          call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oP:), p3(oP:), coefQfluid(i), cwork(oElement:))
+          call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
+          ! All parts of A2 are either unmodified or already modified using lumped matrix.
+          call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oP:), cwork(oElement:))
+          call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:, oColumn:))
+
+        end if
+      end do
+
+      ! Initially, no depth cut-off, so set to the column of deepest grid, which is 1.
+      cutoffColumn = 1
+      ! Clear counter.
+      decayCounter = 0
+      ! Clear amplitude record.
+      recordAmplitude = -1.d0
+
+      do l = 0, maxL  ! l-loop
+        ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
+        if (decayCounter > 20) exit
+
+        ! L^2 and L. (See the part after eq. 12 of Kawai et al. 2006.)
+        ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
+        largeL2 = dble(l) * dble(l + 1)
+        largeL = sqrt(largeL2)
+
+        ! Initialize matrices.
+        a(:, :nColumn) = dcmplx(0.d0, 0.d0)
+        ! Clear the amplitude accumulated for all m's.
+        if (mod(l, 100) == 0) amplitudeAtColumn(:nColumn) = 0.d0
+
+        ! Assemble A matrix from parts that have already been computed.
+        call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))
+        ! Set boundary condition elements
+        call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
+
+        !!TODO organize
+        call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
+
+        do m = -2, 2  ! m-loop
+          if (abs(m) > abs(l)) cycle
+
+          ! Form and solve the linear equation Ac=-g.
+          call formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oColumnOfSource, r0, mt, ecC0, ecF0, ecL0, &
+            ya, yb, yc, yd, rmin, nZone, phaseOfZone, oGridOfZone, oColumnOfZone, coefQmu, coefQkappa, &
+            nGrid, gridRadii, nColumn, cutoffColumn, a, aSmall, g_or_c, g_or_c_Small, amplitudeAtColumn, nQuasiColumn, eps, z, w)
+
+          if (l > 0) then
+            ! Check whether the amplitude has decayed enough to stop the l-loops.
+            !  This is checked for the topmost-grid expansion coefficent of each m individually.
+            call checkAmplitudeDecay(g_or_c(nColumn-1:nColumn), l, lsuf, ratl, recordAmplitude, decayCounter)
+
+          end if
+
+        end do  ! m-loop
+
+        ! Decide cut-off depth (at a certain interval of l).
+        if (mod(l, 100) == 0) then
+          call computeCutoffColumn(nZone, phaseOfZone(:), nGrid, oGridOfZone(:), nColumn, oColumnOfZone(:), &
+            amplitudeAtColumn(:), ratc, cutoffColumn)
+        end if
+
+      end do  ! l-loop
+
+      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
+      ltmp(iCount) = min(l, maxL)
+
+    end do  ! omega-loop
+
+    imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
+  end if  ! option for shallow events
 
 
   ! ########################## Main computation ##########################
