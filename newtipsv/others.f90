@@ -324,7 +324,7 @@ end subroutine
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computing the source position.
 !----------------------------------------------------------------------------------------------------------------------------
-subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource, oPairOfSource)
+subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, iZoneOfSource, iLayerOfSource)
 !----------------------------------------------------------------------------------------------------------------------------
   implicit none
 
@@ -335,7 +335,6 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(out) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(out) :: iLayerOfSource  ! Which layer the source is in.
-  integer, intent(out) :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   integer :: iLayer  ! Index of layer. (1 at rmin, nGrid-1 just below rmax.)
   real(8) :: xLayerOfSource  ! A double-value index of source position. (1 at rmin, nGrid at rmax.)
 
@@ -376,8 +375,6 @@ subroutine computeSourcePosition(nGrid, rmaxOfZone, phaseOfZone, gridRadii, r0, 
 
   ! Find the layer that the source is in.
   iLayerOfSource = int(xLayerOfSource)  ! Note that int(x) rounds down the value x.
-  ! Find the first index of (iLayer, k', k)-pair corresponding to the layer that the source is in.
-  oPairOfSource = 4 * iLayerOfSource - 3
 
 end subroutine
 

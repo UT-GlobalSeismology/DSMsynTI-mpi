@@ -90,7 +90,6 @@ program tipsv
   real(8) :: gridRadii(maxNGrid)  ! Radii of each grid point [km].
   integer :: nLayerInZone(maxNZone)  ! Number of layers in each zone.
   integer :: oGridOfZone(maxNZone)  ! Index of the first grid point in each zone.
-  real(8) :: gridRadiiForSource(3)  ! Radii to use for source-related computations [km].
   integer :: iZoneOfSource  ! Which zone the source is in.
   integer :: iLayerOfSource  ! Index of layer that the source is in.
 
@@ -132,16 +131,13 @@ program tipsv
   real(8) :: hUn6N(4 * maxNGridSolid - 4), hResid6N(4 * maxNGridSolid - 4), hModR6N(-1:2, maxNGridSolid)
   real(8) :: h7y(4 * maxNGridSolid - 4), h7z(4 * maxNGridSolid - 4), h8L(4 * maxNGridSolid - 4), h8N(4 * maxNGridSolid - 4)
   real(8) :: p1(4 * maxNGridFluid - 4), p2(4 * maxNGridFluid - 4), p3(4 * maxNGridFluid - 4)
-  real(8) :: gt(8), gh1(8), gh2(8), gh3(8), gh4(8)
   integer :: oPairOfZoneSolid(maxNZone), oPairOfZoneFluid(maxNZone)
   !::::::::::::::::::::: Index of the first (iLayer, k', k)-pair in each zone, counted separately for solid and fluid zones.
-  integer :: oPairOfSource  ! Index of the first (iLayer, k', k)-pair for the layer with the source.
   complex(8) :: a0(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: aSmall(2, maxNGridSolid + maxNGridFluid)
-  complex(8) :: aaParts(4), aSourceParts(8), aSource(2, 3)
   complex(8) :: g_or_c(2 * maxNGridSolid + maxNGridFluid)
   !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: g_or_c_Small(maxNGridSolid + maxNGridFluid)
@@ -262,7 +258,8 @@ program tipsv
     oPairOfZoneSolid(:), oPairOfZoneFluid(:), oElementOfZone(:), oColumnOfZone(:), nColumn)
 
   ! Compute the source position.
-  call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource, oPairOfSource)
+  call computeSourcePosition(nGrid, rmaxOfZone(:), phaseOfZone(:), gridRadii(:), r0, iZoneOfSource, iLayerOfSource)
+  iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - oGridOfZone(iZoneOfSource))
 
 
   ! ------------------- Computing the matrix elements -------------------
@@ -454,7 +451,6 @@ program tipsv
 
       !!TODO organize
       call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
-      iColumnOfSource = oColumnOfZone(iZoneOfSource) + 2 * (iLayerOfSource - oGridOfZone(iZoneOfSource))
 
       do m = -2, 2  ! m-loop
         if (abs(m) > abs(l)) cycle
