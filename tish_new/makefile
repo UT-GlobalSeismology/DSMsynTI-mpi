@@ -5,7 +5,7 @@ FC1 = mpif90
 FC2 = ifort
 FFLAGS = -O #-no-pie
 
-OBJS0 = calmat.o solver.o trialf.o others.o operation.o utils.o fileio.o 
+OBJS0 = calmat.o solver.o trialf.o others.o operation.o utils.o fileio.o
 OBJS1 = mpi-tish.o
 OBJS2 = tish.o
 
