@@ -55,7 +55,7 @@ program tipsv
 
   ! Variables for the source
   real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
-  real(8) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
+  real(8) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, and L at source position [10^10 dyn/cm^2 = GPa].
 
   ! Variables for the receivers
   integer :: nReceiver  ! Number of receivers.
@@ -81,7 +81,7 @@ program tipsv
   real(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)
   !:::::::::::::::::::::::::::: Estimate of the amplitude at each column [km], used for vertical grid cut-off.
   integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
-  real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
+  real(8) :: recordAmplitude  ! Maximum amplitude encountered [km], used for angular order cut-off.
   integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   integer :: llog
 
@@ -99,15 +99,14 @@ program tipsv
   integer :: oValueOfZone(maxNZone)  ! Index of the first value in each zone.
   integer :: oValueOfZoneSolid(maxNZone)  ! Index of the first value in each zone, when counting only solid zones.
   real(8) :: rhoValues(maxNGrid + maxNZone - 1)  ! Rho at each grid point (with 2 values at boundaries) [g/cm^3].
-  real(8) :: kappaValues(maxNGrid + maxNZone - 1)  !
-  real(8) :: ecKxValues(maxNGrid + maxNZone - 1)  ! 3*Kx=3A-4N
-  real(8) :: ecKyValues(maxNGrid + maxNZone - 1)  ! 3*Ky=3F+2N
-  real(8) :: ecKzValues(maxNGrid + maxNZone - 1)  ! 3*Kz=2F+C
+  real(8) :: kappaValues(maxNGrid + maxNZone - 1)  ! Kappa at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: ecKxValues(maxNGrid + maxNZone - 1)  ! Kx=A-4N/3 at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: ecKyValues(maxNGrid + maxNZone - 1)  ! Ky=F+2N/3 at each grid point (with 2 values at boundaries) [GPa].
+  real(8) :: ecKzValues(maxNGrid + maxNZone - 1)  ! Kz=(C+2F)/3 at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecLValues(maxNGrid + maxNZone - 1)  ! L at each grid point (with 2 values at boundaries) [GPa].
   real(8) :: ecNValues(maxNGrid + maxNZone - 1)  ! N at each grid point (with 2 values at boundaries) [GPa].
-  real(8) :: rhoReciprocals(maxNGrid + maxNZone - 1)  !
-  real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  !
-!  real(8) :: rhoValuesForSource(3), ecLValuesForSource(3), ecNValuesForSource(3)  ! Rho, L, and N at each source-related grid.
+  real(8) :: rhoReciprocals(maxNGrid + maxNZone - 1)  ! 1/rho at each grid point (with 2 values at boundaries) [cm^3/g].
+  real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  ! 1/kappa at each grid point (with 2 values at boundaries) [1/GPa].
   complex(8) :: coefQmu(maxNZone), coefQkappa(maxNZone), coefQfluid(maxNZone)
   !::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   integer :: oVS

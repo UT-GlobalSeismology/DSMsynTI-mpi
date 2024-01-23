@@ -464,17 +464,16 @@ subroutine computeA0Fluid(nLayerInZoneI, omega, omegaI, p1, p3, coefQfluid, a0Tm
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
   real(8), intent(in) :: p1(4*nLayerInZoneI), p3(4*nLayerInZoneI)
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Parts of T and H matrix stored for each (iLayer, k', k)-pair [TODO].
+  !:::::::::::::::::::::::::::::::: Parts of T and H matrix stored for each (iLayer, k', k)-pair. I^F2: [m^5/N], others: [m^4/kg].
   complex(8), intent(in) :: coefQfluid  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
-  complex(8), intent(out) :: a0Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO].
+  complex(8), intent(out) :: a0Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [m^5/N].
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
   integer :: i
 
   ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
   omegaDamped2 = dcmplx(omega, -omegaI) ** 2
 
-  ! Calculate b0 for each relevant index
+  ! Compute the part of H_(k'k) without largeL coefficients.
   do i = 1, 4 * nLayerInZoneI
     a0Tmp(i) = -dcmplx(p1(i)) / omegaDamped2 + coefQfluid * dcmplx(p3(i))
   end do
@@ -494,16 +493,15 @@ subroutine computeA2Fluid(nLayerInZoneI, omega, omegaI, p2, a2Tmp)
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
-  real(8), intent(in) :: p2(4*nLayerInZoneI)  ! Parts of H matrix stored for each (iLayer, k', k)-pair [TODO].
-  complex(8), intent(out) :: a2Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: [TODO].
+  real(8), intent(in) :: p2(4*nLayerInZoneI)  ! Parts of H matrix stored for each (iLayer, k', k)-pair [m^4/kg].
+  complex(8), intent(out) :: a2Tmp(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [m^5/N].
   complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
   integer :: i
 
   ! Introduce artificial damping into angular frequency. (See section 5.1 of Geller & Ohminato 1994.)
   omegaDamped2 = dcmplx(omega, -omegaI) ** 2
 
-  ! Calculate b0 for each relevant index
+  ! Compute the part of H_(k'k) with coefficient largeL^2.
   do i = 1, 4 * nLayerInZoneI
     a2Tmp(i) = -dcmplx(p2(i)) / omegaDamped2
   end do
@@ -521,8 +519,8 @@ subroutine overlapAFluid(nLayerInZoneI, aTmp, aOut)
   implicit none
 
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
-  complex(8), intent(in) :: aTmp(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [TODO].
-  complex(8), intent(inout) :: aOut(4, 2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [TODO].
+  complex(8), intent(in) :: aTmp(4*nLayerInZoneI)  ! Input tridiagonal matrix, stored for each (iLayer, k', k)-pair [m^5/N].
+  complex(8), intent(inout) :: aOut(4, 2*nLayerInZoneI+2)  ! Upper band of the overlapped matrix [m^5/N].
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::::: Should be initialized with 0s beforehand.
   integer :: iGrid
 

@@ -132,7 +132,7 @@ end subroutine
 
 
 !----------------------------------------------------------------------------------------------------------------------------
-! Computing \int var r^rpow X_k1^(dot1) X_k2^(dot2) dr. (See eq. 16 of Kawai et al. 2006.)
+! Computing \int var r^rpow X_k1^(dot1) X_k2^(dot2) dr. (See eqs. 16 and 20 of Kawai et al. 2006.)
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !----------------------------------------------------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ subroutine computeIntermediateIntegral(nLayerInZoneI, valuedRadiiInZoneI, values
   integer, intent(in) :: rpow  ! The exponent of r.
   integer, intent(in) :: dot1, dot2  ! Whether or not to differentiate X_k1 and X_k2 (1: differentiate, 0: do not differentiate).
   real(8), intent(out) :: mat(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
-  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: I^0 is in [10^12 kg], others are in [10^12 kg/s^2].
+  !:::::::::::::::::::::::::::: For solid, I^0: [10^12 kg], others: [10^12 kg/s^2]. For fluid, I^F2: [m^5/N], others: [m^4/kg].
   integer :: iLayer, j1, j2, i, iRow
   real(8) :: a(2,2), b(2,2), c(5), rh
 
@@ -326,7 +326,8 @@ subroutine computeLumpedT(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, tl)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
   real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
-  real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg].
+  real(8), intent(out) :: tl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: For solid, [10^12 kg]. For fluid, [m^5/N].
   integer :: i, nn
   real(8) :: c(3), lowerRadius, upperRadius
 
@@ -367,7 +368,8 @@ subroutine computeLumpedH(nLayerInZoneI, valuedRadiiInZoneI, valuesInZoneI, hl)
   integer, intent(in) :: nLayerInZoneI  ! Number of layers in zone of interest.
   real(8), intent(in) :: valuedRadiiInZoneI(nLayerInZoneI+1)  ! Radii corresponding to each variable value [km].
   real(8), intent(in) :: valuesInZoneI(nLayerInZoneI+1)  ! Values of a variable at each point (with 2 values at boundaries).
-  real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair [10^12 kg/s^2].
+  real(8), intent(out) :: hl(4*nLayerInZoneI)  ! Resulting tridiagonal matrix, stored for each (iLayer, k', k)-pair.
+  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: For solid, [10^12 kg/s^2]. For fluid, [m^4/kg].
   integer :: i, nn
   real(8) :: c(1), lowerRadius, upperRadius
 

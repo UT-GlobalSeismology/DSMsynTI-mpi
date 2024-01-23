@@ -398,8 +398,8 @@ subroutine computeStructureValues(nZone, rmax, &
   integer, intent(out) :: nValue  ! Total number of values for each variable.
   real(8), intent(out) :: valuedRadii(*)  ! Radii corresponding to each variable value [km].
   real(8), intent(out) :: rhoValues(*), kappaValues(*), ecKxValues(*), ecKyValues(*), ecKzValues(*), ecLValues(*), ecNValues(*)
-  ! Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa]
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).  !!!!TODO
+  !::::::::::::::::::::::::::::::::::: Values of rho [g/cm^3], kappa, A-4N/3, F+2N/3, (C+2F)/3, L, and N [10^10 dyn/cm^2 = GPa]
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).
   real(8) :: rhoTemp, vpvTemp, vphTemp, vsvTemp, vshTemp, etaTemp, ecA, ecC, ecF
   integer :: iZone, iLayer, iValue, iGrid
 
@@ -455,7 +455,7 @@ subroutine computeSourceStructureValues(iZoneOfSource, r0, rmax, &
   real(8), intent(in) :: rhoPolynomials(4,*), vpvPolynomials(4,*), vphPolynomials(4,*)
   real(8), intent(in) :: vsvPolynomials(4,*), vshPolynomials(4,*), etaPolynomials(4,*)
   !:::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta structure.
-  real(8), intent(out) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
+  real(8), intent(out) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, and L at source position [10^10 dyn/cm^2 = GPa].
   real(8) :: rhoTemp, vpvTemp, vphTemp, vsvTemp, vshTemp, etaTemp, ecA0
 
   ! Evaluate the density and elastic constants at source.
@@ -480,7 +480,7 @@ subroutine computeReciprocals(nValue, rhoValues, kappaValues, rhoReciprocals, ka
 !----------------------------------------------------------------------------------------------------------------------------
   implicit none
 
-  integer, intent(in) :: nValue
+  integer, intent(in) :: nValue  ! Total number of values for each variable.
   real(8), intent(in) :: rhoValues(nValue), kappaValues(nValue)
   !::::::::::::::::::::::: Values of rho [g/cm^3] and kappa [10^10 dyn/cm^2 = GPa] at each point (with 2 values at boundaries).
   real(8), intent(out) :: rhoReciprocals(nValue), kappaReciprocals(nValue)

@@ -47,9 +47,9 @@ subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, r
   real(8), intent(out) :: rhoValues(maxNGrid+nZone-1), kappaValues(maxNGrid+nZone-1)
   real(8), intent(out) :: ecKxValues(maxNGrid+nZone-1), ecKyValues(maxNGrid+nZone-1), ecKzValues(maxNGrid+nZone-1)
   real(8), intent(out) :: ecLValues(maxNGrid+nZone-1), ecNValues(maxNGrid+nZone-1)
-  ! Values of rho [g/cm^3], L, and N [10^10 dyn/cm^2 = GPa]
-  !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).  !!!!TODO
-  real(8), intent(out) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
+  !::::::::::::::::::::::::::::::::::: Values of rho [g/cm^3], kappa, A-4N/3, F+2N/3, (C+2F)/3, L, and N [10^10 dyn/cm^2 = GPa]
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: at each point (with 2 values at boundaries).
+  real(8), intent(out) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, and L at source position [10^10 dyn/cm^2 = GPa].
   real(8), intent(out) :: rhoReciprocals(maxNGrid+nZone-1), kappaReciprocals(maxNGrid+nZone-1)
   !:::::::::: Values of 1/rho [cm^3/g] and 1/kappa [(10^10 dyn/cm^2)^(-1) = 1/GPa] at each point (with 2 values at boundaries).
   real(8), intent(out) :: t(4*maxNGridSolid-4)
@@ -182,7 +182,7 @@ subroutine formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oCo
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   integer, intent(in) :: oColumnOfSource  ! Index of the first column in the band matrix for the layer with source.
   real(8), intent(in) :: r0, mt(3,3)  ! Depth [km] and moment tensor [10^25 dyn cm] of source.
-  real(8), intent(in) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, L at source position [10^10 dyn/cm^2 = GPa].
+  real(8), intent(in) :: ecC0, ecF0, ecL0  ! Elastic moduli C, F, and L at source position [10^10 dyn/cm^2 = GPa].
   complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4)
   real(8), intent(in) :: rmin  ! Minimum radius of region considered [km].
   integer, intent(in) :: nZone  ! Number of zones.
@@ -195,7 +195,7 @@ subroutine formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oCo
   real(8), intent(in) :: gridRadii(nGrid)  ! Radius at each grid point [km].
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
   integer, intent(in) :: cutoffColumn  ! Index of column at cut-off depth.
-  complex(8), intent(inout) :: a(4, nColumn), aSmall(2, nColumn)  ! Assembled A matrix [10^12 kg/s^2].
+  complex(8), intent(inout) :: a(4, nColumn), aSmall(2, nColumn)  ! Assembled A matrix.
   complex(8), intent(out) :: g_or_c(nColumn), g_or_c_Small(nColumn)
   !:::::::::::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is.
   real(8), intent(inout) :: amplitudeAtColumn(nColumn)  ! Estimate of the amplitude at each column [km].
