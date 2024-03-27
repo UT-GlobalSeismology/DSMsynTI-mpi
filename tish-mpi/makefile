@@ -11,13 +11,13 @@ OBJS = $(SRC:.f=.o)
 OBJS2 = $(SRC2:.f=.o)
 .SUFFIXES: .f .o
 
+tish: $(OBJS2)
+	$(FC2) $(FFLAGS) -o $@ $(OBJS2)
+
 all: $(PROGS)
 
 mpi-tish: $(OBJS)
 	$(FC) $(FFLAGS) -o $@ $(OBJS) $(LDFLAGS)
-
-tish: $(OBJS2)
-	$(FC2) $(FFLAGS) -o $@ $(OBJS2)
 
 mpi-tish.o: mpi-tish.f
 	$(FC) $(FFLAGS) -c mpi-tish.f -fdec -o $@
