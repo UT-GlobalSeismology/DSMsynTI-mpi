@@ -57,7 +57,7 @@ c parameter for the station
      -51.6753 -58.0637 lat,lon (deg)
      49.6753  58.0637 lat,lon (deg)
 c parameter for the data file
-examples/ABC.20090101.SH.spc
-examples/XYZ.20090101.SH.spc
+examples/ABC_S.090101A.SH.spc
+examples/XYZ_S.090101A.SH.spc
 c
 end

@@ -101,7 +101,7 @@
    -51.6753   -58.0637   lat, lon (deg)
    49.6753   58.0637   lat, lon (deg)
 ! output file names
-examples/ABC.20090101.PSV.spc
-examples/XYZ.20090101.PSV.spc
+examples/ABC_S.090101A.PSV.spc
+examples/XYZ_S.090101A.PSV.spc
 !
 end
