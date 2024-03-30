@@ -10,9 +10,3 @@ CONFIGURATION:
 
 USAGE:
 	% tipsv < (parameter filename)
-
-
-By default, the output spc files will be written in binary format.
-To write them in ASCII format, set the parameter 'spcform' to 1
-in tipsv.f and mpi-tipsv.f before compiling.
-
