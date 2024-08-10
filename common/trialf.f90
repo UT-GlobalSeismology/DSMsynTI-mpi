@@ -125,5 +125,3 @@ subroutine computePlm(l, m, x, plm)
   endif
 
 end subroutine
-
-

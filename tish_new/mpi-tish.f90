@@ -161,11 +161,12 @@ program tish
 
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
-  if (my_rank == 0) then
+  if (my_rank == 0) then   !!!diff from non-mpi
     call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, &
       nZone, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, qmuOfZone, &
       r0, eqlat, eqlon, mt, nReceiver, lat, lon, theta, phi, output)
   end if
+  ! share input values
   call MPI_BCAST(re, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)   !!!diff from non-mpi
   call MPI_BCAST(ratc, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
   call MPI_BCAST(ratl, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -212,13 +213,16 @@ program tish
 
 
   ! ************************** Files handling **************************
-  if (my_rank == 0) then
+  if (my_rank == 0) then   !!!diff from non-mpi
     do ir = 1, nReceiver
       call openSPCFile(output(ir), 11, spcFormat, 0)
       call writeSPCFile(11, spcFormat, tlen)
       call writeSPCFile(11, spcFormat, np, 1, 3)
       call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
       call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
+      call writeSPCFile(11, spcFormat, 0, 0.d0, 0.d0)  !TODO erase when other software become compatible
+      call writeSPCFile(11, spcFormat, 0.d0, 0.d0)  !TODO erase when other software become compatible
+      call writeSPCFile(11, spcFormat, 0.d0, 0.d0)  !TODO erase when other software become compatible
       call closeSPCFile(11)
     end do
 
@@ -354,7 +358,7 @@ program tish
   ! ******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
-  call trianglesplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
+  call trapezoidSplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
 
 
   do iFreq = mpimin(my_rank + 1), mpimax(my_rank + 1)  ! omega-loop   !!!diff from non-mpi
@@ -485,10 +489,10 @@ program tish
   ! Deallocate arrays.
   deallocate(outputi)
   deallocate(outputu)
-  deallocate(mpimin)
+  deallocate(mpimin)   !!!diff from non-mpi
   deallocate(mpimax)
 
-  write(*,*) my_rank, "Ivalice looks to the horizon"
+  write(*,*) my_rank, "Ivalice looks to the horizon"   !!!diff from non-mpi
   call MPI_FINALIZE(ierr)
 
   stop

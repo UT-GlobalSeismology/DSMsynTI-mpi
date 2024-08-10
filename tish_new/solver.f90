@@ -246,4 +246,3 @@ subroutine solveSurfaceCAfterCholesky(a, n, nud, n1, np, b, dr, z)
 
   return
 end subroutine
-

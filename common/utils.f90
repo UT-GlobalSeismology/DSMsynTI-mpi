@@ -416,3 +416,37 @@ subroutine averageMatrix(nLayerInZoneI, mat1, mat2, average)
 end subroutine
 
 
+!----------------------------------------------------------------------------------------------------------------------------
+! Splits the omega-loop among MPI processors.
+! This subroutine returns imin(:) and imax(:), where the k-th processor shall compute for imin(k) to imax(k).
+! Here, we assume that the CPU time t for the i-th omega is a * i and divide a * 0.5 * nFreq**2 into nProc parts.
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine trapezoidSplit(iStart, iEnd, nProc, imin, imax)
+!----------------------------------------------------------------------------------------------------------------------------
+  implicit none
+
+  integer, intent(in) :: iStart, iEnd  ! Start and end indices of frequencies to compute for.
+  integer, intent(in) :: nProc   ! Number of processors.
+  integer, intent(out) :: imin(nProc), imax(nProc)  ! Start and end indices of frequencies that each processor should compute.
+  integer :: k
+  real(8) :: x(0:nProc)
+  real(8) :: eachArea  ! Area of trapezoid for each process * 2.
+
+  ! Compute (double of) area of trapezoid for each processor.
+  eachArea = dble((iEnd - iStart + 1) * (iEnd + iStart + 1)) / nProc
+
+  ! Split into nProc trapezoids.
+  x(0) = dble(iStart)
+  do k = 1, nProc
+    x(k) = sqrt(x(k-1)**2 + eachArea)
+  enddo
+
+  ! Use indices close to the real(8) values as imin and imax.
+  imin(1) = iStart
+  do k = 1, nProc - 1
+    imax(k) = nint(x(k)) - 1
+    imin(k+1) = imax(k) + 1
+  enddo
+  imax(nProc) = iEnd
+
+end subroutine

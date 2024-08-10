@@ -698,5 +698,3 @@ subroutine computeU(c0, largeL2, harmonicsValues, u)
   u(3) = u(3) + c0(2) * harmonicsValues(3) / largeLc
 
 end subroutine
-
-
