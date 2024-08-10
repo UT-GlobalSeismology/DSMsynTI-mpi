@@ -176,6 +176,9 @@ program tish
     call writeSPCFile(11, spcFormat, np, 1, 3)
     call writeSPCFile(11, spcFormat, omegaI, lat(ir), lon(ir))
     call writeSPCFile(11, spcFormat, eqlat, eqlon, r0)
+    call writeSPCFile(11, spcFormat, 0, 0.d0, 0.d0)  !TODO erase when other software become compatible
+    call writeSPCFile(11, spcFormat, 0.d0, 0.d0)  !TODO erase when other software become compatible
+    call writeSPCFile(11, spcFormat, 0.d0, 0.d0)  !TODO erase when other software become compatible
     call closeSPCFile(11)
   end do
 
