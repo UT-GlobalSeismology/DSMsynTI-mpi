@@ -92,7 +92,6 @@ subroutine readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, i
   ! Close temporary file.
   close(11)
 
-  return
 end subroutine
 
 
@@ -174,7 +173,6 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
     end if
   end do
 
-  return
 end subroutine
 
 
@@ -241,7 +239,6 @@ subroutine computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZ
   if (nGridSolid > maxNGridSolid) stop 'The number of solid grid points is too large. (computeGridRadii)'
   if (nGridFluid > maxNGridFluid) stop 'The number of fluid grid points is too large. (computeGridRadii)'
 
-  return
 end subroutine
 
 

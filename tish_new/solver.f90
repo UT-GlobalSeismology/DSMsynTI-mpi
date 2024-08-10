@@ -1,6 +1,7 @@
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! Program to solve the simultaneous linear equation Ac=g using the modified Cholesky decomposition.
+! Program to solve the simultaneous linear equation Ac=g using the modified Cholesky decomposition,
+! for a real symmetric positive definite band matrix.
 ! This code is written based on dclisb.f created by T. Oguni in 1989.
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 

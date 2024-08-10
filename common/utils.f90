@@ -21,7 +21,6 @@ subroutine transformLatitude(geodetic, geocentric)
   ! radians to degrees
   geocentric = latitude * 180.d0 / pi
 
-  return
 end subroutine
 
 
@@ -74,7 +73,6 @@ subroutine computeThetaPhi(iEvLat, iEvLon, iStLat, iStLon, theta, phi)
     end if
   end if
 
-  return
 end subroutine
 
 
@@ -101,7 +99,7 @@ subroutine valueAtRadius(coefficients, radius, rmax, result)
   end do
 
   result = accumulatedValue
-  return
+
 end subroutine
 
 

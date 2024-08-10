@@ -1,6 +1,7 @@
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! Program to solve the simultaneous linear equation Ac=g using the Gauss method.
+! Program to solve the simultaneous linear equation Ac=g using the Gauss method,
+! for a symmetric band matrix with a short width.
 ! This code is written based on dcsymbdl.f created by Fumiko Nagahori in 1991.
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -82,6 +83,7 @@ subroutine decomposeAByGauss(A, M, N, NN, EPS, Z, W, L, LI, LJ, IER)
   end do
 
 end subroutine
+
 
 !------------------------------------------------------------------------
 ! Solves the simultaneous linear equation Ac=g.

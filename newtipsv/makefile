@@ -26,13 +26,6 @@ mpi-tipsv.o: mpi-tipsv.f90 fileio.mod
 # For compiling tipsv.o, check fileio.mod in addition to tipsv.f90.
 tipsv.o: fileio.mod
 
-
-rk3.o: rk3.f
-	$(FC2) $(FFLAGS) -c $< -o $@
-
-glu2.o: glu2.f
-	$(FC2) $(FFLAGS) -c $< -o $@
-
 trialf.o: ../common/trialf.f90
 	$(FC2) $(FFLAGS) -c $< -o $@
 
