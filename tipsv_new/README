@@ -1,6 +1,6 @@
--------- Documentation for tish-mpi --------
+-------- Documentation for tipsv-mpi --------
 
-This is a package for the SH wavefield computation
+This is a package for the PSV wavefield computation
 in spherically symmetric, transversely isotropic (TI) media
 in the frequency domain.
 
@@ -9,4 +9,4 @@ CONFIGURATION:
 To build the MPI versions as well, run 'make all' instead.
 
 USAGE:
-% tish < (parameter filename)
+% tipsv < (parameter filename)

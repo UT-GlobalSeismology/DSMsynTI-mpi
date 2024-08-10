@@ -10,14 +10,14 @@ OBJS1 = mpi-tipsv.o
 OBJS2 = tipsv.o
 
 
+tipsv: $(OBJS0) $(OBJS2)
+	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
+
 .PHONY: all
 all: $(PROGS)
 
 mpi-tipsv: $(OBJS0) $(OBJS1)
 	$(FC1) $(FFLAGS) -o $@ $(OBJS0) $(OBJS1)
-
-tipsv: $(OBJS0) $(OBJS2)
-	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
 
 # For compiling mpi-tipsv.o, check fileio.mod and mpi-tipsv.f90.
 mpi-tipsv.o: mpi-tipsv.f90 fileio.mod

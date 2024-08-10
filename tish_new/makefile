@@ -10,14 +10,14 @@ OBJS1 = mpi-tish.o
 OBJS2 = tish.o
 
 
+tish: $(OBJS0) $(OBJS2)
+	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
+
 .PHONY: all
 all: $(PROGS)
 
 mpi-tish: $(OBJS0) $(OBJS1)
 	$(FC1) $(FFLAGS) -o $@ $(OBJS0) $(OBJS1)
-
-tish: $(OBJS0) $(OBJS2)
-	$(FC2) $(FFLAGS) -o $@ $(OBJS0) $(OBJS2)
 
 # For compiling mpi-tish.o, check fileio.mod and mpi-tish.f90.
 mpi-tish.o: mpi-tish.f90 fileio.mod
