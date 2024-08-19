@@ -113,8 +113,8 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imax, l
   do iZone = 1, nZone
     v(:) = vsPolynomials(:, iZone)
     ! Compute velocity [km/s] at bottom and top of zone.
-    call valueAtRadius(v, rminOfZone(iZone), rmax, vBottom)
-    call valueAtRadius(v, rmaxOfZone(iZone), rmax, vTop)
+    call valueAtRadius(v(:), rminOfZone(iZone), rmax, vBottom)
+    call valueAtRadius(v(:), rmaxOfZone(iZone), rmax, vTop)
     ! Get smaller velocity value [km/s]. (This is to get larger k_z value.)
     vmin = min(vBottom, vTop)
     ! largest omega [1/s] (This is to get larger k_z value.)

@@ -320,7 +320,7 @@ program tipsv
       call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
       !!TODO organize
-      call calabnum(omega, omegaI, rmax, &
+      call computeabnum(omega, omegaI, rmax, &
         rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
         vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
         gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
@@ -397,7 +397,7 @@ program tipsv
         call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
 
         !!TODO organize
-        call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
+        call computeya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
 
         do m = -2, 2  ! m-loop
           if (abs(m) > abs(l)) cycle
@@ -430,6 +430,8 @@ program tipsv
     end do  ! omega-loop
 
     imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
+
+    write(*, *) 'Ending shallow-event section.'  !TODO erase
   end if  ! option for shallow events
 
 
@@ -472,7 +474,7 @@ program tipsv
     call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
 
     !!TODO organize
-    call calabnum(omega, omegaI, rmax, &
+    call computeabnum(omega, omegaI, rmax, &
       rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
       vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
       gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
@@ -554,7 +556,7 @@ program tipsv
       call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
 
       !!TODO organize
-      call calya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
+      call computeya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
 
       do m = -2, 2  ! m-loop
         if (abs(m) > abs(l)) cycle

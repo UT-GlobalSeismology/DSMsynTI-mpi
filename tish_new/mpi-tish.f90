@@ -341,6 +341,8 @@ program tish
     end do  ! omega-loop
 
     imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
+
+    write(*, *) 'Ending shallow-event section.'  !TODO erase
   end if  ! option for shallow events
 
 

@@ -708,60 +708,48 @@ end subroutine
 
 
 !----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-
-
-
 ! Computes numerical values for matrices anum and bnum.
-subroutine calabnum(omega, omegai, rmax, rrho, vpv, vph, vsv, vsh, eta, ra, r0, coef1, coef2, anum, bnum)
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine computeabnum(omega, omegaI, rmax, &
+  rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, &
+  gridRadiiForSource, r0, coefQmu, coefQkappa, anum, bnum)
+!----------------------------------------------------------------------------------------------------------------------------
   implicit none
 
-  real(8), intent(in) :: omega, omegai, rmax
-  real(8), intent(in) :: rrho(4), vpv(4), vph(4), vsv(4), vsh(4), eta(4)
-  real(8), intent(in) :: ra(2), r0
-  complex(8), intent(in) :: coef1, coef2
+  real(8), intent(in) :: omega, omegaI  ! Angular frequency [1/s] (real and imaginary). Imaginary part is for artificial damping.
+  real(8), intent(in) :: rmax
+  real(8), intent(in) :: rhoPolynomials(4), vpvPolynomials(4), vphPolynomials(4)
+  real(8), intent(in) :: vsvPolynomials(4), vshPolynomials(4), etaPolynomials(4)
+  !:::::::::::::::::::::::::::::::::::::::::: Polynomial functions of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta structure.
+  real(8), intent(in) :: gridRadiiForSource(2), r0
+  complex(8), intent(in) :: coefQmu, coefQkappa  ! Coefficients to multiply to elastic moduli for attenuation.
   complex(8), intent(out) :: anum(4, 4, 10), bnum(4, 4, 10)
-  integer :: i, j, k
-  real(8) :: trho, tmu, tecA, tecC, tecL, tecN, tAkappa, tCkappa
-  real(8) :: tvpv, tvph, tvsv, tvsh, teta, coef, r, r2
+  integer :: i
+  real(8) :: r, r2
+  real(8) :: trho, tvpv, tvph, tvsv, tvsh, teta
+  real(8) :: tmu, tecA, tecC, tecL, tecN, tAkappa, tCkappa
   complex(8) :: xrho, xecA, xecC, xecF, xecL, xecN
-  complex(8) :: xmu, xFdC, xAmF2dC, xAkappa, xCkappa, comega2
+  complex(8) :: xmu, xFdC, xAmF2dC, xAkappa, xCkappa
+  complex(8) :: omegaDamped2  ! Squared angular frequency with artificial damping [1/s^2]. (omega - i omega_I)^2.
 
-  do k=1,10
-    do j=1,4
-      do i=1,4
-        anum(i,j,k) = dcmplx( 0.d0 )
-        bnum(i,j,k) = dcmplx( 0.d0 )
-      end do
-    end do
-  end do
-! computation of mu,lam and rho at r
-  do i=1,10
-    if ( i.le.5 ) then
-      r = ra(1) + dble(i-1) / 4.d0 * ( r0 - ra(1) )
+  anum(:,:,:) = dcmplx(0.d0)
+  bnum(:,:,:) = dcmplx(0.d0)
+
+  do i = 1, 10
+    ! compute radius
+    if (i <= 5) then
+      r = gridRadiiForSource(1) + dble(i-1) / 4.d0 * (r0 - gridRadiiForSource(1))
     else
-      r = ra(2) - dble(10-i) / 4.d0 * ( ra(2) - r0 )
+      r = gridRadiiForSource(2) - dble(10-i) / 4.d0 * (gridRadiiForSource(2) - r0)
     endif
-    trho = 0.d0
-    tvpv = 0.d0
-    tvph = 0.d0
-    tvsv = 0.d0
-    tvsh = 0.d0
-    teta = 0.d0
-    do j=1,4
-      if ( j.eq.1 ) then
-        coef = 1.d0
-      else
-        coef = coef * ( r / rmax )
-      endif
-      trho  = trho  + rrho(j)  * coef
-      tvpv  = tvpv  + vpv(j)   * coef
-      tvph  = tvph  + vph(j)   * coef
-      tvsv  = tvsv  + vsv(j)   * coef
-      tvsh  = tvsh  + vsh(j)   * coef
-      teta  = teta  + eta(j)   * coef
-    end do
+
+    ! compute variable values at this radius
+    call valueAtRadius(rhoPolynomials(:), r, rmax, trho)
+    call valueAtRadius(vpvPolynomials(:), r, rmax, tvpv)
+    call valueAtRadius(vphPolynomials(:), r, rmax, tvph)
+    call valueAtRadius(vsvPolynomials(:), r, rmax, tvsv)
+    call valueAtRadius(vshPolynomials(:), r, rmax, tvsh)
+    call valueAtRadius(etaPolynomials(:), r, rmax, teta)
     tecA = trho * tvph * tvph
     tecC = trho * tvpv * tvpv
     tecL = trho * tvsv * tvsv
@@ -770,93 +758,88 @@ subroutine calabnum(omega, omegai, rmax, rrho, vpv, vph, vsv, vsh, eta, ra, r0, 
 
     tAkappa = tecA - tmu * 4.d0 / 3.d0
     tCkappa = tecC - tmu * 4.d0 / 3.d0
-    xAkappa = dcmplx(tAkappa) * coef2
-    xCkappa = dcmplx(tCkappa) * coef2
+    xAkappa = dcmplx(tAkappa) * coefQkappa
+    xCkappa = dcmplx(tCkappa) * coefQkappa
     xrho = dcmplx(trho)
-    xmu  = dcmplx(tmu) *coef1
-    xecL = dcmplx(tecL) * coef1
-    xecN = dcmplx(tecN) * coef1
-    xecA = xAkappa + xmu * dcmplx( 4.d0 / 3.d0 )
-    xecC = xCkappa + xmu * dcmplx( 4.d0 / 3.d0 )
-    xecF = dcmplx(teta) * ( xecA - dcmplx(2.d0) * xecL )
+    xmu  = dcmplx(tmu) * coefQmu
+    xecL = dcmplx(tecL) * coefQmu
+    xecN = dcmplx(tecN) * coefQmu
+    xecA = xAkappa + xmu * dcmplx(4.d0 / 3.d0)
+    xecC = xCkappa + xmu * dcmplx(4.d0 / 3.d0)
+    xecF = dcmplx(teta) * (xecA - dcmplx(2.d0) * xecL)
     xFdC = xecF / xecC
     xAmF2dC = xecA - xecF * xFdC
 
     r2 = r * r
-    comega2 = dcmplx( omega, -omegai ) * dcmplx( omega, -omegai )
+    omegaDamped2 = dcmplx(omega, -omegaI) ** 2
 
-    anum(1,1,i) = - dcmplx( 2.d0 / r ) * xFdC
-    anum(1,2,i) =   dcmplx( 1.d0 ) / xecC
-    anum(2,1,i) = - xrho * comega2 + dcmplx( 4.d0 / r2 ) * ( xAmF2dC - xecN )
-    anum(2,2,i) =   dcmplx( 2.d0 / r ) * ( xFdC - 1.d0 )
-    anum(3,1,i) = - dcmplx( 1.d0 / r )
-    anum(3,3,i) =   dcmplx( 1.d0 / r )
-    anum(3,4,i) =   dcmplx( 1.d0 ) / xecL
-    anum(4,1,i) = - dcmplx( 2.d0 / r2 ) * ( xAmF2dC - xecN )
-    anum(4,2,i) = - dcmplx( 1.d0 / r ) * xFdC
-    anum(4,3,i) = - xrho * comega2 - dcmplx( 2.d0 / r2 ) * xecN
-    anum(4,4,i) = - dcmplx( 3.d0 / r )
-    bnum(1,3,i) =   dcmplx( 1.d0 / r ) * xFdC
-    bnum(2,3,i) = - dcmplx( 2.d0 / r2 ) * ( xAmF2dC - xecN )
-    bnum(2,4,i) =   dcmplx( 1.d0 / r )
+    ! compute matrix elements
+    anum(1,1,i) = - dcmplx(2.d0 / r) * xFdC
+    anum(1,2,i) =   dcmplx(1.d0) / xecC
+    anum(2,1,i) = - xrho * omegaDamped2 + dcmplx(4.d0 / r2) * (xAmF2dC - xecN)
+    anum(2,2,i) =   dcmplx(2.d0 / r) * (xFdC - 1.d0)
+    anum(3,1,i) = - dcmplx(1.d0 / r)
+    anum(3,3,i) =   dcmplx(1.d0 / r)
+    anum(3,4,i) =   dcmplx(1.d0) / xecL
+    anum(4,1,i) = - dcmplx(2.d0 / r2) * (xAmF2dC - xecN)
+    anum(4,2,i) = - dcmplx(1.d0 / r) * xFdC
+    anum(4,3,i) = - xrho * omegaDamped2 - dcmplx(2.d0 / r2) * xecN
+    anum(4,4,i) = - dcmplx(3.d0 / r)
+    bnum(1,3,i) =   dcmplx(1.d0 / r) * xFdC
+    bnum(2,3,i) = - dcmplx(2.d0 / r2) * (xAmF2dC - xecN)
+    bnum(2,4,i) =   dcmplx(1.d0 / r)
     bnum(4,3,i) =   xAmF2dC / dcmplx(r2)
   end do
 
 end subroutine
 
 
- ! Computing the excitation vector using Geller and Hatori(1995).
+!----------------------------------------------------------------------------------------------------------------------------
+ ! Computing the excitation vector using Geller and Hatori (1995).
  ! Parameters by N.Takeuchi 1995.7
-subroutine calya(aa, bb, l2, ra, r0, ya, yb, yc, yd)
+!----------------------------------------------------------------------------------------------------------------------------
+subroutine computeya(aa, bb, largeL2, gridRadiiForSource, r0, ya, yb, yc, yd)
+!----------------------------------------------------------------------------------------------------------------------------
   common a,b,cl2,itmp
   external eqmotion1
   real(8), parameter :: pi = 3.1415926535897932d0
+  complex(8) :: a(64), b(64)
+  real(8) :: cl2
+  integer :: itmp
 
-  real(8), intent(in) :: r0, l2, ra(2)
+  real(8), intent(in) :: r0, largeL2, gridRadiiForSource(2)
   complex(8), intent(in) :: aa(160), bb(160)
   complex(8), intent(out) :: ya(4), yb(4), yc(4), yd(4)
-  integer :: i, k, itmp
-  real(8) :: xs, xe, dr, cl2
-  complex(8) :: work(4, 2), a(64), b(64), yn(4)
+  complex(8) :: work(4, 2), yn(4)
+  real(8) :: xs, xe, dr
+  integer :: i, k
   integer :: ktmp1, ktmp2, ktmp3, ktmp4
 
 ! -----------------------<< common variables >>-----------------------
-  cl2 = l2
+  cl2 = largeL2
 ! ---------------------<< numerical integration >>---------------------
 ! integration from the lower boundary
-  ya(1) = dcmplx( 0.d0 )
-  ya(2) = dcmplx( 1.d0 )
-  ya(3) = dcmplx( 0.d0 )
-  ya(4) = dcmplx( 0.d0 )
-  yb(1) = dcmplx( 0.d0 )
-  yb(2) = dcmplx( 0.d0 )
-  yb(3) = dcmplx( 0.d0 )
-  yb(4) = dcmplx( 1.d0 )
-  dr = ( r0 - ra(1) ) / 2.d0
-  if ( dr.gt.0.d0 ) then
-    xs = ra(1)
-    do k=1,2
-!	    do 110 j=1,4
-!	      do 100 i=1,4
-!	        a(i,j,1) = aa(i,j,2*k-1)
-!	        b(i,j,1) = bb(i,j,2*k-1)
-!	        a(i,j,2) = aa(i,j,2*k)
-!	        b(i,j,2) = bb(i,j,2*k)
-!	        a(i,j,3) = aa(i,j,2*k)
-!	        b(i,j,3) = bb(i,j,2*k)
-!	        a(i,j,4) = aa(i,j,2*k+1)
-!	        b(i,j,4) = bb(i,j,2*k+1)
-! 100	      continue
-! 110	    continue
-      ktmp1 = 32 * ( k-1 )
+  ya(1) = dcmplx(0.d0)
+  ya(2) = dcmplx(1.d0)
+  ya(3) = dcmplx(0.d0)
+  ya(4) = dcmplx(0.d0)
+  yb(1) = dcmplx(0.d0)
+  yb(2) = dcmplx(0.d0)
+  yb(3) = dcmplx(0.d0)
+  yb(4) = dcmplx(1.d0)
+  dr = (r0 - gridRadiiForSource(1)) / 2.d0
+  if (dr >= 0.d0) then
+    xs = gridRadiiForSource(1)
+    do k = 1, 2
+      ktmp1 = 32 * (k - 1)
       ktmp2 = ktmp1 - 16
-      do i=1,64
-        if ( i.le.32 ) then
-          a(i) = aa(i+ktmp1)
-          b(i) = bb(i+ktmp1)
+      do i = 1, 64
+        if (i <= 32) then
+          a(i) = aa(i + ktmp1)
+          b(i) = bb(i + ktmp1)
         else
-          a(i) = aa(i+ktmp2)
-          b(i) = bb(i+ktmp2)
+          a(i) = aa(i + ktmp2)
+          b(i) = bb(i + ktmp2)
         end if
       end do
       itmp = 0
@@ -867,51 +850,40 @@ subroutine calya(aa, bb, l2, ra, r0, ya, yb, yc, yd)
       call rk3(4,eqmotion1,xs,xe,1,yb,yn,4,work)
     end do
   end if
-! integration from the upper boundary
-  yc(1) = dcmplx( 0.d0 )
-  yc(2) = dcmplx( 1.d0 )
-  yc(3) = dcmplx( 0.d0 )
-  yc(4) = dcmplx( 0.d0 )
-  yd(1) = dcmplx( 0.d0 )
-  yd(2) = dcmplx( 0.d0 )
-  yd(3) = dcmplx( 0.d0 )
-  yd(4) = dcmplx( 1.d0 )
-  dr = ( ra(2) - r0 ) / 2.d0
-  if ( dr.gt.0.d0 ) then
-    xs = ra(2)
-    do k=1,2
-!	    do 140 j=1,4
-!	      do 130 i=1,4
-!	        a(i,j,1) = aa(i,j,12-2*k)
-!	        b(i,j,1) = bb(i,j,12-2*k)
-!	        a(i,j,2) = aa(i,j,11-2*k)
-!	        b(i,j,2) = bb(i,j,11-2*k)
-!	        a(i,j,3) = aa(i,j,11-2*k)
-!	        b(i,j,3) = bb(i,j,11-2*k)
-!	        a(i,j,4) = aa(i,j,10-2*k)
-!	        b(i,j,4) = bb(i,j,10-2*k)
-! 130	      continue
-! 140	    continue
-      ktmp1 = 144 - 32 * ( k-1 )
+
+  ! integration from the upper boundary
+  yc(1) = dcmplx(0.d0)
+  yc(2) = dcmplx(1.d0)
+  yc(3) = dcmplx(0.d0)
+  yc(4) = dcmplx(0.d0)
+  yd(1) = dcmplx(0.d0)
+  yd(2) = dcmplx(0.d0)
+  yd(3) = dcmplx(0.d0)
+  yd(4) = dcmplx(1.d0)
+  dr = (gridRadiiForSource(2) - r0) / 2.d0
+  if (dr >= 0.d0) then
+    xs = gridRadiiForSource(2)
+    do k = 1, 2
+      ktmp1 = 144 - 32 * (k - 1)
       ktmp2 = ktmp1 - 32
       ktmp3 = ktmp1 - 48
       ktmp4 = ktmp1 - 80
-      do i=1,64
-        if ( i.le.32 ) then
-          if ( i.le.16 ) then
-            a(i) = aa(i+ktmp1)
-            b(i) = bb(i+ktmp1)
+      do i = 1, 64
+        if (i <= 32) then
+          if (i <= 16) then
+            a(i) = aa(i + ktmp1)
+            b(i) = bb(i + ktmp1)
           else
-            a(i) = aa(i+ktmp2)
-            b(i) = bb(i+ktmp2)
+            a(i) = aa(i + ktmp2)
+            b(i) = bb(i + ktmp2)
           end if
         else
-          if ( i.le.48 ) then
-            a(i) = aa(i+ktmp3)
-            b(i) = bb(i+ktmp3)
+          if (i <= 48) then
+            a(i) = aa(i + ktmp3)
+            b(i) = bb(i + ktmp3)
           else
-            a(i) = aa(i+ktmp4)
-            b(i) = bb(i+ktmp4)
+            a(i) = aa(i + ktmp4)
+            b(i) = bb(i + ktmp4)
           end if
         end if
       end do
@@ -926,9 +898,13 @@ subroutine calya(aa, bb, l2, ra, r0, ya, yb, yc, yd)
 
 end subroutine
 
+
+!----------------------------------------------------------------------------------------------------------------------------
 ! Computing the excitation vector using Geller and Hatori(1995).
 ! Parameters by N.Takeuchi 1995.7
+!----------------------------------------------------------------------------------------------------------------------------
 subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r0, mt, g)
+!----------------------------------------------------------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
@@ -1023,16 +999,21 @@ subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r
 end subroutine
 
 
+!----------------------------------------------------------------------------------------------------------------------------
 ! Equation of the motion of the solid medium.
+!----------------------------------------------------------------------------------------------------------------------------
 subroutine eqmotion1(r, y, f)
+!----------------------------------------------------------------------------------------------------------------------------
   common a, b, l2, itmp
+  complex(8) :: a(64), b(64)
+  real(8) :: l2
+  integer :: itmp
 
   real(8), intent(in) :: r
   complex(8), intent(in) :: y(4)
   complex(8), intent(out) :: f(4)
-  integer :: i, j, itmp, mtmp
-  real(8) :: l2
-  complex(8) :: a(64), b(64), c(4,4)
+  complex(8) :: c(4,4)
+  integer :: i, j, mtmp
 
   itmp = itmp + 1
 
@@ -1041,7 +1022,7 @@ subroutine eqmotion1(r, y, f)
   do j = 1, 4
     do i = 1, 4
       mtmp = mtmp + 1
-      c(i, j) = a(mtmp) + dcmplx(l2 * dble(b(mtmp)), l2 * dimag(b(mtmp)))
+      c(i, j) = a(mtmp) + l2 * b(mtmp)
     end do
   end do
 
@@ -1056,8 +1037,11 @@ subroutine eqmotion1(r, y, f)
 end subroutine
 
 
+!----------------------------------------------------------------------------------------------------------------------------
 ! Determination of the matrix imposing the boundary conditions.
+!----------------------------------------------------------------------------------------------------------------------------
 subroutine sab1(ya, yb, yc, yd, s, a, b)
+!----------------------------------------------------------------------------------------------------------------------------
   implicit none
 
   complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4), s(4)
@@ -1075,9 +1059,12 @@ subroutine sab1(ya, yb, yc, yd, s, a, b)
 end subroutine
 
 
+!----------------------------------------------------------------------------------------------------------------------------
 ! Determination of the matrix imposing the boundary conditions.
 ! Only the first two elements of the arrays are used.
+!----------------------------------------------------------------------------------------------------------------------------
 subroutine sab2(ya, yc, s, a, b)
+!----------------------------------------------------------------------------------------------------------------------------
   implicit none
 
   complex(8), intent(in) :: ya(4), yc(4), s(4)
@@ -1091,17 +1078,3 @@ subroutine sab2(ya, yc, s, a, b)
   end do
 
 end subroutine
-
-
-
-!----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-
-
-!----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------------------------------------------
-
-
-
