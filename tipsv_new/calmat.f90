@@ -815,10 +815,10 @@ subroutine computeya(aa, bb, largeL2, gridRadiiForSource, r0, ya, yb, yc, yd)
   integer :: i, k
   integer :: ktmp1, ktmp2, ktmp3, ktmp4
 
-! -----------------------<< common variables >>-----------------------
+  ! -----------------------<< common variables >>-----------------------
   cl2 = largeL2
-! ---------------------<< numerical integration >>---------------------
-! integration from the lower boundary
+  ! ---------------------<< numerical integration >>---------------------
+  ! integration from the lower boundary
   ya(1) = dcmplx(0.d0)
   ya(2) = dcmplx(1.d0)
   ya(3) = dcmplx(0.d0)
@@ -922,8 +922,8 @@ subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r
   ! Initialization
   eps = -1.d0
 
-! ---------------------<< parameter computation >>---------------------
-! computation of the discontinuity
+  ! ---------------------<< parameter computation >>---------------------
+  ! computation of the discontinuity
   if ( m.ge.0 ) then
     sgn = 1.d0
   else
@@ -974,8 +974,8 @@ subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r
     s(3) = dcmplx( 0.d0 )
     s(4) = dcmplx( 0.d0 )
   end if
-! consideration of the boundary conditions
-! determination of the analytical solution
+  ! consideration of the boundary conditions
+  ! determination of the analytical solution
   if ( l.ne.0 ) then
     call sab1( ya,yb,yc,yd,s,a,b )
     call glu(a,4,4,b,eps,wk,ip,ier)
@@ -986,7 +986,7 @@ subroutine calg(l, m, coef1, coef2, lsq, ecC0, ecF0, ecL0, ya, yb, yc, yd, ra, r
     b(2) = dcmplx( 0.d0 )
     b(4) = dcmplx( 0.d0 )
   end if
-! computation of the excitation vector
+  ! computation of the excitation vector
   dtmp(1) = - ra(1) * ra(1)
   dtmp(2) = dtmp(1) * lsq
   dtmp(3) = ra(2) * ra(2)

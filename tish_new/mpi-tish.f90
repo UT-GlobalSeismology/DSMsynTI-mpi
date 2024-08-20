@@ -6,7 +6,7 @@
 !  Synthetics for shallow events can be computed.
 !
 !  Main historical authors: K.Kawai, N.Takeuchi, R.J.Geller
-!  (C) 2002 - 2023  University of Tokyo
+!  (C) 2002 - 2024  University of Tokyo
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
