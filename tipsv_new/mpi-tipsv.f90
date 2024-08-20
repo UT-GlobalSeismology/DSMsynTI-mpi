@@ -307,10 +307,8 @@ program tipsv
         t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
         hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
         oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, &
-        oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
-
-      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
-      ltmp(iCount) = min(l, maxL)
+        oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps, &
+        ltmp(iCount))
 
     end do  ! omega-loop
 
@@ -351,10 +349,7 @@ program tipsv
       t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
       hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
       oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, u, &
-      oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
-
-    ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
-    llog = min(l, maxL)
+      oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps, llog)
 
     ! Store results.  !!! difference from shallow-source section
     outputi(outputCounter) = iFreq

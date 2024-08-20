@@ -214,10 +214,7 @@ program tish
         r0, mt, ecL0, ratc, ratl, amplitudeAtGrid, &
         nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, &
         t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
-        a0, a2, a, g_or_c, cwork, dr, z, gdr, eps)
-
-      ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
-      ltmp(iCount) = min(l, maxL)
+        a0, a2, a, g_or_c, cwork, dr, z, gdr, eps, ltmp(iCount))
 
     end do  ! omega-loop
 
@@ -247,10 +244,7 @@ program tish
       r0, mt, ecL0, nReceiver, theta, phi, ratc, ratl, amplitudeAtGrid, &
       nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, plm, harmonicsValues, &
       t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
-      a0, a2, a, g_or_c, u, cwork, dr, z, gdr, eps)
-
-    ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
-    llog = min(l, maxL)
+      a0, a2, a, g_or_c, u, cwork, dr, z, gdr, eps, llog)
 
     ! Store results.  !!! difference from shallow-source section
     outputi(outputCounter) = iFreq

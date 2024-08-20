@@ -112,7 +112,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, nZone, rmaxOfZone, vsvP
   r0, mt, ecL0, ratc, ratl, amplitudeAtGrid, &
   nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, &
   t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
-  a0, a2, a, g_or_c, cwork, dr, z, gdr, eps)
+  a0, a2, a, g_or_c, cwork, dr, z, gdr, eps, ltmpI)
 !------------------------------------------------------------------------
   implicit none
 
@@ -146,6 +146,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, nZone, rmaxOfZone, vsvP
   complex(8), intent(out) :: cwork(4 * nGrid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: dr(nGrid), z(nGrid), gdr(3)  ! Working arrays used when solving linear equations.
   real(8), intent(inout) :: eps
+  integer :: ltmpI
 
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
   real(8) :: largeL2  ! L^2 = l(l+1).
@@ -228,6 +229,9 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, nZone, rmaxOfZone, vsvP
 
   end do  ! l-loop
 
+  ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
+  ltmpI = min(l, maxL)
+
 end subroutine
 
 
@@ -238,7 +242,7 @@ subroutine omegaLoop(omega, omegaI, maxL, nZone, rmaxOfZone, vsvPolynomials, qmu
   r0, mt, ecL0, nReceiver, theta, phi, ratc, ratl, amplitudeAtGrid, &
   nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, plm, harmonicsValues, &
   t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
-  a0, a2, a, g_or_c, u, cwork, dr, z, gdr, eps)
+  a0, a2, a, g_or_c, u, cwork, dr, z, gdr, eps, llog)
 !------------------------------------------------------------------------
   implicit none
 
@@ -280,6 +284,7 @@ subroutine omegaLoop(omega, omegaI, maxL, nZone, rmaxOfZone, vsvPolynomials, qmu
   complex(8), intent(out) :: cwork(4 * nGrid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: dr(nGrid), z(nGrid), gdr(3)  ! Working arrays used when solving linear equations.
   real(8), intent(inout) :: eps
+  integer, intent(out) :: llog
 
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
   real(8) :: largeL2  ! L^2 = l(l+1).
@@ -375,6 +380,9 @@ subroutine omegaLoop(omega, omegaI, maxL, nZone, rmaxOfZone, vsvPolynomials, qmu
     end if
 
   end do  ! l-loop
+
+  ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+  llog = min(l, maxL)
 
 end subroutine
 

@@ -179,7 +179,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
   t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
   hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
   oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, &
-  oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
+  oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps, ltmpI)
 !------------------------------------------------------------------------
   implicit none
 
@@ -236,6 +236,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
   complex(8), intent(out) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: z(nColumn), w(nColumn)  ! Working arrays used when solving linear equations.
   real(8), intent(inout) :: eps
+  integer :: ltmpI
 
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
   real(8) :: largeL  ! L = sqrt(l(l+1)).
@@ -364,6 +365,9 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
 
   end do  ! l-loop
 
+  ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
+  ltmpI = min(l, maxL)
+
 end subroutine
 
 
@@ -379,7 +383,7 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
   hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
   oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, u, &
-  oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
+  oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps, llog)
 !------------------------------------------------------------------------
   implicit none
 
@@ -444,6 +448,7 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   complex(8), intent(out) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: z(nColumn), w(nColumn)  ! Working arrays used when solving linear equations.
   real(8), intent(inout) :: eps
+  integer, intent(out) :: llog
 
   integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
   real(8) :: largeL  ! L = sqrt(l(l+1)).
@@ -591,6 +596,9 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
     end if
 
   end do  ! l-loop
+
+  ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
+  llog = min(l, maxL)
 
 end subroutine
 
