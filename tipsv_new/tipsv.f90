@@ -51,7 +51,6 @@ program tipsv
   real(8) :: vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone), etaPolynomials(4, maxNZone)
   !::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vpv, vph, vsv, vsh [km/s], and eta in each zone.
   real(8) :: qmuOfZone(maxNZone), qkappaOfZone(maxNZone)  ! Qmu and Qkappa of each zone.
-  integer :: i, iSolid, iFluid
 
   ! Variables for the source
   real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
@@ -80,9 +79,6 @@ program tipsv
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
   real(8) :: amplitudeAtColumn(2 * maxNGridSolid + maxNGridFluid)
   !:::::::::::::::::::::::::::: Estimate of the amplitude at each column [km], used for vertical grid cut-off.
-  integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
-  real(8) :: recordAmplitude  ! Maximum amplitude encountered [km], used for angular order cut-off.
-  integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   integer :: llog
 
   ! Variables for the vertical grid
@@ -109,11 +105,8 @@ program tipsv
   real(8) :: kappaReciprocals(maxNGrid + maxNZone - 1)  ! 1/kappa at each grid point (with 2 values at boundaries) [1/GPa].
   complex(8) :: coefQmu(maxNZone), coefQkappa(maxNZone), coefQfluid(maxNZone)
   !::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
-  integer :: oVS
 
   ! Variables for the trial function
-  integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
-  real(8) :: largeL2, largeL  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
   complex(8) :: harmonicsValues(3, -2:2, maxNReceiver)  ! Values of vector harmonics terms at each receiver, computed for each l.
@@ -146,8 +139,6 @@ program tipsv
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer :: oColumnOfZone(maxNZone + 1)  ! Index of the first column in the band matrix for each zone.
   integer :: nColumn, nQuasiColumn  ! Total number of columns in the band matrix.
-  integer :: cutoffColumn  ! Index of column at cut-off depth.
-  integer :: oP, oElement, oColumn
 
   !!TODO ???
   complex(8) :: anum(4, 4, 10), bnum(4, 4, 10)
@@ -234,7 +225,6 @@ program tipsv
     ! Set a large value so that we can compute using fine grids for this process.
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
-
     ! ******************* Computing the matrix elements *******************
     call computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, re, imaxFixed, r0, &
       nZone, rmin, rmax, rminOfZone, rmaxOfZone, phaseOfZone, &
@@ -247,7 +237,6 @@ program tipsv
       t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
       hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, work)
 
-
     ! ******************** Computing the expansion coefficients *********************
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
     do iCount = 1, 2  ! omega-loop
@@ -258,121 +247,16 @@ program tipsv
       end if
       omega = 2.d0 * pi * dble(iFreq) / tlen
 
-      ! Initialize matrices.
-      a0(:, :nColumn) = dcmplx(0.d0, 0.d0)
-      a1(:, :nColumn) = dcmplx(0.d0, 0.d0)
-      a2(:, :nColumn) = dcmplx(0.d0, 0.d0)
-
-      ! Compute the angular order that is sufficient to compute the slowest phase velocity.
-      call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
-
-      ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-      call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
-
-      !!TODO organize
-      call computeabnum(omega, omegaI, rmax, &
-        rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
-        vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
-        gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
-
-      ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-      iSolid = 0
-      iFluid = 0
-      do i = 1, nZone
-        oElement = oElementOfZone(i)
-        oColumn = oColumnOfZone(i)
-
-        if (phaseOfZone(i) == 1) then
-          ! solid
-          iSolid = iSolid + 1
-          oP = oPairOfZoneSolid(iSolid)
-          oVS = oValueOfZoneSolid(iSolid)
-
-          ! All parts of A0 are either unmodified or already modified using lumped matrix.
-          call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oP:), h1x(oP:), h2L(oP:), h2N(oP:), &
-            hUn3y(oP:), hUn4L(oP:), hUn4N(oP:), hUn5y(oP:), hUn6L(oP:), hUn6N(oP:), h7y(oP:), h7z(oP:), h8L(oP:), h8N(oP:), &
-            coefQmu(i), coefQkappa(i), cwork(oElement:))
-          call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
-          ! All parts of A2 are either unmodified or already modified using lumped matrix.
-          call computeA2Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
-          call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
-          ! Unmodified residual part of A1.
-          call computeA1Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), hResid3y(oP:), hResid4L(oP:), hResid4N(oP:), &
-            hResid5y(oP:), hResid6L(oP:), hResid6N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
-          call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:, oColumn:))
-          ! Modified step part of A1.
-          call addModifiedHToA1(nLayerInZone(i), coefQmu(i), coefQkappa(i), &
-            hModL3y(-2:1, oVS:), hModR4L(-1:2, oVS:), hModL4N(-2:1, oVS:), &
-            hModR5y(-1:2, oVS:), hModL6L(-2:1, oVS:), hModR6N(-1:2, oVS:), a1(:, oColumn:))
-
-        else
-          ! fluid
-          iFluid = iFluid + 1
-          oP = oPairOfZoneFluid(iFluid)
-
-          ! All parts of A0 are either unmodified or already modified using lumped matrix.
-          call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oP:), p3(oP:), coefQfluid(i), cwork(oElement:))
-          call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
-          ! All parts of A2 are either unmodified or already modified using lumped matrix.
-          call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oP:), cwork(oElement:))
-          call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:, oColumn:))
-
-        end if
-      end do
-
-      ! Initially, no depth cut-off, so set to the column of deepest grid, which is 1.
-      cutoffColumn = 1
-      ! Clear counter.
-      decayCounter = 0
-      ! Clear amplitude record.
-      recordAmplitude = -1.d0
-
-      do l = 0, maxL  ! l-loop
-        ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-        if (decayCounter > 20) exit
-
-        ! L^2 and L. (See the part after eq. 12 of Kawai et al. 2006.)
-        ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
-        largeL2 = dble(l) * dble(l + 1)
-        largeL = sqrt(largeL2)
-
-        ! Initialize matrices.
-        a(:, :nColumn) = dcmplx(0.d0, 0.d0)
-        ! Clear the amplitude accumulated for all m's.
-        if (mod(l, 100) == 0) amplitudeAtColumn(:nColumn) = 0.d0
-
-        ! Assemble A matrix from parts that have already been computed.
-        call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))
-        ! Set boundary condition elements
-        call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
-
-        !!TODO organize
-        call computeya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
-
-        do m = -2, 2  ! m-loop
-          if (abs(m) > abs(l)) cycle
-
-          ! Form and solve the linear equation Ac=-g.
-          call formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oColumnOfSource, r0, mt, ecC0, ecF0, ecL0, &
-            ya, yb, yc, yd, rmin, nZone, phaseOfZone, oGridOfZone, oColumnOfZone, coefQmu, coefQkappa, &
-            nGrid, gridRadii, nColumn, cutoffColumn, a, aSmall, g_or_c, g_or_c_Small, amplitudeAtColumn, nQuasiColumn, eps, z, w)
-
-          if (l > 0) then
-            ! Check whether the amplitude has decayed enough to stop the l-loops.
-            !  This is checked for the topmost-grid expansion coefficent of each m individually.
-            call checkAmplitudeDecay(g_or_c(nColumn-1:nColumn), l, lsuf, ratl, recordAmplitude, decayCounter)
-
-          end if
-
-        end do  ! m-loop
-
-        ! Decide cut-off depth (at a certain interval of l).
-        if (mod(l, 100) == 0) then
-          call computeCutoffColumn(nZone, phaseOfZone(:), nGrid, oGridOfZone(:), nColumn, oColumnOfZone(:), &
-            amplitudeAtColumn(:), ratc, cutoffColumn)
-        end if
-
-      end do  ! l-loop
+      call omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
+        nZone, rmin, rmax, rmaxOfZone, phaseOfZone, &
+        rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, qmuOfZone, qkappaOfZone, &
+        r0, mt, ecC0, ecF0, ecL0, ratc, ratl, amplitudeAtColumn, &
+        nGrid, gridRadii, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, &
+        oValueOfZoneSolid, coefQmu, coefQkappa, coefQfluid, &
+        t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
+        hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
+        oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, &
+        oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
 
       ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
       ltmp(iCount) = min(l, maxL)
@@ -399,147 +283,22 @@ program tipsv
     t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
     hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, work)
 
-
   !******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
   do iFreq = imin, imax  ! omega-loop
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
-    ! Initialize matrices.
-    a0(:, :nColumn) = dcmplx(0.d0, 0.d0)
-    a1(:, :nColumn) = dcmplx(0.d0, 0.d0)
-    a2(:, :nColumn) = dcmplx(0.d0, 0.d0)
-    u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
-    ! Plm must be cleared for each omega.  !!! difference from shallow-source section
-    plm(:, :, :nReceiver) = 0.d0
-
-    ! Compute the angular order that is sufficient to compute the slowest phase velocity.
-    call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
-
-    ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-    call computeCoef(nZone, omega, qmuOfZone(:), qkappaOfZone(:), coefQmu(:), coefQkappa(:), coefQfluid(:))
-
-    !!TODO organize
-    call computeabnum(omega, omegaI, rmax, &
-      rhoPolynomials(:, iZoneOfSource), vpvPolynomials(:, iZoneOfSource), vphPolynomials(:, iZoneOfSource), &
-      vsvPolynomials(:, iZoneOfSource), vshPolynomials(:, iZoneOfSource), etaPolynomials(:, iZoneOfSource), &
-      gridRadii(iLayerOfSource), r0, coefQmu(iZoneOfSource), coefQkappa(iZoneOfSource), anum(:, :, :), bnum(:, :, :) )
-
-    ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-    iSolid = 0
-    iFluid = 0
-    do i = 1, nZone
-      oElement = oElementOfZone(i)
-      oColumn = oColumnOfZone(i)
-
-      if (phaseOfZone(i) == 1) then
-        ! solid
-        iSolid = iSolid + 1
-        oP = oPairOfZoneSolid(iSolid)
-        oVS = oValueOfZoneSolid(iSolid)
-
-        ! All parts of A0 are either unmodified or already modified using lumped matrix.
-        call computeA0Solid(nLayerInZone(i), omega, omegaI, t(oP:), h1x(oP:), h2L(oP:), h2N(oP:), &
-          hUn3y(oP:), hUn4L(oP:), hUn4N(oP:), hUn5y(oP:), hUn6L(oP:), hUn6N(oP:), h7y(oP:), h7z(oP:), h8L(oP:), h8N(oP:), &
-          coefQmu(i), coefQkappa(i), cwork(oElement:))
-        call overlapASolid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
-        ! All parts of A2 are either unmodified or already modified using lumped matrix.
-        call computeA2Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
-        call overlapASolid(nLayerInZone(i), cwork(oElement:), a2(:,oColumn:))
-        ! Unmodified residual part of A1.
-        call computeA1Solid(nLayerInZone(i), h1x(oP:), h2L(oP:), h2N(oP:), hResid3y(oP:), hResid4L(oP:), hResid4N(oP:), &
-          hResid5y(oP:), hResid6L(oP:), hResid6N(oP:), coefQmu(i), coefQkappa(i), cwork(oElement:))
-        call overlapASolid(nLayerInZone(i), cwork(oElement:), a1(:, oColumn:))
-        ! Modified step part of A1.
-        call addModifiedHToA1(nLayerInZone(i), coefQmu(i), coefQkappa(i), &
-          hModL3y(-2:1, oVS:), hModR4L(-1:2, oVS:), hModL4N(-2:1, oVS:), &
-          hModR5y(-1:2, oVS:), hModL6L(-2:1, oVS:), hModR6N(-1:2, oVS:), a1(:, oColumn:))
-
-      else
-        ! fluid
-        iFluid = iFluid + 1
-        oP = oPairOfZoneFluid(iFluid)
-
-        ! All parts of A0 are either unmodified or already modified using lumped matrix.
-        call computeA0Fluid(nLayerInZone(i), omega, omegaI, p1(oP:), p3(oP:), coefQfluid(i), cwork(oElement:))
-        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a0(:, oColumn:))
-        ! All parts of A2 are either unmodified or already modified using lumped matrix.
-        call computeA2Fluid(nLayerInZone(i), omega, omegaI, p2(oP:), cwork(oElement:))
-        call overlapAFluid(nLayerInZone(i), cwork(oElement:), a2(:, oColumn:))
-
-      end if
-    end do
-
-    ! Initially, no depth cut-off, so set to the column of deepest grid, which is 1.
-    cutoffColumn = 1
-    ! Clear counter.
-    decayCounter = 0
-    ! Clear amplitude record.
-    recordAmplitude = -1.d0
-
-    do l = 0, maxL  ! l-loop
-      ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-      if (decayCounter > 20) exit
-
-      ! L^2 and L. (See the part after eq. 12 of Kawai et al. 2006.)
-      ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
-      largeL2 = dble(l) * dble(l + 1)
-      largeL = sqrt(largeL2)
-
-      ! Initialize matrices.
-      a(:, :nColumn) = dcmplx(0.d0, 0.d0)
-      ! Clear the amplitude accumulated for all m's.
-      if (mod(l, 100) == 0) amplitudeAtColumn(:nColumn) = 0.d0
-
-      ! Compute trial functions.  !!! difference from shallow-source section
-      do ir = 1, nReceiver
-        call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
-      end do
-
-      ! Assemble A matrix from parts that have already been computed.
-      call assembleAWhole(nZone, phaseOfZone(:), oColumnOfZone(:), largeL2, a0(:,:), a1(:,:), a2(:,:), a(:,:))
-      ! Set boundary condition elements
-      call setBoundaryConditions(nZone, rmaxOfZone(:), phaseOfZone(:), oColumnOfZone(:), a(:,:))
-
-      !!TODO organize
-      call computeya(anum(:,:,:), bnum(:,:,:), largeL2, gridRadii(iLayerOfSource:), r0, ya(:), yb(:), yc(:), yd(:))
-
-      do m = -2, 2  ! m-loop
-        if (abs(m) > abs(l)) cycle
-
-        ! Form and solve the linear equation Ac=-g.
-        call formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oColumnOfSource, r0, mt, ecC0, ecF0, ecL0, &
-          ya, yb, yc, yd, rmin, nZone, phaseOfZone, oGridOfZone, oColumnOfZone, coefQmu, coefQkappa, &
-          nGrid, gridRadii, nColumn, cutoffColumn, a, aSmall, g_or_c, g_or_c_Small, amplitudeAtColumn, nQuasiColumn, eps, z, w)
-
-        if (l == 0) then
-          ! Record u.  !!! difference from shallow-source section
-          do ir = 1, nReceiver
-            u(1, ir) = g_or_c_Small(nQuasiColumn) * harmonicsValues(1, m, ir)
-          end do
-
-        else
-          ! Check whether the amplitude has decayed enough to stop the l-loops.
-          !  This is checked for the topmost-grid expansion coefficent of each m individually.
-          call checkAmplitudeDecay(g_or_c(nColumn-1:nColumn), l, lsuf, ratl, recordAmplitude, decayCounter)
-
-          ! Accumulate u.  !!! difference from shallow-source section
-          do ir = 1, nReceiver
-            call computeU(g_or_c(nColumn-1:nColumn), largeL2, harmonicsValues(:, m, ir), u(:, ir))
-          end do
-
-        end if
-
-      end do  ! m-loop
-
-      ! Decide cut-off depth (at a certain interval of l).
-      if (mod(l, 100) == 0) then
-        call computeCutoffColumn(nZone, phaseOfZone(:), nGrid, oGridOfZone(:), nColumn, oColumnOfZone(:), &
-          amplitudeAtColumn(:), ratc, cutoffColumn)
-      end if
-
-    end do  ! l-loop
+    call omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
+      nZone, rmin, rmax, rmaxOfZone, phaseOfZone, &
+      rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, qmuOfZone, qkappaOfZone, &
+      r0, mt, ecC0, ecF0, ecL0, nReceiver, theta, phi, ratc, ratl, amplitudeAtColumn, &
+      nGrid, gridRadii, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, &
+      oValueOfZoneSolid, coefQmu, coefQkappa, coefQfluid, plm, harmonicsValues, &
+      t, h1x, h2L, h2N, hUn3y, hResid3y, hModL3y, hUn4L, hResid4L, hModR4L, hUn4N, hResid4N, hModL4N, &
+      hUn5y, hResid5y, hModR5y, hUn6L, hResid6L, hModL6L, hUn6N, hResid6N, hModR6N, h7y, h7z, h8L, h8N, p1, p2, p3, &
+      oPairOfZoneSolid, oPairOfZoneFluid, a0, a1, a2, a, aSmall, g_or_c, g_or_c_Small, u, &
+      oElementOfZone, oColumnOfZone, nColumn, nQuasiColumn, anum, bnum, ya, yb, yc, yd, oColumnOfSource, cwork, z, w, eps)
 
     ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
     llog = min(l, maxL)
@@ -549,7 +308,6 @@ program tipsv
     do ir = 1, nReceiver
       outputu(:, ir, outputCounter) = u(:, ir)
     end do
-
 
     ! ************************** Files Handling **************************
     ! Write to file when the output interval is reached, or when this is the last omega.
@@ -578,6 +336,9 @@ program tipsv
     outputCounter = outputCounter + 1
 
   end do  ! omega-loop
+
+
+  ! ########################## Finishing ##########################
 
   ! Deallocate arrays.
   deallocate(outputi)
