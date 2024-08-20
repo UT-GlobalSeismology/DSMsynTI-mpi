@@ -168,13 +168,14 @@ program tipsv
   integer, allocatable :: outputi(:)
   complex(8), allocatable :: outputu(:,:,:)
 
-
   ! Variables for MPI   !!!diff from non-mpi
   include 'mpif.h'
   integer :: petot, my_rank, ierr
   integer :: unitNum
   integer, allocatable, dimension (:) :: mpimin, mpimax
 
+
+  ! ########################## Setup ##########################
 
   ! ************************** MPI **************************   !!!diff from non-mpi
   call MPI_INIT(ierr)

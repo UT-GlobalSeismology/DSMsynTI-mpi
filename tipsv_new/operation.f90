@@ -206,7 +206,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   integer, intent(in) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
-  complex(8), intent(in) :: coefQmu(nZone), coefQkappa(nZone), coefQfluid(nZone)
+  complex(8), intent(out) :: coefQmu(nZone), coefQkappa(nZone), coefQfluid(nZone)
   !::::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   real(8), intent(in) :: t(4*maxNGridSolid-4)
   real(8), intent(in) :: h1x(4*maxNGridSolid-4), h2L(4*maxNGridSolid-4), h2N(4*maxNGridSolid-4)
@@ -231,7 +231,7 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
   integer, intent(out) :: nQuasiColumn  ! Total number of columns in the rearranged band matrix.
   complex(8), intent(out) :: anum(4, 4, 10), bnum(4, 4, 10)
-  complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4)
+  complex(8), intent(out) :: ya(4), yb(4), yc(4), yd(4)
   integer, intent(in) :: oColumnOfSource  ! Index of the first column in the band matrix for the layer with source.
   complex(8), intent(out) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: z(nColumn), w(nColumn)  ! Working arrays used when solving linear equations.
@@ -408,11 +408,11 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   integer, intent(in) :: iLayerOfSource  ! Which layer the source is in.
   integer, intent(in) :: oValueOfZoneSolid(nZone)  ! Index of the first value in each zone, when counting only solid zones.
-  complex(8), intent(in) :: coefQmu(nZone), coefQkappa(nZone), coefQfluid(nZone)
+  complex(8), intent(out) :: coefQmu(nZone), coefQkappa(nZone), coefQfluid(nZone)
   !::::::::::::::::::::::::::::::::::::::::::: Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
   real(8), intent(out) :: plm(3, 0:3, nReceiver)
   !:::::::::::::::::::::::::::::::::::::: Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
-  complex(8), intent(in) :: harmonicsValues(3, -2:2, nReceiver)
+  complex(8), intent(out) :: harmonicsValues(3, -2:2, nReceiver)
   !::::::::::::::::::::::::::::::::::::::::::::::::::::::: Vector harmonics term. The coefficient 1/largeL is not multiplied yet.
   real(8), intent(in) :: t(4*maxNGridSolid-4)
   real(8), intent(in) :: h1x(4*maxNGridSolid-4), h2L(4*maxNGridSolid-4), h2N(4*maxNGridSolid-4)
@@ -439,7 +439,7 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
   integer, intent(out) :: nQuasiColumn  ! Total number of columns in the rearranged band matrix.
   complex(8), intent(out) :: anum(4, 4, 10), bnum(4, 4, 10)
-  complex(8), intent(in) :: ya(4), yb(4), yc(4), yd(4)
+  complex(8), intent(out) :: ya(4), yb(4), yc(4), yd(4)
   integer, intent(in) :: oColumnOfSource  ! Index of the first column in the band matrix for the layer with source.
   complex(8), intent(out) :: cwork(16 * maxNGridSolid - 16 + 4 * maxNGridFluid - 4)  ! Working array for matrix computations.
   complex(8), intent(inout) :: z(nColumn), w(nColumn)  ! Working arrays used when solving linear equations.
@@ -452,8 +452,8 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   real(8) :: recordAmplitude  ! Maximum amplitude encountered [km], used for angular order cut-off.
   integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   integer :: cutoffColumn  ! Index of column at cut-off depth.
-  integer :: ir
   integer :: i, iSolid, iFluid
+  integer :: ir
   integer :: oVS
   integer :: oP, oElement, oColumn
 

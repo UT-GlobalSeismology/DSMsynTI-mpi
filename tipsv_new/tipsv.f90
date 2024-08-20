@@ -169,6 +169,8 @@ program tipsv
   complex(8), allocatable :: outputu(:,:,:)
 
 
+  ! ########################## Setup ##########################
+
   ! ************************** Inputting parameters **************************
   ! --- read parameters ---
   call readInput(maxNZone, maxNReceiver, tlen, np, re, ratc, ratl, omegaI, imin, imax, nZone, rminOfZone, rmaxOfZone, &

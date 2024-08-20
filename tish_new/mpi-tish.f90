@@ -46,7 +46,6 @@ program tish
   real(8) :: rhoPolynomials(4, maxNZone), vsvPolynomials(4, maxNZone), vshPolynomials(4, maxNZone)
   !:::::::::::::::::::: Polynomial functions (coefficients of cubic function) of rho [g/cm^3], vsv, and vsh [km/s] in each zone.
   real(8) :: qmuOfZone(maxNZone)  ! Qmu of each zone.
-  integer :: i
 
   ! Variables for the source
   real(8) :: r0, eqlat, eqlon, mt(3, 3)  ! Depth [km], coordinates [deg], and moment tensor [10^25 dyn cm] of source.
@@ -74,10 +73,6 @@ program tish
   real(8) :: ratc  ! Threshold amplitude ratio for vertical grid cut-off.
   real(8) :: ratl  ! Threshold amplitude ratio for angular order cut-off.
   real(8) :: amplitudeAtGrid(maxNGrid)  ! Estimate of the amplitude at each grid point [km], used for vertical grid cut-off.
-  integer :: cutoffGrid  ! Index of grid at cut-off depth.
-  integer :: lsuf  ! Accuracy threshold of angular order. (Corresponds to l_d; see eq. 29 of Kawai et al. 2006.)
-  real(8) :: recordAmplitude    ! Maximum amplitude encountered [km], used for angular order cut-off.
-  integer :: decayCounter  ! Counter detecting the decay of amplitude, used for angular order cut-off.
   integer :: llog
 
   ! Variables for the vertical grid
@@ -100,8 +95,6 @@ program tish
   complex(8) :: coefQmu(maxNZone)  ! Coefficients to multiply to elastic moduli for anelastic attenuation at each zone.
 
   ! Variables for the trial function
-  integer :: l, m  ! Angular order and azimuthal order of spherical harmonics.
-  real(8) :: largeL2  ! L^2 = l(l+1).
   real(8) :: plm(3, 0:3, maxNReceiver)  ! Values of the associated Legendre polynomials at each receiver and m, stored for 3 l's.
   !::::::::::::::::::::::::::::::::::::::: Arguments: previous l's (1 before : 3 before), m (0:3).
   complex(8) :: harmonicsValues(3, -2:2, maxNReceiver)  ! Values of vector harmonics terms at each receiver, computed for each l.
@@ -119,7 +112,6 @@ program tish
   complex(8) :: g_or_c(maxNGrid)  ! This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
-  integer :: oP
 
   ! Variables for the output file
   character(len=80) :: output(maxNReceiver)
@@ -143,13 +135,14 @@ program tish
   integer, allocatable :: outputi(:)
   complex(8), allocatable :: outputu(:,:,:)
 
-
   ! Variables for MPI   !!!diff from non-mpi
   include 'mpif.h'
   integer :: petot, my_rank, ierr
   integer :: unitNum
   integer, allocatable, dimension (:) :: mpimin, mpimax
 
+
+  ! ########################## Setup ##########################
 
   ! ************************** MPI **************************   !!!diff from non-mpi
   call MPI_INIT(ierr)
@@ -243,7 +236,6 @@ program tish
     ! Set a large value so that we can compute using fine grids for this process.
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
-
     ! ******************* Computing the matrix elements *******************
     call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
       nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
@@ -251,7 +243,6 @@ program tish
       iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
       nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
       t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
-
 
     ! ******************** Computing the expansion coefficients *********************
     ! Find the maximum angular order needed for the lowest and highest frequencies. (See fig. 7 of Kawai et al. 2006.)
@@ -263,77 +254,11 @@ program tish
       end if
       omega = 2.d0 * pi * dble(iFreq) / tlen
 
-      ! Initialize matrices.
-      a0(:, :nGrid) = dcmplx(0.d0, 0.d0)
-      a2(:, :nGrid) = dcmplx(0.d0, 0.d0)
-
-      ! Compute the angular order that is sufficient to compute the slowest phase velocity.
-      call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
-
-      ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-      call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
-
-      ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-      do i = 1, nZone
-        oP = oPairOfZone(i)
-        call computeA0(nLayerInZone(i), omega, omegaI, t(oP:), h1(oP:), h2sum(oP:), h3(oP:), h4(oP:), coefQmu(i), cwork(oP:))
-        call overlapA(nLayerInZone(i), cwork(oP:), a0(:, oGridOfZone(i):))
-        call computeA2(nLayerInZone(i), h4(oP:), coefQmu(i), cwork(oP:))
-        call overlapA(nLayerInZone(i), cwork(oP:), a2(:, oGridOfZone(i):))
-      end do
-
-      ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
-      cutoffGrid = 1
-      ! Clear counter.
-      decayCounter = 0
-      ! Clear amplitude record.
-      recordAmplitude = -1.d0
-
-      do l = 0, maxL  ! l-loop
-        ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-        if (decayCounter > 20) exit
-
-        ! L^2. (See the part after eq. 12 of Kawai et al. 2006.)
-        ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
-        largeL2 = dble(l) * dble(l + 1)
-
-        ! Initialize matrices.
-        a(:, :nGrid) = dcmplx(0.d0, 0.d0)
-        aSource(:, :) = dcmplx(0.d0, 0.d0)
-        ! Clear the amplitude accumulated for all m's.
-        if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
-
-        ! Assemble A matrix from parts that have already been computed.
-        call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
-
-        ! Compute UNASSEMBLED A matrix in layer with source.
-        ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
-        call computeA(1, omega, omegaI, largeL2, t(oPairOfSource:), &
-          h1(oPairOfSource:), h2sum(oPairOfSource:), h3(oPairOfSource:), h4(oPairOfSource:), coefQmu(iZoneOfSource), aaParts(:))
-
-        ! Compute A matrix near source.
-        call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-        call overlapA(2, aSourceParts(:), aSource(:,:))
-
-        do m = -2, 2  ! m-loop
-          if (m == 0 .or. abs(m) > abs(l)) cycle
-
-          ! Form and solve the linear equation Ac=-g.
-          call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, &
-            nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
-
-          ! Check whether the amplitude has decayed enough to stop the l-loops.
-          !  This is checked for the topmost-grid expansion coefficent of each m individually.
-          call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
-
-        end do  ! m-loop
-
-        ! Decide cut-off depth (at a certain interval of l).
-        if (mod(l, 100) == 0) then
-          call computeCutoffGrid(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
-        end if
-
-      end do  ! l-loop
+      call omegaLoopForShallowEvent(omega, omegaI, maxL, nZone, rmaxOfZone, vsvPolynomials, qmuOfZone, &
+        r0, mt, ecL0, ratc, ratl, amplitudeAtGrid, &
+        nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, &
+        t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
+        a0, a2, a, g_or_c, cwork, dr, z, gdr, eps)
 
       ! Register the final l (or maxL instead of maxL-1 when all loops are completed).  !!! difference from main section
       ltmp(iCount) = min(l, maxL)
@@ -356,100 +281,19 @@ program tish
     nValue, valuedRadii, rhoValues, ecLValues, ecNValues, rhoValuesForSource, ecLValuesForSource, ecNValuesForSource, ecL0, &
     t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, work)
 
-
   ! ******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
   call trapezoidSplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
 
-
   do iFreq = mpimin(my_rank + 1), mpimax(my_rank + 1)  ! omega-loop   !!!diff from non-mpi
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
-    ! Initialize matrices.
-    a0(:, :nGrid) = dcmplx(0.d0, 0.d0)
-    a2(:, :nGrid) = dcmplx(0.d0, 0.d0)
-    u(:, :nReceiver) = dcmplx(0.d0, 0.d0)
-    ! Plm must be cleared for each omega.  !!! difference from shallow-source section
-    plm(:, :, :nReceiver) = 0.d0
-
-    ! Compute the angular order that is sufficient to compute the slowest phase velocity.
-    call computeLsuf(omega, nZone, rmaxOfZone(:), vsvPolynomials(:,:), lsuf)
-
-    ! Compute coefficients to multiply to elastic moduli for anelastic attenuation.
-    call computeCoef(nZone, omega, qmuOfZone(:), coefQmu(:))
-
-    ! Compute parts of A matrix (omega^2 T - H). (It is split into parts to exclude l-dependence.)
-    do i = 1, nZone
-      oP = oPairOfZone(i)
-      call computeA0(nLayerInZone(i), omega, omegaI, t(oP:), h1(oP:), h2sum(oP:), h3(oP:), h4(oP:), coefQmu(i), cwork(oP:))
-      call overlapA(nLayerInZone(i), cwork(oP:), a0(:, oGridOfZone(i):))
-      call computeA2(nLayerInZone(i), h4(oP:), coefQmu(i), cwork(oP:))
-      call overlapA(nLayerInZone(i), cwork(oP:), a2(:, oGridOfZone(i):))
-    end do
-
-    ! Initially, no depth cut-off, so set to the index of deepest grid, which is 1.
-    cutoffGrid = 1
-    ! Clear counter.
-    decayCounter = 0
-    ! Clear amplitude record.
-    recordAmplitude = -1.d0
-
-    do l = 0, maxL  ! l-loop
-      ! When the counter detecting the decay of amplitude has reached a threshold, stop l-loop for this frequency.
-      if (decayCounter > 20) exit
-
-      ! L^2. (See the part after eq. 12 of Kawai et al. 2006.)
-      ! NOTE that integers are casted with dble() before multiplying, because the product can exceed the size of integer(4).
-      largeL2 = dble(l) * dble(l + 1)
-
-      ! Initialize matrices.
-      a(:, :nGrid) = dcmplx(0.d0, 0.d0)
-      aSource(:, :) = dcmplx(0.d0, 0.d0)
-      ! Clear the amplitude accumulated for all m's.
-      if (mod(l, 100) == 0) amplitudeAtGrid(:nGrid) = 0.d0
-
-      ! Compute trial functions.  !!! difference from shallow-source section
-      do ir = 1, nReceiver
-        call computeHarmonicsValues(l, theta(ir), phi(ir), plm(:, :, ir), harmonicsValues(:, :, ir))
-      end do
-
-      ! Assemble A matrix from parts that have already been computed.
-      call assembleA(nGrid, largeL2, a0(:,:), a2(:,:), a(:,:))
-
-      ! Compute UNASSEMBLED A matrix in layer with source.
-      ! NOTE that a(:,:) cannot be used instead of aaParts(:), because a(:,:) is already assembled.
-      call computeA(1, omega, omegaI, largeL2, t(oPairOfSource:), &
-        h1(oPairOfSource:), h2sum(oPairOfSource:), h3(oPairOfSource:), h4(oPairOfSource:), coefQmu(iZoneOfSource), aaParts(:))
-
-      ! Compute A matrix near source.
-      call computeA(2, omega, omegaI, largeL2, gt(:), gh1(:), gh2(:), gh3(:), gh4(:), coefQmu(iZoneOfSource), aSourceParts(:))
-      call overlapA(2, aSourceParts(:), aSource(:,:))
-
-      do m = -2, 2  ! m-loop
-        if (m == 0 .or. abs(m) > abs(l)) cycle
-
-        ! Form and solve the linear equation Ac=-g.
-        call formAndSolveEquation(l, m, iZoneOfSource, iLayerOfSource, r0, mt, ecL0, coefQmu, aaParts, aSourceParts, aSource, &
-          nGrid, cutoffGrid, a, eps, g_or_c, amplitudeAtGrid, dr, z, gdr)
-
-        ! Check whether the amplitude has decayed enough to stop the l-loops.
-        !  This is checked for the topmost-grid expansion coefficent of each m individually.
-        call checkAmplitudeDecay(g_or_c(nGrid), l, lsuf, ratl, recordAmplitude, decayCounter)
-
-        ! Accumulate u.  !!! difference from shallow-source section
-        do ir = 1, nReceiver
-          call computeU(g_or_c(nGrid), largeL2, harmonicsValues(:, m, ir), u(:, ir))
-        end do
-
-      end do  ! m-loop
-
-      ! Decide cut-off depth (at a certain interval of l).
-      if (mod(l, 100) == 0) then
-        call computeCutoffGrid(nGrid, amplitudeAtGrid(:), ratc, cutoffGrid)
-      end if
-
-    end do  ! l-loop
+    call omegaLoop(omega, omegaI, maxL, nZone, rmaxOfZone, vsvPolynomials, qmuOfZone, &
+      r0, mt, ecL0, nReceiver, theta, phi, ratc, ratl, amplitudeAtGrid, &
+      nGrid, nLayerInZone, oGridOfZone, iZoneOfSource, iLayerOfSource, coefQmu, plm, harmonicsValues, &
+      t, h1, h2sum, h3, h4, gt, gh1, gh2, gh3, gh4, oPairOfZone, oPairOfSource, aaParts, aSourceParts, aSource, &
+      a0, a2, a, g_or_c, u, cwork, dr, z, gdr, eps)
 
     ! Register the final l (or maxL instead of maxL-1 when all loops are completed).
     llog = min(l, maxL)
@@ -459,7 +303,6 @@ program tish
     do ir = 1, nReceiver
       outputu(:, ir, outputCounter) = u(:, ir)
     end do
-
 
     ! ************************** Files Handling **************************
     ! Write to file when the output interval is reached, or when this is the last omega.   !!!diff from non-mpi
@@ -487,6 +330,9 @@ program tish
     outputCounter = outputCounter + 1
 
   end do  ! omega-loop
+
+
+  ! ########################## Finishing ##########################
 
   ! Deallocate arrays.
   deallocate(outputi)
