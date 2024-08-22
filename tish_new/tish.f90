@@ -36,7 +36,7 @@ program tish
   real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
   real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
-  integer, parameter :: ilog = 1
+  integer, parameter :: ilog = 0
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure

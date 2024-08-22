@@ -224,8 +224,9 @@ subroutine omegaLoopForShallowEvent(omega, omegaI, maxL, maxNGridSolid, maxNGrid
   complex(8), intent(out) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8), intent(out) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8), intent(out) :: a(4, nColumn), aSmall(2, nColumn)  ! Assembled A matrix.
+  !::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements.
   complex(8), intent(out) :: g_or_c(nColumn), g_or_c_Small(nColumn)
-  !:::::::::::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is.
+  !::::::::::::::: These hold either vector g ([10^15 N] & [10^9 m^3]) or c ([km] & [GPa]), depending on where in the code it is.
   integer, intent(in) :: oElementOfZone(nZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
   integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
@@ -434,8 +435,9 @@ subroutine omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
   complex(8), intent(out) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8), intent(out) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8), intent(out) :: a(4, nColumn), aSmall(2, nColumn)  ! Assembled A matrix.
+  !::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements.
   complex(8), intent(out) :: g_or_c(nColumn), g_or_c_Small(nColumn)
-  !:::::::::::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is.
+  !::::::::::::::: These hold either vector g ([10^15 N] & [10^9 m^3]) or c ([km] & [GPa]), depending on where in the code it is.
   complex(8), intent(out) :: u(3, nReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
   integer, intent(in) :: oElementOfZone(nZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.
@@ -633,8 +635,9 @@ subroutine formAndSolveEquation(l, m, largeL, iZoneOfSource, iLayerOfSource, oCo
   integer, intent(in) :: nColumn  ! Total number of columns in the band matrix.
   integer, intent(in) :: cutoffColumn  ! Index of column at cut-off depth.
   complex(8), intent(inout) :: a(4, nColumn), aSmall(2, nColumn)  ! Assembled A matrix.
+  !::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements.
   complex(8), intent(out) :: g_or_c(nColumn), g_or_c_Small(nColumn)
-  !:::::::::::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is.
+  !::::::::::::::: These hold either vector g ([10^15 N] & [10^9 m^3]) or c ([km] & [GPa]), depending on where in the code it is.
   real(8), intent(inout) :: amplitudeAtColumn(nColumn)  ! Estimate of the amplitude at each column [km].
   integer, intent(out) :: nQuasiColumn  ! Total number of columns in the rearranged band matrix.
   real(8), intent(inout) :: eps

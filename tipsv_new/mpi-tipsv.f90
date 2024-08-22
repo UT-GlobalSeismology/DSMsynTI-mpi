@@ -38,7 +38,7 @@ program tipsv
   real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
   real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
-  integer, parameter :: ilog = 1
+  integer, parameter :: ilog = 0
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure
@@ -128,12 +128,10 @@ program tipsv
   complex(8) :: a0(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a1(4, 2 * maxNGridSolid + maxNGridFluid)
   complex(8) :: a2(4, 2 * maxNGridSolid + maxNGridFluid)
-  complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid)
-  complex(8) :: aSmall(2, maxNGridSolid + maxNGridFluid)
-  complex(8) :: g_or_c(2 * maxNGridSolid + maxNGridFluid)
-  !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
-  complex(8) :: g_or_c_Small(maxNGridSolid + maxNGridFluid)
-  !::::::::::::::::::::::::::::: This holds either vector g [10^15 N] or c [km], depending on where in the code it is. CAUTION!!
+  complex(8) :: a(4, 2 * maxNGridSolid + maxNGridFluid), aSmall(2, maxNGridSolid + maxNGridFluid)
+  !::::::::::::::::::::::::::::::::::::::::::::::: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements.
+  complex(8) :: g_or_c(2 * maxNGridSolid + maxNGridFluid), g_or_c_Small(maxNGridSolid + maxNGridFluid)
+  !::::: These hold either vector g ([10^15 N] & [10^9 m^3]) or c ([km] & [GPa]), depending on where in the code it is. CAUTION!!
   complex(8) :: u(3, maxNReceiver)  ! Displacement velocity - the unit is [km] in the frequency domain,
   !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: but when converted to the time domain, the unit becomes [km/s].
   integer :: oElementOfZone(maxNZone)  ! Index of the first (iLayer, k'-gamma', k-gamma)-pair in each zone.

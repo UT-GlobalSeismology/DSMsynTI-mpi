@@ -453,7 +453,8 @@ end subroutine
 
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computing part of the coefficient matrix 'A' for a certain zone in the fluid part.
-! This computes the part without largeL coefficients. (See eqs. 2 & 17-18 of Kawai et al. 2006.)
+! This computes the part without largeL coefficients. (See eqs. 2 & 21 of Kawai et al. 2006.)
+! Note that a factor of 1/(omega^2) is multiplied.
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !----------------------------------------------------------------------------------------------------------------------------
@@ -483,7 +484,8 @@ end subroutine
 
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computing part of the coefficient matrix 'A' for a certain zone in the fluid part.
-! This computes the part with coefficient largeL^2. (See eqs. 2 & 17-18 of Kawai et al. 2006.)
+! This computes the part with coefficient largeL^2. (See eqs. 2 & 21 of Kawai et al. 2006.)
+! Note that a factor of 1/(omega^2) is multiplied.
 ! The result is a tridiagonal matrix,
 !  stored for each (iLayer, k', k) = (1,1,1),(1,1,2),(1,2,1),(1,2,2), (2,2,2),(2,2,3),(2,3,2),(2,3,3), ...
 !----------------------------------------------------------------------------------------------------------------------------
@@ -555,7 +557,9 @@ subroutine assembleAWhole(nZone, phaseOfZone, oColumnOfZone, largeL2, a0, a1, a2
   integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
   real(8), intent(in) :: largeL2  ! L^2 = l(l+1).
   complex(8), intent(in) :: a0(4, *), a1(4, *), a2(4, *)  ! Parts of the A matrix, containing upper band elements.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: For solid, [10^12 kg/s^2]. For fluid, [m^5/N].
   complex(8), intent(out) :: a(4, *)  ! Assembled A matrix, containing upper band elements.
+  !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: For solid, [10^12 kg/s^2]. For fluid, [m^5/N].
   integer :: iZone, q, iColumn, iStart, iEnd
   complex(8) :: largeL2c, largeLc
 
@@ -595,6 +599,7 @@ end subroutine
 !----------------------------------------------------------------------------------------------------------------------------
 ! Setting the boundary condition elements to the coefficient matrix 'A', with elements
 !  stored for each (iRow, iColumn) = (1,1), (1,2),(2,2), (1,3),(2,3),(3,3), (1,4),(2,4),(3,4),(4,4), (2,5),(3,5),(4,5),(5,5), ...
+! Note that although matrix A should be (omega^2 T - H + omega R), a factor of 1/omega is applied to this part of the matrix.
 !----------------------------------------------------------------------------------------------------------------------------
 subroutine setBoundaryConditions(nZone, rmaxOfZone, phaseOfZone, oColumnOfZone, a)
 !----------------------------------------------------------------------------------------------------------------------------
@@ -604,7 +609,7 @@ subroutine setBoundaryConditions(nZone, rmaxOfZone, phaseOfZone, oColumnOfZone, 
   real(8), intent(in) :: rmaxOfZone(nZone)  ! Upper radius of each zone [km].
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   integer, intent(in) :: oColumnOfZone(nZone + 1)  ! Index of the first column in the band matrix for each zone.
-  complex(8), intent(inout) :: a(4,*)  ! A matrix, containing upper band elements.
+  complex(8), intent(inout) :: a(4,*)  ! A matrix, containing upper band elements. [10^6 m^2] for boundary elements.
   integer :: iZone
 
   do iZone = 1, nZone - 1
@@ -633,7 +638,9 @@ subroutine rearrangeAForL0(nZone, phaseOfZone, oColumnOfZone, iZoneOfSource, aIn
   integer, intent(in) :: oColumnOfZone(nZone+1)  ! Index of the first column in the band matrix for each zone.
   integer, intent(in) :: iZoneOfSource  ! Which zone the source is in.
   complex(8), intent(in) :: aIn(4,*), gIn(*)  ! Input A matrix and g vector.
+  ! A: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements. g: [10^15 N] for solid, [10^9 m^3] for fluid.
   complex(8), intent(out) :: aSmall(2,*), gSmall(*)  ! Rearranged A matrix and g vector.
+  ! A: [10^12 kg/s^2] for solid, [m^5/N] for fluid, [10^6 m^2] for boundary elements. g: [10^15 N] for solid, [10^9 m^3] for fluid.
   integer, intent(out) :: oQuasiColumnOfZoneWithSource  ! Index of the first column in rearraged matrix for the zone with source.
   integer, intent(out) :: nQuasiColumn  ! Number of columns in rearranged A matrix.
   integer :: iZone, firstQuasiColumn, lastQuasiColumn, iColumn, iQuasiColumn
