@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/464719338.svg)](https://zenodo.org/badge/latestdoi/464719338)
+
 **_Welcome to the DSM world._**
 
 This is a software for computing synthetic seismograms in a spherically symmetric, transversely isotropic (TI) model using the Direct Solution Method (DSM).
@@ -34,3 +36,11 @@ This software was written and improved, and is copyrighted &copy;, by the member
 # License
 
 This software is made available under the GNU Public License v3.0 https://www.gnu.org/licenses/gpl-3.0.en.html
+
+# Cite as
+
+DOI for the latest versioned release (Version DOI):<br>
+[![DOI](https://zenodo.org/badge/464719338.svg)](https://zenodo.org/badge/latestdoi/464719338)
+
+If you wish to cite the DOI representing all versions of this software (Concept DOI), use https://doi.org/10.5281/zenodo.13384312 instead. This will always redirect to the latest release.
+
