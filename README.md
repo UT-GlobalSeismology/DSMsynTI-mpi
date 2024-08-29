@@ -1,4 +1,8 @@
+# UT-GlobalSeismology/DSMsynTI-mpi
+
+![version](https://img.shields.io/github/v/release/UT-GlobalSeismology/DSMsynTI-mpi)
 [![DOI](https://zenodo.org/badge/464719338.svg)](https://zenodo.org/badge/latestdoi/464719338)
+![GitHub License](https://img.shields.io/github/license/UT-GlobalSeismology/DSMsynTI-mpi)
 
 **_Welcome to the DSM world._**
 
@@ -16,11 +20,12 @@ You must build each program separately.
 % make
 ```
 
-# Important note
+## Important note
 
 If you compute only the toroidal contribution to the transverse component and the spheroidal contribution to the radial component, this will lead to errors on the order of 1% or more. Therefore you **must** include the toroidal contribution to the radial displacement and the spheroidal contribution to the transverse component.
 
-# Papers describing the methods and theory used by this software
+
+## Papers describing the methods and theory used by this software
 
 -   Kawai, K., N. Takeuchi, and R.J. Geller, Complete synthetic seismograms up to 2 Hz for transversely isotropic spherically symmetric media, Geophys. J. Int., 164, 411-424, 2006.
 -   Takeuchi, N., R.J. Geller, and P.R. Cummins, Highly accurate P-SV complete synthetic seismograms using modified DSM operators, Geophys. Res. Lett., 23, 1175-1178, 1996.
@@ -29,18 +34,20 @@ If you compute only the toroidal contribution to the transverse component and th
 -   Cummins, P.R., R.J. Geller, and N. Takeuchi, DSM complete synthetic seismograms: P-SV, spherically symmetric, case, Geophys. Res. Lett., 21, 1663-1666, 1994.
 -   Geller, R.J., and T. Ohminato, Computation of synthetic seismograms and their partial derivatives for heterogeneous media with arbitrary natural boundary conditions using the Direct Solution Method, Geophys. J. Int., 116, 421-446, 1994.
 
-# Authorship and copyright of software
+
+## Authorship and copyright of software
 
 This software was written and improved, and is copyrighted &copy;, by the members of the Global Seismology Group of the University of Tokyo from 1994 to present.
 
-# License
+
+## License
 
 This software is made available under the GNU Public License v3.0 https://www.gnu.org/licenses/gpl-3.0.en.html
 
-# Cite as
+
+## Cite as
 
 DOI for the latest versioned release (Version DOI):<br>
 [![DOI](https://zenodo.org/badge/464719338.svg)](https://zenodo.org/badge/latestdoi/464719338)
 
 If you wish to cite the DOI representing all versions of this software (Concept DOI), use https://doi.org/10.5281/zenodo.13384312 instead. This will always redirect to the latest release.
-
