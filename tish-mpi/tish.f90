@@ -36,7 +36,7 @@ program tish
   real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
   real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
-  integer, parameter :: ilog = 0
+  integer, parameter :: ilog = 1
 
   !----------------------------<<variables>>----------------------------
   ! Variables for the structure
@@ -177,7 +177,7 @@ program tish
   end do
 
   if (ilog == 1) then
-    open(unit = 11, file = 'llog.log', status = 'unknown')
+    open(unit = 11, file = 'llog_SH.log', status = 'unknown')
     write(11, *) 'iFreq, llog, nGrid-1'
     close(11)
   end if
@@ -220,6 +220,7 @@ program tish
 
     imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
 
+    write(*, *) ltmp(1), ltmp(2), imax, imaxFixed   !TODO erase
     write(*, *) 'Ending shallow-event section.'  !TODO erase
   end if  ! option for shallow events
 
@@ -271,7 +272,7 @@ program tish
     end if
 
     if (ilog == 1) then
-      open(unit=11, file='llog.log', position='append', status='old')
+      open(unit=11, file='llog_SH.log', position='append', status='old')
       write(11,*) iFreq, llog, nGrid-1
       close(11)
     end if
