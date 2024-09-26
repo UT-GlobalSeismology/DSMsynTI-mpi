@@ -2,7 +2,7 @@
 !------------------------------------------------------------------------
 ! Computes matrix elements common for all omega, l, and m.
 !------------------------------------------------------------------------
-subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, re, imaxFixed, r0, &
+subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, re, imin, imax, lmax, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, phaseOfZone, &
   rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
@@ -19,7 +19,8 @@ subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, r
   integer, intent(in) :: maxNGridSolid, maxNGridFluid  ! Maximum number of grid points in solid and fluid regions.
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
-  integer, intent(in) :: imaxFixed  ! Index of maximum frequency.
+  integer, intent(in) :: imin, imax  ! Index of minimum and maximum frequency.
+  integer, intent(in) :: lmax  ! Largest angular order l, if it is computed. Otherwise, 0.
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmin, rmax  ! Minimum and maximum radii of region considered [km].
@@ -69,7 +70,7 @@ subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, r
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
   call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
-    rmax, imaxFixed, 1, tlen, kzAtZone(:))
+    rmax, imin, imax, 1, lmax, tlen, kzAtZone(:))
   call computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), &
     rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 

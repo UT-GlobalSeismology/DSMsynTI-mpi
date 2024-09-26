@@ -130,7 +130,8 @@ end subroutine
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
 !----------------------------------------------------------------------------------------------------------------------------
-subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, vsPolynomials, rmax, imax, lmin, tlen, kzAtZone)
+subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, vsPolynomials, rmax, &
+  imin, imax, lmin, lmax, tlen, kzAtZone)
 !----------------------------------------------------------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
@@ -140,15 +141,17 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
   real(8), intent(in) :: vpPolynomials(4,nZone), vsPolynomials(4,nZone)  ! Polynomial functions of vp and vs structure [km/s].
   real(8), intent(in) :: rmax  ! Maximum radius of region considered [km].
-  integer, intent(in) :: imax  ! Index of maximum frequency.
-  integer, intent(in) :: lmin  ! Smallest angular order l.
+  integer, intent(in) :: imin, imax  ! Index of minimum and maximum frequency.
+  integer, intent(in) :: lmin, lmax  ! Smallest and largest angular order l.
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(out) :: kzAtZone(*)  ! Computed value of vertical wavenumber k_z at each zone [1/km].
   integer :: iZone
-  real(8) :: v(4), vBottom, vTop, vmin, omega, kx, kz2
+  real(8) :: v(4), vBottom, vTop, vmin, vmax, omega, kx, kz2
 
   do iZone = 1, nZone
-    ! Use Vs in solid, Vp in fluid.
+
+    ! ---------------- Find maximum kz2 (> 0). ----------------
+    ! Use Vs in solid, Vp in fluid (to get smaller velocity).
     if (phaseOfZone(iZone) == 1) then
       v(:) = vsPolynomials(:, iZone)
     else
@@ -171,6 +174,28 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
     else
       kzAtZone(iZone) = 0.d0
     end if
+
+    ! ---------------- Find minimum kz2 (< 0) for shallow sources. ----------------
+    if (iZone > 1 .and. lmax > 0) then
+      ! Use Vp for both solid and fluid (to get larger velocity).
+      v(:) = vpPolynomials(:, iZone)
+      ! Compute velocity [km/s] at bottom and top of zone.
+      call valueAtRadius(v(:), rminOfZone(iZone), rmax, vBottom)
+      call valueAtRadius(v(:), rmaxOfZone(iZone), rmax, vTop)
+      ! Get larger velocity value [km/s]. (This is to get smaller k_z value.)
+      vmax = max(vBottom, vTop)
+      ! smallest omega [1/s] (This is to get smaller k_z value.)
+      omega = 2.d0 * pi * dble(imin) / tlen
+      ! largest k_x [1/km] (See eq. 30 of Kawai et al. 2006.) (This is to get smaller k_z value.)
+      kx = (dble(lmax) + 0.5d0) / rminOfZone(iZone)
+      ! k_z^2 [1/km^2] (See eq. 32 of Kawai et al. 2006.)
+      kz2 = (omega ** 2) / (vmax ** 2) - (kx ** 2)
+      ! Update k_z [1/km] if the minimum of k_z^2 is large in the negative direction.
+      if (kz2 < -kzAtZone(iZone)**2) then
+        kzAtZone(iZone) = sqrt(-kz2)
+      end if
+    end if
+
   end do
 
   write(*, *) kzAtZone(:nZone)  !TODO erase

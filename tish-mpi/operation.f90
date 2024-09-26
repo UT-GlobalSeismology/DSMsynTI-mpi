@@ -2,7 +2,7 @@
 !------------------------------------------------------------------------
 ! Computes matrix elements common for all omega, l, and m.
 !------------------------------------------------------------------------
-subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
+subroutine computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
   iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
@@ -14,7 +14,8 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
   integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
-  integer, intent(in) :: imaxFixed  ! Index of maximum frequency.
+  integer, intent(in) :: imin, imax  ! Index of minimum and maximum frequency.
+  integer, intent(in) :: lmax  ! Largest angular order l, if it is computed. Otherwise, 0.
   real(8), intent(inout) :: r0  ! Source radius [km]. Its value may be fixed in this subroutine.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rmin, rmax  ! Minimum and maximum radii of region considered [km].
@@ -46,7 +47,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
 
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
-  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imaxFixed, 1, tlen, kzAtZone(:))
+  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imin, imax, 1, lmax, tlen, kzAtZone(:))
   call computeGridRadii(maxNGrid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.

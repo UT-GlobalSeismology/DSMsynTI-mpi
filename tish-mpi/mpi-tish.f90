@@ -65,7 +65,7 @@ program tish
   !:::::::::::::::::::::::::::::::::::::::: (See section 5.1 of Geller & Ohminato 1994.)
   integer :: imin, imax  ! Index of minimum and maximum frequency.
   integer :: iFreq, iCount
-  integer :: ltmp(2), imaxFixed
+  integer :: ltmp(2), lmax, imaxFixed
 
   ! Variables for grid spacing and cut-off
   real(8) :: kzAtZone(maxNZone)  ! Vertical wavenumber k_z at each zone [1/km]. (See section 3.2 of Kawai et al. 2006.)
@@ -203,6 +203,7 @@ program tish
   if (imin == 0) imin = 1
   ! Decide which omega to use when deciding grid spacing. Usually, this is just the upper limit of omega range.
   imaxFixed = imax
+  lmax = 0
 
 
   ! ************************** Files handling **************************
@@ -236,8 +237,8 @@ program tish
     ! Set a large value so that we can compute using fine grids for this process.
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
-    ! ******************* Computing the matrix elements *******************
-    call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
+    ! ******************* Computing the matrix elements *******************  !!! difference from main section
+    call computeMatrixElements(maxNGrid, tlen, re, imin, imaxFixed, 0, r0, &
       nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
       kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
       iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
@@ -262,6 +263,7 @@ program tish
 
     end do  ! omega-loop
 
+    lmax = max(ltmp(1), ltmp(2))  !!! difference from main section
     imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
 
     write(*, *) 'Ending shallow-event section.'  !TODO erase
@@ -271,7 +273,7 @@ program tish
   ! ########################## Main computation ##########################
 
   ! ******************* Computing the matrix elements *******************
-  call computeMatrixElements(maxNGrid, tlen, re, imaxFixed, r0, &
+  call computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
     nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
     kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
     iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
