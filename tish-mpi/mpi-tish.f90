@@ -297,7 +297,7 @@ program tish
 
     ! ************************** Files Handling **************************
     ! Write to file when the output interval is reached, or when this is the last omega.   !!!diff from non-mpi
-    if (outputCounter >= outputInterval .or. iFreq == mpimax(my_rank + 1)) then
+    if (outputCounter >= outputInterval .or. iFreq + petot > imax) then
 
       do ir = 1, nReceiver
         call openSPCFileMPI(output(ir), unitNum, spcFormat)
