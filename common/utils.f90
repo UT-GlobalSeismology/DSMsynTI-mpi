@@ -417,6 +417,10 @@ end subroutine
 
 
 !----------------------------------------------------------------------------------------------------------------------------
+! (deprecated)
+! This is not used now because assigning iFreqs among processors in order can homogenize the computation time.
+! However, when a different grid is used for a block of iFreqs, this subroutine shall be used, so this is left here.
+!----------------------------------------------------------------------------------------------------------------------------
 ! Splits the omega-loop among MPI processors.
 ! This subroutine returns imin(:) and imax(:), where the k-th processor shall compute for imin(k) to imax(k).
 ! Here, we assume that the CPU time t for the i-th omega is a * i and divide a * 0.5 * nFreq**2 into nProc parts.

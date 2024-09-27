@@ -269,8 +269,6 @@ program tipsv
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
   if ((rmax - r0) < shallowDepth) then
 
-    write(*, *) 'Shallow event!'  !TODO erase
-
     ! Set a large value so that we can compute using fine grids for this process.
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
@@ -311,8 +309,6 @@ program tipsv
     end do  ! omega-loop
 
     lmax = max(ltmp(1), ltmp(2))  !!! difference from main section
-
-    write(*, *) 'Ending shallow-event section.'  !TODO erase
   end if  ! option for shallow events
 
 
@@ -333,9 +329,10 @@ program tipsv
   !******************** Computing the displacement *********************
   outputCounter = 1  !!! difference from shallow-source section
 
-  call trapezoidSplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
+  !call trapezoidSplit(imin, imax, petot, mpimin, mpimax)   !!!diff from non-mpi
+  !do iFreq = mpimin(my_rank + 1), mpimax(my_rank + 1)  ! omega-loop   !!!diff from non-mpi
 
-  do iFreq = mpimin(my_rank + 1), mpimax(my_rank + 1)  ! omega-loop   !!!diff from non-mpi
+  do iFreq = imin + my_rank, imax, petot  ! omega-loop   !!!diff from non-mpi
     omega = 2.d0 * pi * dble(iFreq) / tlen
 
     call omegaLoop(omega, omegaI, maxL, maxNGridSolid, maxNGridFluid, &
