@@ -2,7 +2,7 @@
 !------------------------------------------------------------------------
 ! Computes matrix elements common for all omega, l, and m.
 !------------------------------------------------------------------------
-subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, re, imin, imax, lmax, r0, &
+subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, shallowDepth, tlen, re, imin, imax, lmax, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, phaseOfZone, &
   rhoPolynomials, vpvPolynomials, vphPolynomials, vsvPolynomials, vshPolynomials, etaPolynomials, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oValueOfZoneSolid, &
@@ -17,6 +17,7 @@ subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, r
 
   integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
   integer, intent(in) :: maxNGridSolid, maxNGridFluid  ! Maximum number of grid points in solid and fluid regions.
+  real(8), intent(in) :: shallowDepth  ! Threshold to consider evanescent regime for shallow events [km].
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(in) :: imin, imax  ! Index of minimum and maximum frequency.
@@ -66,11 +67,13 @@ subroutine computeMatrixElements(maxNGrid, maxNGridSolid, maxNGridFluid, tlen, r
   real(8), intent(out) :: p1(4*maxNGridFluid-4), p2(4*maxNGridFluid-4), p3(4*maxNGridFluid-4)
   real(8), intent(out) :: work(4*maxNGrid-4)  ! Working matrix.
   integer :: i, iSolid, iFluid, oV, oVS, oP
+  real(8) :: rShallowThreshold
 
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
-  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), vpvPolynomials(:,:), vsvPolynomials(:,:), &
-    rmax, imin, imax, 1, lmax, tlen, kzAtZone(:))
+  rShallowThreshold = rmax - shallowDepth
+  call computeKz(rShallowThreshold, nZone, rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), &
+    vpvPolynomials(:,:), vsvPolynomials(:,:), rmax, imin, imax, 1, lmax, tlen, kzAtZone(:))
   call computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), phaseOfZone(:), &
     rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 

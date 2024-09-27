@@ -2,7 +2,7 @@
 !------------------------------------------------------------------------
 ! Computes matrix elements common for all omega, l, and m.
 !------------------------------------------------------------------------
-subroutine computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
+subroutine computeMatrixElements(maxNGrid, shallowDepth, tlen, re, imin, imax, lmax, r0, &
   nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
   kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
   iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
@@ -12,6 +12,7 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
   implicit none
 
   integer, intent(in) :: maxNGrid  ! Maximum number of grid points.
+  real(8), intent(in) :: shallowDepth  ! Threshold to consider evanescent regime for shallow events [km].
   real(8), intent(in) :: tlen  ! Time length [s].
   real(8), intent(in) :: re  ! Desired relative error due to vertical gridding.
   integer, intent(in) :: imin, imax  ! Index of minimum and maximum frequency.
@@ -44,10 +45,13 @@ subroutine computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
   real(8), intent(out) :: gt(8), gh1(8), gh2sum(8), gh3(8), gh4(8)
   real(8), intent(out) :: work(4*maxNGrid-4)  ! Working matrix.
   integer :: i, oV, oP
+  real(8) :: rShallowThreshold
 
   ! ------------------- Computing parameters -------------------
   ! Design the number and position of grid points.
-  call computeKz(nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imin, imax, 1, lmax, tlen, kzAtZone(:))
+  rShallowThreshold = rmax - shallowDepth
+  call computeKz(rShallowThreshold, nZone, rminOfZone(:), rmaxOfZone(:), vsvPolynomials(:,:), rmax, imin, imax, 1, lmax, &
+    tlen, kzAtZone(:))
   call computeGridRadii(maxNGrid, nZone, kzAtZone(:), rminOfZone(:), rmaxOfZone(:), rmin, re, nGrid, nLayerInZone(:), gridRadii(:))
 
   ! Compute the first indices in each zone.

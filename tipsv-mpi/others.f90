@@ -130,12 +130,13 @@ end subroutine
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
 !----------------------------------------------------------------------------------------------------------------------------
-subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, vsPolynomials, rmax, &
+subroutine computeKz(rShallowThreshold, nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, vsPolynomials, rmax, &
   imin, imax, lmin, lmax, tlen, kzAtZone)
 !----------------------------------------------------------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
+  real(8), intent(in) :: rShallowThreshold  ! Threshold radius [km] to consider evanescent regime for shallow sources.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
   integer, intent(in) :: phaseOfZone(nZone)  ! Phase of each zone (1: solid, 2: fluid).
@@ -176,7 +177,7 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, phaseOfZone, vpPolynomials, 
     end if
 
     ! ---------------- Find minimum kz2 (< 0) for shallow sources. ----------------
-    if (iZone > 1 .and. lmax > 0) then
+    if (rmaxOfZone(iZone) > rShallowThreshold .and. lmax > 0) then
       ! Use Vp for both solid and fluid (to get larger velocity).
       v(:) = vpPolynomials(:, iZone)
       ! Compute velocity [km/s] at bottom and top of zone.

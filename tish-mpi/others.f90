@@ -94,11 +94,12 @@ end subroutine
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computes vertical wavenumber k_z at each zone. (See section 3.2 of Kawai et al. 2006.)
 !----------------------------------------------------------------------------------------------------------------------------
-subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imin, imax, lmin, lmax, tlen, kzAtZone)
+subroutine computeKz(rShallowThreshold, nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imin, imax, lmin, lmax, tlen, kzAtZone)
 !----------------------------------------------------------------------------------------------------------------------------
   implicit none
   real(8), parameter :: pi = 3.1415926535897932d0
 
+  real(8), intent(in) :: rShallowThreshold  ! Threshold radius [km] to consider evanescent regime for shallow sources.
   integer, intent(in) :: nZone  ! Number of zones.
   real(8), intent(in) :: rminOfZone(nZone), rmaxOfZone(nZone)  ! Lower and upper radii of each zone [km].
   real(8), intent(in) :: vsPolynomials(4,nZone)  ! Polynomial functions of vs structure [km/s].
@@ -133,7 +134,7 @@ subroutine computeKz(nZone, rminOfZone, rmaxOfZone, vsPolynomials, rmax, imin, i
     end if
 
     ! ---------------- Find minimum kz2 (< 0) for shallow sources. ----------------
-    if (iZone > 1 .and. lmax > 0) then
+    if (rmaxOfZone(iZone) > rShallowThreshold .and. lmax > 0) then
       v(:) = vsPolynomials(:, iZone)
       ! Compute velocity [km/s] at bottom and top of zone.
       call valueAtRadius(v(:), rminOfZone(iZone), rmax, vBottom)

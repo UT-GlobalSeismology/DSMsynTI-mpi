@@ -34,7 +34,7 @@ program tish
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
   real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
-  real(8), parameter :: shallowdepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
+  real(8), parameter :: shallowDepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
   integer, parameter :: ilog = 0
 
@@ -230,7 +230,7 @@ program tish
 
   ! ########################## Option for shallow events ##########################
   ! Here, we find the maximum angular order needed for our frequency range. (See fig. 7 of Kawai et al. 2006.)
-  if ((rmax - r0) < shallowdepth) then
+  if ((rmax - r0) < shallowDepth) then
 
     write(*, *) 'Shallow event!'  !TODO erase
 
@@ -238,7 +238,7 @@ program tish
     imaxFixed = int(tlen * 2.d0)  !!! difference from main section
 
     ! ******************* Computing the matrix elements *******************  !!! difference from main section
-    call computeMatrixElements(maxNGrid, tlen, re, imin, imaxFixed, 0, r0, &
+    call computeMatrixElements(maxNGrid, shallowDepth, tlen, re, imin, imaxFixed, 0, r0, &
       nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
       kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
       iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
@@ -273,7 +273,7 @@ program tish
   ! ########################## Main computation ##########################
 
   ! ******************* Computing the matrix elements *******************
-  call computeMatrixElements(maxNGrid, tlen, re, imin, imax, lmax, r0, &
+  call computeMatrixElements(maxNGrid, shallowDepth, tlen, re, imin, imax, lmax, r0, &
     nZone, rmin, rmax, rminOfZone, rmaxOfZone, rhoPolynomials, vsvPolynomials, vshPolynomials, &
     kzAtZone, nGrid, nLayerInZone, gridRadii, oGridOfZone, oValueOfZone, oPairOfZone, &
     iZoneOfSource, iLayerOfSource, oPairOfSource, gridRadiiForSource, &
