@@ -199,8 +199,6 @@ subroutine computeKz(rShallowThreshold, nZone, rminOfZone, rmaxOfZone, phaseOfZo
 
   end do
 
-  write(*, *) kzAtZone(:nZone)  !TODO erase
-
 end subroutine
 
 
@@ -260,8 +258,6 @@ subroutine computeGridRadii(maxNGrid, maxNGridSolid, maxNGridFluid, nZone, kzAtZ
       gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
     end do
   end do
-
-  write(*, *) nLayerInZone   !TODO erase
 
   ! Register the total number of grid points.
   nGrid = iGrid

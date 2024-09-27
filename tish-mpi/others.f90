@@ -155,8 +155,6 @@ subroutine computeKz(rShallowThreshold, nZone, rminOfZone, rmaxOfZone, vsPolynom
 
   end do
 
-  write(*, *) kzAtZone(:nZone)  !TODO erase
-
 end subroutine
 
 
@@ -204,8 +202,6 @@ subroutine computeGridRadii(maxNGrid, nZone, kzAtZone, rminOfZone, rmaxOfZone, r
       gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
     end do
   end do
-
-  write(*, *) nLayerInZone   !TODO erase
 
   ! Register the total number of grid points.
   nGrid = iGrid
@@ -404,7 +400,6 @@ subroutine computeSourceStructureValues(iZoneOfSource, rmax, rhoPolynomials, vsv
 end subroutine
 
 
-!!TODO understand
 !----------------------------------------------------------------------------------------------------------------------------
 ! Computes the coefficients to multiply to elastic moduli for anelastic attenuation.
 !----------------------------------------------------------------------------------------------------------------------------

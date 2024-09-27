@@ -35,7 +35,6 @@ program tipsv
   integer, parameter :: maxNZone = 15  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
-  real(8), parameter :: lmaxdivf = 2.d4  !    !!TODO where did this value come from?
   real(8), parameter :: shallowDepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
   integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
   integer, parameter :: ilog = 0
@@ -259,7 +258,7 @@ program tipsv
     end do
 
     if (ilog == 1) then
-      open(unit = 11, file = 'llog.log', status = 'unknown')
+      open(unit = 11, file = 'llog_PSV.log', status = 'unknown')
       write(11, *) 'iFreq, llog, nGrid-1'
       close(11)
     end if
@@ -312,7 +311,6 @@ program tipsv
     end do  ! omega-loop
 
     lmax = max(ltmp(1), ltmp(2))  !!! difference from main section
-    imaxFixed = max(imax, int(dble(max(ltmp(1), ltmp(2))) * tlen / lmaxdivf))  !!! difference from main section
 
     write(*, *) 'Ending shallow-event section.'  !TODO erase
   end if  ! option for shallow events
@@ -375,7 +373,7 @@ program tipsv
     end if
 
     if (ilog == 1) then
-      open(unit=11, file='llog.log', position='append', status='old')
+      open(unit=11, file='llog_PSV.log', position='append', status='old')
       write(11,*) iFreq, llog, nGrid-1
       close(11)
     end if
