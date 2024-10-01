@@ -36,7 +36,7 @@ program tipsv
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
   real(8), parameter :: shallowDepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
-  integer, parameter :: spcFormat = 1  ! Format of output spc file (0:binary, 1:ascii).
+  integer, parameter :: spcFormat = 0  ! Format of output spc file (0:binary, 1:ascii).
   integer, parameter :: ilog = 0
 
   !----------------------------<<variables>>----------------------------
