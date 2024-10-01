@@ -50,7 +50,7 @@ contains
 
       if (ierr == 0) exit
 
-      call system("sleep 100")
+      call sleep(1)
     end do
 
   end subroutine
