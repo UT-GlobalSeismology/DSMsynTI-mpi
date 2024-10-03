@@ -4,9 +4,9 @@ This is a package for the SH wavefield computation
 in spherically symmetric, transversely isotropic (TI) media
 in the frequency domain.
 
-
 CONFIGURATION:
-	% make
+% make
+To build the MPI versions as well, run 'make all' instead.
 
 USAGE:
-	% tish < (parameter filename)
+% tish < (parameter filename)

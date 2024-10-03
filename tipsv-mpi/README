@@ -1,12 +1,12 @@
 -------- Documentation for tipsv-mpi --------
 
-This is a package for the P-SV wavefield computation
+This is a package for the PSV wavefield computation
 in spherically symmetric, transversely isotropic (TI) media
 in the frequency domain.
 
-
 CONFIGURATION:
-	% make
+% make
+To build the MPI versions as well, run 'make all' instead.
 
 USAGE:
-	% tipsv < (parameter filename)
+% tipsv < (parameter filename)

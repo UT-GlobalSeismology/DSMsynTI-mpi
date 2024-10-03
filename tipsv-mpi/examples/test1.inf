@@ -1,26 +1,25 @@
-c parameter file for tipsv.f
-c
-c parameter for the periodic range
+! parameter file for tipsv
+!
+! parameters for the periodic range
    409.6   32   tlen(s), np
-c relative error (see GT95 eq. 6.2)
-   1.d-2   re	
-c ampratio using in grid cut-off (1.d-10 is recommended)
-   1.d-10   ratc	
-c ampratio using in l-cutoff
-   1.d-5    ratl
-c artificial damping for wrap-around (see GO94 5.1)
-   1.d-2   
-c parameter for the trial function
-c imin imax  
-    0  32     
-c parameter for the structure
+! relative error (See GT95 eq. 6.2)
+   1.d-2   re
+! ampratio used in grid cut-off (1.d-10 is recommended)
+   1.d-10  ratc
+! ampratio used in l-cutoff
+   1.d-5   ratl
+! artificial damping for wrap-around (See GO94 5.1)
+   1.d-2   adamp
+! frequency range
+   1   32   imin, imax
+! parameters for the structure
    12   nzone
-c  - Radius(km) -     --- Density (g/cm^3)---
-c                     ---   Vpv     (km/s) ---
-c                     ---   Vph     (km/s) ---
-c                     ---   Vsv     (km/s) ---
-c                     ---   Vsh     (km/s) ---
-c                     ---   eta     (ND  ) ---             - Qmu -  - Qkappa -
+!  --- Radius(km) ---  --- Density (g/cm^3) ---
+!                      ---   Vpv     (km/s) ---
+!                      ---   Vph     (km/s) ---
+!                      ---   Vsv     (km/s) ---
+!                      ---   Vsh     (km/s) ---
+!                      ---   eta       (ND) ---           - Qmu -  - Qkappa -
       0.0   1221.5    13.0885   0.0000  -8.8381   0.0000
                       11.2622   0.0000  -6.3640   0.0000
                       11.2622   0.0000  -6.3640   0.0000
@@ -93,16 +92,16 @@ c                     ---   eta     (ND  ) ---             - Qmu -  - Qkappa -
                        3.2000   0.0000   0.0000   0.0000
                        3.2000   0.0000   0.0000   0.0000
                        1.0000   0.0000   0.0000   0.0000   600.0   57823.0
-c 
-c parameter for the source
-   5771.1   -22.49 -68.09 r0(km), lat, lon (deg)
-   0.0 1.0 0.0 0.0 0.0 0.0   mt (Mrr, Mrt, Mrp, Mtt, Mtp, Mpp) (1.e25 dyne cm)
-c parameter for the station
+! 
+! parameters for the source
+   5771.1   -22.49   -68.09   r0(km), lat, lon (deg)
+   0.0 1.0 0.0 0.0 1.0 0.0   mt (Mrr, Mrt, Mrp, Mtt, Mtp, Mpp) (1.e25 dyne cm)
+! parameters for the stations
    2   nr
-     -51.6753 -58.0637 lat,lon (deg)
-     49.6753  58.0637 lat,lon (deg)
-c parameter for the data file
-examples/ABC.20090101.PSV.spc
-examples/XYZ.20090101.PSV.spc
-c
+   -51.6753   -58.0637   lat, lon (deg)
+   49.6753   58.0637   lat, lon (deg)
+! output file names
+examples/ABC_S.090101A.PSV.spc
+examples/XYZ_S.090101A.PSV.spc
+!
 end
