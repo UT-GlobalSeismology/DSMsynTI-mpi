@@ -32,7 +32,7 @@ program tipsv
   integer, parameter :: maxNGrid = 88300  ! Maximum number of grid points.
   integer, parameter :: maxNGridSolid = 48840  ! Maximum number of grid points in solid region.
   integer, parameter :: maxNGridFluid = 32040  ! Maximum number of grid points in fluid region.
-  integer, parameter :: maxNZone = 15  ! Maximum number of zones.
+  integer, parameter :: maxNZone = 100  ! Maximum number of zones.
   integer, parameter :: maxNReceiver = 1500  ! Maximum number of receivers.
   integer, parameter :: maxL = 80000  ! Maximum of angular order to loop for.
   real(8), parameter :: shallowDepth = 100.d0  ! Threshold to consider evanescent regime for shallow events [km].
