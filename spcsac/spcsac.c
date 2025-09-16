@@ -522,6 +522,7 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
                     factor = 1 + 2 * log(frequency) / PI / Qperturb;
                     factor *= sqrt(1 + 1 / (Qperturb * Qperturb));
                     printf("%lf\n", factor);
+
                     parreal = psvr[2 * tmpint];
                     parimag = psvr[2 * tmpint + 1];
                     psvr[2 * tmpint] = parreal * parQr - parimag * parQi;
@@ -530,11 +531,11 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
                     psvr[2 * tmpint + 1] *= 0.001 / factor;
 
                     parreal = psvt[2 * tmpint];
-                    parimag = psvr[2 * tmpint + 1];
+                    parimag = psvt[2 * tmpint + 1];
                     psvt[2 * tmpint] = parreal * parQr - parimag * parQi;
                     psvt[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
                     psvt[2 * tmpint] *= 0.001 / factor;
-                    psvt[2 * tmpint] *= 0.001 / factor;
+                    psvt[2 * tmpint + 1] *= 0.001 / factor;
 
                     parreal = psvp[2 * tmpint];
                     parimag = psvp[2 * tmpint + 1];
@@ -627,7 +628,6 @@ void onespcsac(float samplingFreq, int icomplexinv, double muRperturb, double Qp
 
                     parreal = sht[2 * tmpint];
                     parimag = sht[2 * tmpint + 1];
-
                     sht[2 * tmpint] = parreal * parQr - parimag * parQi;
                     sht[2 * tmpint + 1] = parreal * parQi + parimag * parQr;
                     sht[2 * tmpint] *= 0.001 / factor;
