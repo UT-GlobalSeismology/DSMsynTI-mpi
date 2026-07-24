@@ -1,8 +1,8 @@
 # makefile for tipsv
 
 PROGS = mpi-tipsv tipsv
-FC1 = mpif90
-FC2 = ifort
+FC1 = mpifort
+FC2 = ifx
 FFLAGS = -O #-no-pie
 
 OBJS0 = calmat.o solver.o trialf.o others.o operation.o rk3.o glu2.o utils.o fileio.o
