@@ -179,8 +179,12 @@ subroutine computeGridRadii(maxNGrid, nZone, kzAtZone, rminOfZone, rmaxOfZone, r
   real(8) :: rh
 
   ! Compute the distribution of grid points.
-  iGrid = 1
-  gridRadii(1) = rmin
+  ! Two-pass approach:
+  !  1) Estimate nLayerInZone(:) for all zones and accumulate totals to check array size limits.
+  !  2) Populate gridRadii only after the size check.
+
+  ! --- 1st pass: decide nLayerInZone for each zone and compute total nGrid ---
+  nGrid = 1
   do iZone = 1, nZone
     ! zone thickness [km]
     rh = rmaxOfZone(iZone) - rminOfZone(iZone)
@@ -196,16 +200,28 @@ subroutine computeGridRadii(maxNGrid, nZone, kzAtZone, rminOfZone, rmaxOfZone, r
       nTemp = int(sqrt(3.3d0 / re) * rh * kzAtZone(iZone) / 2.d0 / pi / 7.d-1 + 1)
     end if
     nLayerInZone(iZone) = max(nTemp, 5)
+    ! Accumulate number of grid points.
+    nGrid = nGrid + nLayerInZone(iZone)
+  end do
+
+  ! Pre-check array size limits before writing into gridRadii.
+  if (nGrid > maxNGrid) then
+    write(*,*) 'ERROR: number of grid points =', nGrid, 'exceeds maxNGrid =', maxNGrid
+    stop 'The number of grid points is too large. (computeGridRadii)'
+  end if
+
+  ! --- 2nd pass: actually populate gridRadii (safe because checked) ---
+  iGrid = 1
+  gridRadii(1) = rmin
+  do iZone = 1, nZone
+    ! zone thickness [km]
+    rh = rmaxOfZone(iZone) - rminOfZone(iZone)
     ! Compute radius at each grid point [km].
     do i = 1, nLayerInZone(iZone)
       iGrid = iGrid + 1
       gridRadii(iGrid) = rminOfZone(iZone) + dble(i) * rh / dble(nLayerInZone(iZone))
     end do
   end do
-
-  ! Register the total number of grid points.
-  nGrid = iGrid
-  if (nGrid > maxNGrid) stop 'The number of grid points is too large. (computeGridRadii)'
 
 end subroutine
 
