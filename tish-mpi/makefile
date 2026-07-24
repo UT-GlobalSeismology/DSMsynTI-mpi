@@ -1,8 +1,8 @@
 # makefile for tish
 
 PROGS = mpi-tish tish
-FC1 = mpif90
-FC2 = ifort
+FC1 = mpifort
+FC2 = ifx
 FFLAGS = -O #-no-pie
 
 OBJS0 = calmat.o solver.o trialf.o others.o operation.o utils.o fileio.o

@@ -1,14 +1,15 @@
 # makefile for spcsac
 
-CC = icx
+CC = cc
 #CFLAGS = -L/usr/lib -g
+LDLIBS = -lm
 OBJS = spcsac.o
 
 all:
 	make spcsac
 
 spcsac: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o spcsac;
+	$(CC) $(CFLAGS) $(OBJS) $(LDLIBS) -o spcsac
 
 .c.o: 
 	$(CC) -c $(CFLAGS) $<
